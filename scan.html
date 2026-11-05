@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Storm Inventory — Scan a bin label</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #111; color: #fff; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { background: #000; color: #fff; padding: 14px 16px; font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+  header span { color: #29ABE2; }
+  #view { position: relative; width: 100%; height: calc(100% - 132px); background: #000; overflow: hidden; }
+  #video { width: 100%; height: 100%; object-fit: cover; }
+  #reader { width: 100%; height: 100%; }
+  #msg { padding: 12px 16px; font-size: 16px; line-height: 1.4; text-align: center; min-height: 52px; }
+  #msg.err { color: #ff5a5a; }
+  #cancel { display: block; width: calc(100% - 32px); margin: 0 16px 16px; padding: 12px; font-size: 16px; background: #222; color: #fff; border: 1px solid #555; border-radius: 8px; }
+</style>
+</head>
+<body>
+<header><span>STORM</span> Inventory — Scan a bin label</header>
+<div id="view"><video id="video" playsinline muted autoplay></video><div id="reader" style="display:none"></div></div>
+<div id="msg">Looking for a code…</div>
+<button id="cancel" type="button">Cancel</button>
+<script>
+(function () {
+  // The app passes ?return=<app exec URL>. Defaults to the live app.
+  var params = new URLSearchParams(location.search);
+  var returnUrl = params.get('return') || 'https://script.google.com/macros/s/AKfycbz1Cx5_SxpOPCaNSgHs3DK6wDCqktmepnQ1JMUzmr_kLTJ0B2oPHkZZGBrhjku0FxPINw/exec';
+  var msg = document.getElementById('msg');
+  var video = document.getElementById('video');
+  var stream = null;
+  var done = false;
+  var stillTimer = null;
+
+  function setMsg(text, isErr) { msg.textContent = text; msg.className = isErr ? 'err' : ''; }
+  function stopStream() {
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    if (stillTimer) { clearTimeout(stillTimer); stillTimer = null; }
+  }
+  // Live scan only: nothing is photographed, saved, or uploaded. On a decode
+  // we jump straight back to the app with ?scan=<decoded text>.
+  function goBack(scanned) {
+    if (done) return; done = true;
+    stopStream();
+    var url = returnUrl + (returnUrl.indexOf('?') === -1 ? '?' : '&');
+    if (scanned) url += 'scan=' + encodeURIComponent(scanned);
+    location.href = url;
+  }
+  function cameraError(err) {
+    var name = (err && err.name) || '';
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      setMsg('Camera access was blocked. Allow the camera for this site in your browser settings and try again.', true);
+    } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+      setMsg('No camera was found on this device.', true);
+    } else {
+      setMsg('The camera could not be started. Check your connection and try again.', true);
+    }
+  }
+  function startNative() {
+    if (!('BarcodeDetector' in window)) { startFallback(); return; }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(function (s) {
+        stream = s;
+        video.srcObject = s;
+        return video.play();
+      })
+      .then(function () {
+        setMsg('Looking for a code…');
+        stillTimer = setTimeout(function () { setMsg('Still looking… hold the QR code steady inside the frame, a few inches from the camera'); }, 6000);
+        var detector = new BarcodeDetector({ formats: ['qr_code'] });
+        var scanning = true;
+        function tick() {
+          if (!scanning || done) return;
+          detector.detect(video).then(function (codes) {
+            if (done) return;
+            if (codes && codes.length) { scanning = false; goBack(codes[0].rawValue); return; }
+            setTimeout(tick, 150);
+          }).catch(function () { setTimeout(tick, 150); });
+        }
+        tick();
+      })
+      .catch(cameraError);
+  }
+  // Fallback for browsers without BarcodeDetector: html5-qrcode on this
+  // top-level page (its getUserMedia works here, unlike inside the app frame).
+  function startFallback() {
+    var readerDiv = document.getElementById('reader');
+    readerDiv.style.display = 'block';
+    video.style.display = 'none';
+    var script = document.createElement('script');
+    script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+    script.onload = function () {
+      var qr = new Html5Qrcode('reader');
+      qr.start({ facingMode: 'environment' },
+        { fps: 10, qrbox: function (w, h) { return { width: Math.floor(w * 0.9), height: Math.floor(h * 0.9) }; } },
+        function (text) { qr.stop().catch(function () {}); goBack(text); },
+        function () {}
+      ).catch(cameraError);
+    };
+    script.onerror = function () { setMsg('The scanner could not be loaded. Check your connection and try again.', true); };
+    document.head.appendChild(script);
+  }
+  document.getElementById('cancel').addEventListener('click', function () { goBack(null); });
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setMsg('This browser cannot open the camera. Try Chrome or Safari.', true);
+  } else {
+    startNative();
+  }
+})();
+</script>
+</body>
+</html>
