@@ -5,108 +5,389 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Storm Inventory — Scan a bin label</title>
 <style>
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; background: #111; color: #fff; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  header { background: #000; color: #fff; padding: 14px 16px; font-size: 18px; font-weight: 700; letter-spacing: .5px; }
-  header span { color: #29ABE2; }
-  #view { position: relative; width: 100%; height: calc(100% - 132px); background: #000; overflow: hidden; }
-  #video { width: 100%; height: 100%; object-fit: cover; }
-  #reader { width: 100%; height: 100%; }
-  #msg { padding: 12px 16px; font-size: 16px; line-height: 1.4; text-align: center; min-height: 52px; }
-  #msg.err { color: #ff5a5a; }
-  #cancel { display: block; width: calc(100% - 32px); margin: 0 16px 16px; padding: 12px; font-size: 16px; background: #222; color: #fff; border: 1px solid #555; border-radius: 8px; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; background: #111; color: #fff; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+body { display: flex; flex-direction: column; }
+header { background: #000; color: #fff; padding: 14px 16px; font-size: 18px; font-weight: 700; letter-spacing: .5px; flex: 0 0 auto; }
+header span { color: #29ABE2; }
+#view { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; background: #000; overflow: hidden; }
+#video { width: 100%; height: 100%; object-fit: cover; }
+#reader { width: 100%; height: 100%; }
+#focus-ring { position: absolute; width: 72px; height: 72px; margin: -36px 0 0 -36px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+#msg { padding: 12px 16px; font-size: 16px; line-height: 1.4; text-align: center; min-height: 52px; flex: 0 0 auto; }
+#msg.err { color: #ff5a5a; }
+#foot { flex: 0 0 auto; display: flex; gap: 12px; padding: 0 16px 16px; }
+#foot button { flex: 1; padding: 12px; font-size: 16px; border-radius: 8px; }
+#cancel { background: #222; color: #fff; border: 1px solid #555; }
+#done { background: #29ABE2; color: #fff; border: 1px solid #29ABE2; font-weight: 700; }
+#pop { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 10; display: flex; align-items: center; gap: 12px; background: #0F1720; color: #fff; border: 1px solid #29ABE2; border-radius: 12px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.45); transform: translateY(130%); opacity: 0; transition: transform .28s ease, opacity .28s ease; pointer-events: none; }
+#pop.show { transform: translateY(0); opacity: 1; }
+#pop img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; background: #222; flex: 0 0 auto; }
+#pop-name { font-weight: 700; font-size: 16px; line-height: 1.25; }
+#pop-sub { font-size: 14px; color: #9fd8f0; margin-top: 2px; }
 </style>
 </head>
 <body>
 <header><span>STORM</span> Inventory — Scan a bin label</header>
-<div id="view"><video id="video" playsinline muted autoplay></video><div id="reader" style="display:none"></div></div>
+<div id="view"><video id="video" playsinline muted autoplay></video><div id="reader" style="display:none"></div><div id="focus-ring"></div></div>
 <div id="msg">Looking for a code…</div>
-<button id="cancel" type="button">Cancel</button>
+<div id="foot"><button id="cancel" type="button">Cancel</button><button id="done" type="button">Done</button></div>
+<div id="pop"><img id="pop-img" alt=""><div><div id="pop-name"></div><div id="pop-sub">Added to cart</div></div></div>
 <script>
 (function () {
-  // The app passes ?return=<app exec URL>. Defaults to the live app.
-  var params = new URLSearchParams(location.search);
-  var returnUrl = params.get('return') || 'https://script.google.com/macros/s/AKfycbz1Cx5_SxpOPCaNSgHs3DK6wDCqktmepnQ1JMUzmr_kLTJ0B2oPHkZZGBrhjku0FxPINw/exec';
-  var msg = document.getElementById('msg');
-  var video = document.getElementById('video');
-  var stream = null;
-  var done = false;
-  var stillTimer = null;
-
-  function setMsg(text, isErr) { msg.textContent = text; msg.className = isErr ? 'err' : ''; }
-  function stopStream() {
-    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
-    if (stillTimer) { clearTimeout(stillTimer); stillTimer = null; }
-  }
-  // Live scan only: nothing is photographed, saved, or uploaded. On a decode
-  // we jump straight back to the app with ?scan=<decoded text>.
-  function goBack(scanned) {
-    if (done) return; done = true;
-    stopStream();
-    var url = returnUrl + (returnUrl.indexOf('?') === -1 ? '?' : '&');
-    if (scanned) url += 'scan=' + encodeURIComponent(scanned);
-    location.href = url;
-  }
-  function cameraError(err) {
-    var name = (err && err.name) || '';
-    if (name === 'NotAllowedError' || name === 'SecurityError') {
-      setMsg('Camera access was blocked. Allow the camera for this site in your browser settings and try again.', true);
-    } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
-      setMsg('No camera was found on this device.', true);
-    } else {
-      setMsg('The camera could not be started. Check your connection and try again.', true);
-    }
-  }
-  function startNative() {
-    if (!('BarcodeDetector' in window)) { startFallback(); return; }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-      .then(function (s) {
-        stream = s;
-        video.srcObject = s;
-        return video.play();
-      })
-      .then(function () {
-        setMsg('Looking for a code…');
-        stillTimer = setTimeout(function () { setMsg('Still looking… hold the QR code steady inside the frame, a few inches from the camera'); }, 6000);
-        var detector = new BarcodeDetector({ formats: ['qr_code'] });
-        var scanning = true;
-        function tick() {
-          if (!scanning || done) return;
-          detector.detect(video).then(function (codes) {
-            if (done) return;
-            if (codes && codes.length) { scanning = false; goBack(codes[0].rawValue); return; }
-            setTimeout(tick, 150);
-          }).catch(function () { setTimeout(tick, 150); });
-        }
-        tick();
-      })
-      .catch(cameraError);
-  }
-  // Fallback for browsers without BarcodeDetector: html5-qrcode on this
-  // top-level page (its getUserMedia works here, unlike inside the app frame).
-  function startFallback() {
-    var readerDiv = document.getElementById('reader');
-    readerDiv.style.display = 'block';
-    video.style.display = 'none';
-    var script = document.createElement('script');
-    script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
-    script.onload = function () {
-      var qr = new Html5Qrcode('reader');
-      qr.start({ facingMode: 'environment' },
-        { fps: 10, qrbox: function (w, h) { return { width: Math.floor(w * 0.9), height: Math.floor(h * 0.9) }; } },
-        function (text) { qr.stop().catch(function () {}); goBack(text); },
-        function () {}
-      ).catch(cameraError);
-    };
-    script.onerror = function () { setMsg('The scanner could not be loaded. Check your connection and try again.', true); };
-    document.head.appendChild(script);
-  }
-  document.getElementById('cancel').addEventListener('click', function () { goBack(null); });
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setMsg('This browser cannot open the camera. Try Chrome or Safari.', true);
+// v75: tap-to-focus, scanned popup, Done returns all scans (?scans=).
+// The app passes ?return=<app exec URL>. Defaults to the live app.
+var params = new URLSearchParams(location.search);
+var returnUrl = params.get('return') || 'https://script.google.com/macros/s/AKfycbz1Cx5_SxpOPCaNSgHs3DK6wDCqktmepnQ1JMUzmr_kLTJ0B2oPHkZZGBrhjku0FxPINw/exec';
+var msg = document.getElementById('msg');
+var video = document.getElementById('video');
+var view = document.getElementById('view');
+var ring = document.getElementById('focus-ring');
+var pop = document.getElementById('pop');
+var popImg = document.getElementById('pop-img');
+var popName = document.getElementById('pop-name');
+var popSub = document.getElementById('pop-sub');
+var doneBtn = document.getElementById('done');
+var stream = null;
+var done = false;
+var stillTimer = null;
+var popTimer = null;
+var scans = [];
+var lastText = '';
+var lastAt = 0;
+function setMsg(text, isErr) { msg.textContent = text; msg.className = isErr ? 'err' : ''; }
+function stopStream() {
+  if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+  if (stillTimer) { clearTimeout(stillTimer); stillTimer = null; }
+}
+function updateDone() {
+  doneBtn.textContent = scans.length ? ('Done (' + scans.length + ')') : 'Done';
+}
+// Live scan only: nothing is photographed, saved, or uploaded. A decode is
+// matched against the item lookup below; matches stay on the camera and
+// collect in `scans` (same item twice = quantity 2) until Done returns to
+// the app with ?scans=<comma-separated item ids>. Cancel returns with none.
+function goBack(scansCsv) {
+  if (done) return; done = true;
+  stopStream();
+  var url = returnUrl + (returnUrl.indexOf('?') === -1 ? '?' : '&');
+  if (scansCsv) url += 'scans=' + encodeURIComponent(scansCsv);
+  location.href = url;
+}
+function cameraError(err) {
+  var name = (err && err.name) || '';
+  if (name === 'NotAllowedError' || name === 'SecurityError') {
+    setMsg('Camera access was blocked. Allow the camera for this site in your browser settings and try again.', true);
+  } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+    setMsg('No camera was found on this device.', true);
   } else {
-    startNative();
+    setMsg('The camera could not be started. Check your connection and try again.', true);
   }
+}
+function showPopup(item, qty) {
+  popImg.src = item.m;
+  popName.textContent = item.t;
+  popSub.textContent = qty > 1 ? ('Added to cart · ×' + qty) : 'Added to cart';
+  pop.classList.remove('show');
+  void pop.offsetWidth;
+  pop.classList.add('show');
+  if (popTimer) clearTimeout(popTimer);
+  popTimer = setTimeout(function () { pop.classList.remove('show'); }, 5000);
+}
+function hidePopup() {
+  if (popTimer) { clearTimeout(popTimer); popTimer = null; }
+  pop.classList.remove('show');
+}
+function onDecoded(text) {
+  if (!text || done) return;
+  var now = Date.now();
+  if (text === lastText && now - lastAt < 2500) return;
+  lastText = text; lastAt = now;
+  if (stillTimer) { clearTimeout(stillTimer); stillTimer = null; }
+  var it = findScanItem(text);
+  if (it) {
+    scans.push(it.i);
+    var qty = 0;
+    for (var k = 0; k < scans.length; k++) { if (scans[k] === it.i) qty++; }
+    showPopup(it, qty);
+    updateDone();
+    setMsg('Looking for a code…');
+  } else {
+    hidePopup();
+    setMsg("That code isn't a Storm inventory item. Point the camera at a Storm bin label and try again. Scanned: " + text, true);
+  }
+}
+// Tap-to-focus: focus the camera at the tapped point (best effort; a tap
+// that the browser cannot focus just shows the ring and never breaks the scan).
+function focusAt(clientX, clientY) {
+  if (!stream) return;
+  var rect = video.getBoundingClientRect();
+  var x = rect.width ? (clientX - rect.left) / rect.width : 0.5;
+  var y = rect.height ? (clientY - rect.top) / rect.height : 0.5;
+  x = Math.max(0, Math.min(1, x));
+  y = Math.max(0, Math.min(1, y));
+  ring.style.left = (x * rect.width) + 'px';
+  ring.style.top = (y * rect.height) + 'px';
+  ring.style.opacity = '1';
+  setTimeout(function () { ring.style.opacity = '0'; }, 700);
+  try {
+    var track = stream.getVideoTracks()[0];
+    if (!track) return;
+    var caps = track.getCapabilities ? track.getCapabilities() : {};
+    var adv = {};
+    var ok = false;
+    if (caps.focusMode && caps.focusMode.indexOf('single-shot') !== -1) { adv.focusMode = 'single-shot'; ok = true; }
+    if (caps.pointsOfInterest) { adv.pointsOfInterest = [{ x: x, y: y }]; ok = true; }
+    if (!ok) { adv.pointsOfInterest = [{ x: x, y: y }]; adv.focusMode = 'single-shot'; }
+    track.applyConstraints({ advanced: [adv] }).catch(function () {
+      track.applyConstraints({ advanced: [{ focusPoint: { x: x, y: y } }] }).catch(function () {});
+    });
+  } catch (e) {}
+}
+function startNative() {
+  if (!('BarcodeDetector' in window)) { startFallback(); return; }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    .then(function (s) {
+      stream = s;
+      video.srcObject = s;
+      return video.play();
+    })
+    .then(function () {
+      setMsg('Looking for a code…');
+      stillTimer = setTimeout(function () { setMsg('Still looking… hold the QR code steady inside the frame, a few inches from the camera'); }, 6000);
+      var detector = new BarcodeDetector({ formats: ['qr_code'] });
+      var scanning = true;
+      function tick() {
+        if (!scanning || done) return;
+        detector.detect(video).then(function (codes) {
+          if (done) return;
+          if (codes && codes.length) onDecoded(codes[0].rawValue);
+          setTimeout(tick, 150);
+        }).catch(function () { setTimeout(tick, 150); });
+      }
+      tick();
+    })
+    .catch(cameraError);
+}
+// Fallback for browsers without BarcodeDetector: html5-qrcode on this
+// top-level page (its getUserMedia works here, unlike inside the app frame).
+function startFallback() {
+  var readerDiv = document.getElementById('reader');
+  readerDiv.style.display = 'block';
+  video.style.display = 'none';
+  var script = document.createElement('script');
+  script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+  script.onload = function () {
+    var qr = new Html5Qrcode('reader');
+    qr.start({ facingMode: 'environment' },
+      { fps: 10, qrbox: function (w, h) { return { width: Math.floor(w * 0.9), height: Math.floor(h * 0.9) }; } },
+      function (text) { onDecoded(text); },
+      function () {}
+    ).catch(cameraError);
+  };
+  script.onerror = function () { setMsg('The scanner could not be loaded. Check your connection and try again.', true); };
+  document.head.appendChild(script);
+}
+view.addEventListener('click', function (e) { focusAt(e.clientX, e.clientY); });
+document.getElementById('cancel').addEventListener('click', function () { goBack(null); });
+doneBtn.addEventListener('click', function () { goBack(scans.length ? scans.join(',') : null); });
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+  setMsg('This browser cannot open the camera. Try Chrome or Safari.', true);
+} else {
+  startNative();
+}
+// Item lookup + match (ported from the app's findScanItem — same tiers).
+// Generated Nov 5, 2026 from the live Storm Inventory sheet. i = bin (item id),
+// t = name, m = photo URL, u = supplier product URL (the bin-label QR),
+// s = SKU. Regenerate this list when items change.
+function normScanUrl(text) {
+  var u = String(text || '').trim();
+  u = u.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '');
+  u = u.replace(/^www\./i, '');
+  u = u.split('#')[0];
+  var parts = u.split('?');
+  if (parts.length > 1) {
+    var q = parts[1].split('&').filter(function (p) { return !/^(utm_|gclid|fbclid|mc_|_ga|ref=|source=)/i.test(p); });
+    u = parts[0] + (q.length ? '?' + q.join('&') : '');
+  }
+  u = u.replace(/\/+$/, '');
+  return u.toLowerCase();
+}
+function scanKeyToken(url) {
+  var p = String(url || '').split('/');
+  var last = p[p.length - 1] || '';
+  var m = last.match(/^\d+/);
+  return m ? m[0] : last;
+}
+function findScanItem(text) {
+  var n = normScanUrl(text);
+  if (!n) return null;
+  var host = n.split('/')[0];
+  var tok = scanKeyToken(n);
+  var i, it, tu, th, tt;
+  for (i = 0; i < ITEMS.length; i++) {
+    it = ITEMS[i];
+    if (it.u && normScanUrl(it.u) === n) return it;
+  }
+  for (i = 0; i < ITEMS.length; i++) {
+    it = ITEMS[i];
+    if (!it.u) continue;
+    tu = normScanUrl(it.u); th = tu.split('/')[0]; tt = scanKeyToken(tu);
+    if (tt && tt === tok && th === host) return it;
+  }
+  for (i = 0; i < ITEMS.length; i++) {
+    it = ITEMS[i];
+    if (it.s && String(it.s).toLowerCase() === tok && it.u && normScanUrl(it.u).split('/')[0] === host) return it;
+  }
+  return null;
+}
+var ITEMS = [
+{"i":"hd-01","t":"PVC Ball Valve 1-1/2\"","m":"https://drive.google.com/thumbnail?id=1XrnT9bAPXX1RU7seZ4mEONpyTZq29Y7v&sz=w400","u":"https://www.homedepot.com/p/Everbilt-1-1-2-in-PVC-Sch-40-Solvent-x-Solvent-Ball-Valve-107-637EB/319340971","s":"319340971"},
+{"i":"hd-02","t":"Solid Concrete 4 x 8 x 16 in.","m":"https://drive.google.com/thumbnail?id=1h_mHBEokyfJSOANbdcaBepJDVNUq1qTe&sz=w400","u":"https://www.homedepot.com/p/4-in-x-8-in-x-16-in-Solid-Concrete-Block-30168621/100350217","s":"100350217"},
+{"i":"hd-03","t":"Tiger Brand Adjustable Column 7 ft 6 in","m":"https://drive.google.com/thumbnail?id=1ZGZ_Y4YKr25dBR2xk53F8EfHBBl1NgSk&sz=w400","u":"https://www.homedepot.com/p/Tiger-Brand-7-ft-6-in-Adjustable-Steel-Building-Support-Column-3-in-O-D-3A-76710/202086526","s":"202086526"},
+{"i":"hd-04","t":"Tiger Brand Adjustable Column 6 ft 6 in","m":"https://drive.google.com/thumbnail?id=14HqmTfs1rrhmVy3QCODgOvtj--TrJUQI&sz=w400","u":"https://www.homedepot.com/p/Tiger-Brand-6-ft-6-in-to-6-ft-10-in-Adjustable-Steel-Building-Support-Column-3-in-O-D-3A-66610/202086524","s":"202086524"},
+{"i":"hd-05","t":"Concrete Mix 80 lb","m":"https://drive.google.com/thumbnail?id=1KpIKv6yfyZgGv0nHb34S9wwL4NahgZv9&sz=w400","u":"https://www.homedepot.com/p/Quikrete-80-lb-Concrete-Mix-110180/100318511","s":"100318511"},
+{"i":"hd-06","t":"Fast-Setting Mortar 55 lb","m":"https://drive.google.com/thumbnail?id=1AzSDwkFF-SHp4TpEBj_eKFOP64MdBtME&sz=w400","u":"https://www.homedepot.com/p/Rapid-Set-55-lbs-High-Performance-Fast-Setting-Mortar-Mix-04010055/202188453","s":"202188453"},
+{"i":"hd-07","t":"Quikrete Hydraulic Water-Stop 50 lb","m":"https://drive.google.com/thumbnail?id=1PZbP5sJcTq3OkmwE6-cYilULJ0fD_d8I&sz=w400","u":"https://www.homedepot.com/p/Quikrete-50-lb-5-Gal-Hydraulic-Water-Stop-Cement-Concrete-Mix-112650/100318526","s":"100318526"},
+{"i":"hd-08","t":"Henry 101 Foundation Coating 4.75 gal","m":"https://drive.google.com/thumbnail?id=1toVDzZdW4IlRTJFwIlCv03xi3r-pXz1k&sz=w400","u":"https://www.homedepot.com/p/Henry-101-Non-Fibered-Black-Foundation-Coating-4-75-gal-HE101571/100003547","s":"100003547"},
+{"i":"hd-09","t":"Stainless Steel Hose Clamp 1-3/4 to 2-3/4 in (10-Pack)","m":"https://drive.google.com/thumbnail?id=15ha65VykDoNhMBlC05dYXuCW3ZWqQKlX&sz=w400","u":"https://www.homedepot.com/p/Everbilt-1-3-4-in-to-2-3-4-in-Stainless-Steel-Hose-Clamp-10-Pack-673655E/202262872","s":"202262872"},
+{"i":"hd-10","t":"PVC Male Adapter 1-1/2\" MPT","m":"https://drive.google.com/thumbnail?id=1Vys2Ib6ncLkwRIGiU6oJVE5hBYngFwMF&sz=w400","u":"https://www.homedepot.com/p/Charlotte-Pipe-1-1-2-in-PVC-Schedule-40-MPT-x-S-Male-Adapter-PVC021091400HD/203811646","s":"203811646"},
+{"i":"hd-11","t":"PVC Elbow 90°","m":"https://drive.google.com/thumbnail?id=1LnYEIBUsD56uSJQWEyT0yQa6VUwXuPAy&sz=w400","u":"https://www.homedepot.com/p/Charlotte-Pipe-1-1-2-in-x-1-1-2-in-90-Degree-PVC-Socket-x-Socket-Elbow-Fitting-PVC023001400HD/203812129","s":"203812129"},
+{"i":"hd-12","t":"PVC Elbow 45°","m":"https://drive.google.com/thumbnail?id=1arAsBiZghKYN2yewA4HMhlDUz6bLDWSN&sz=w400","u":"https://www.homedepot.com/p/Charlotte-Pipe-1-1-2-in-x-1-1-2-in-45-Degree-PVC-Socket-x-Socket-Elbow-Fitting-PVC023091400HD/203812169","s":"203812169"},
+{"i":"hd-13","t":"PVC Street Elbow 45° 1-1/2\"","m":"https://drive.google.com/thumbnail?id=1cNV1c0-xPh82OPKIAtdmNkgJqVYzyV4A&sz=w400","u":"https://www.homedepot.com/p/Charlotte-Pipe-1-1-2-in-PVC-DWV-45-Degree-Street-Elbow-Fitting-PVC003230800HD/203393551","s":"203393551"},
+{"i":"hd-14","t":"Clear CPVC and PVC Primer 8 oz","m":"https://drive.google.com/thumbnail?id=1-ItJ8PZPq8RcADn3RfEwA2ybAeo9G5Tp&sz=w400","u":"https://www.homedepot.com/p/Oatey-8-oz-Clear-CPVC-and-PVC-Primer-307511/202985691","s":"202985691"},
+{"i":"hd-15","t":"Heavy-Duty Clear PVC Cement 8 oz","m":"https://drive.google.com/thumbnail?id=17uI2My6rt7mLdizGoalpA8cosMzxhPkR&sz=w400","u":"https://www.homedepot.com/p/Oatey-8-oz-PVC-Heavy-Duty-Cement-308633/100139307","s":"100139307"},
+{"i":"hd-16","t":"PVC Coupling 1-1/2\"","m":"https://drive.google.com/thumbnail?id=1EJVDtHG1HsuHdsZA-QNhuZfUFgI2WqJb&sz=w400","u":"https://www.homedepot.com/p/Charlotte-Pipe-1-1-2-in-PVC-Schedule-40-S-x-S-Coupling-PVC021001400HD/203811389","s":"203811389"},
+{"i":"hd-17","t":"NDS PVC Elbow 22.5° 4 in.","m":"https://drive.google.com/thumbnail?id=1cxuKJ_7eMKIGW-CtbhCvezwigbICPIHL&sz=w400","u":"https://www.homedepot.com/p/NDS-PVC-S-D-22-5-Elbow-4-in-Hub-X-Hub-4P04/202259348","s":"202259348"},
+{"i":"hd-18","t":"Henry Blueskin WP200 Membrane 66.7 ft.","m":"https://drive.google.com/thumbnail?id=1lW5kiRY8HRjEKbMigu4QJZW7JyPUOEG8&sz=w400","u":"https://www.homedepot.com/p/Henry-Blueskin-WP200-Self-Adhered-Waterproofing-Membrane-66-7-ft-x-36-in-HEWP200937/202091036","s":"202091036"},
+{"i":"hd-19","t":"Anvil Hi-Visibility","m":"https://drive.google.com/thumbnail?id=1BLOCuhU_FkXItn_e8ge4MQxoYGHGMcPW&sz=w400","u":"https://www.homedepot.com/p/Anvil-Hi-Visibility-Nozzle-10501HD/326012655","s":"326012655"},
+{"i":"hd-20","t":"Blue Steel Pool Trowel 14 in.","m":"https://drive.google.com/thumbnail?id=1GZBQ6qP4w3ykUuqxq6siDodU2hT_1pD_&sz=w400","u":"https://www.homedepot.com/p/MARSHALLTOWN-14-in-x-4-in-Blue-Steel-Pool-Trowel-Resilient-Handle-PT144BR-HD/100318195","s":"100318195"},
+{"i":"hd-21","t":"Plastic Concrete Footing","m":"https://drive.google.com/thumbnail?id=1cNt-yB1TpnfpO4nLY_B5eG62tviphMrg&sz=w400","u":"https://www.homedepot.com/p/SQUARE-FOOT-22-in-x-16-1-2-in-x-22-in-Plastic-Concrete-Footing-Form-SF22/202532049","s":"202532049"},
+{"i":"hd-22","t":"Concrete Non-Sag Caulk 10 oz","m":"https://drive.google.com/thumbnail?id=1FGlcpjd0Y1hlciwQSoqSUc5euToiGior&sz=w400","u":"https://www.homedepot.com/p/Loctite-PL-Concrete-Crack-and-Masonry-10-oz-Polyurethane-Sealant-Limestone-Cartridge-each-1618522/203156788","s":"203156788"},
+{"i":"hd-23","t":"Heavy Duty Tarp 8x10","m":"https://drive.google.com/thumbnail?id=14ugymrUnuOBFzZCCX3tQBO3sImTltJs8&sz=w400","u":"https://www.homedepot.com/p/Everbilt-8-ft-x-10-ft-Brown-and-Silver-Heavy-Duty-Tarp-PY008/308137797","s":"308137797"},
+{"i":"hd-24","t":"Contractor Bags 42 Gal (50-Count)","m":"https://drive.google.com/thumbnail?id=1O7INSzGZOxVHQOtARGUAKJeUwsZM1Zcp&sz=w400","u":"https://www.homedepot.com/p/Husky-42-Gal-Contractor-Bags-50-Count-HK42WC050B/202973825","s":"202973825"},
+{"i":"hd-25","t":"Temporary Floor Protection Board 38 in x 100 ft","m":"https://drive.google.com/thumbnail?id=1HJ2Uho_MKS3QG5j6ivi23SezggxWYJQs&sz=w400","u":"https://www.homedepot.com/p/Ram-Board-38-in-W-x-100-ft-L-42-MIL-Heavy-Duty-Temporary-Floor-Protection-Board-5008200/202088850","s":"202088850"},
+{"i":"hd-26","t":"Magnesium Hand Float","m":"https://drive.google.com/thumbnail?id=17wrCR-jWHjcRwEuJNY9su2Kjmlf0i46I&sz=w400","u":"https://www.homedepot.com/p/MARSHALLTOWN-16-in-x-1-2in-x-3-1-4in-Magnesium-Hand-Float-for-Concrete-Flooring-145D-HD/100318067","s":"100318067"},
+{"i":"hd-27","t":"Blue Steel Pool Trowel 16 in.","m":"https://drive.google.com/thumbnail?id=1azs_W7uToE55A3jpgYLqxygu5F0zbbUz&sz=w400","u":"https://www.homedepot.com/p/MARSHALLTOWN-16-in-x-4-in-Blue-Steel-Pool-Trowel-SP16BD/100318204","s":"100318204"},
+{"i":"hd-28","t":"DIABLO Oscillating Starlock Metal 1-1/4 in (3-Pack)","m":"https://drive.google.com/thumbnail?id=1N1ERDTjG-c24Z8qEUm4srDgqaGyrpImL&sz=w400","u":"https://www.homedepot.com/p/DIABLO-Oscillating-Starlock-Metal-1-1-4-in-3-Pack-DOS125CF3/314718830","s":"314718830"},
+{"i":"hd-29","t":"DIABLO Reciprocating Blades 6 in 10-Pack","m":"https://drive.google.com/thumbnail?id=1DpaI5y-JVteKrNwyGHm3KES757Syd_2m&sz=w400","u":"https://www.homedepot.com/p/DIABLO-Reciprocating-Blades-6-in-10-Pack-DS0606CWS10/307297834","s":"307297834"},
+{"i":"hd-30","t":"Milwaukee SAWZALL 6 in 18 TPI 5-Pack","m":"https://drive.google.com/thumbnail?id=12CrnhKlNcqTpqlvaGA0FHCSvXe_Yk_H7&sz=w400","u":"https://www.homedepot.com/p/Milwaukee-SAWZALL-6-in-18-TPI-5-Pack-48-00-5184/100015928","s":"100015928"},
+{"i":"hd-31","t":"Husky Folding Knife 3-Pack","m":"https://drive.google.com/thumbnail?id=1jwzzmXb6X0GFJEfO1IqjfJgTkoj15EwY&sz=w400","u":"https://www.homedepot.com/p/Husky-Folding-Knife-3-Pack-00073/329846964","s":"329846964"},
+{"i":"hd-32","t":"DIABLO Reciprocating Blade 9 in 2-Pack","m":"https://drive.google.com/thumbnail?id=1HwZM_yyH3t_tfOAwWCKa8tO97PtA-fob&sz=w400","u":"https://www.homedepot.com/p/DIABLO-Reciprocating-Blade-9-in-2-Pack-DS0908CFAP/333293856","s":"333293856"},
+{"i":"hd-33","t":"Milwaukee Selfeed Bit 2 in","m":"https://drive.google.com/thumbnail?id=1MVe1u-1T3D01QSRG2H3kLycHu_s2O4cp&sz=w400","u":"https://www.homedepot.com/p/Milwaukee-Selfeed-Bit-2-in-48-25-2002/100053616","s":"100053616"},
+{"i":"hd-34","t":"Milwaukee SWITCHBLADE Kit 2 in 10-Blades","m":"https://drive.google.com/thumbnail?id=1QXv44fpdNtWtqcPmLIpWQn0P944VkVdq&sz=w400","u":"https://www.homedepot.com/p/Milwaukee-SWITCHBLADE-Kit-2-in-10-Blades-48-25-5335/203115018","s":"203115018"},
+{"i":"hd-35","t":"Milwaukee SAWZALL Demolition 13-Pk","m":"https://drive.google.com/thumbnail?id=1SZpciVzeupyvsC_nvFGza50Wb1ascUt1&sz=w400","u":"https://www.homedepot.com/p/Milwaukee-SAWZALL-Demolition-13-Pk-49-22-1113-49-22-1110/304160491","s":"304160491"},
+{"i":"hd-36","t":"DECKMATE Deck Screws #8 x 2 in (1 lb / 126-Piece)","m":"https://drive.google.com/thumbnail?id=1YU3DPquOTdQEBONs2G5P-HTHTqn4hopb&sz=w400","u":"https://www.homedepot.com/p/DECKMATE-Deck-Screws-8-x-2-in-1-lb-126-Piece-115978/306587154","s":"306587154"},
+{"i":"hd-37","t":"DECKMATE Deck Screws #9 x 2-1/2 in (1 lb / 87-Piece)","m":"https://drive.google.com/thumbnail?id=1jLM3JVcR_CQfzLiqQutlQLdb5uJ6ULj6&sz=w400","u":"https://www.homedepot.com/p/DECKMATE-Deck-Screws-9-x-2-1-2-in-1-lb-87-Piece-115980/306587134","s":"306587134"},
+{"i":"hd-38","t":"DECKMATE Deck Screws #9 x 3 in (1 lb / 73-Piece)","m":"https://drive.google.com/thumbnail?id=1ud5SPwIdEJrBTsGC5D6LoXNgEMSzKU1z&sz=w400","u":"https://www.homedepot.com/p/DECKMATE-Deck-Screws-9-x-3-in-1-lb-73-Piece-115984/306587131","s":"306587131"},
+{"i":"hd-39","t":"DECKMATE Deck Screws #10 x 4 in (1 lb / 44-Piece)","m":"https://drive.google.com/thumbnail?id=1BRqUJgX1b_cf24Ym8Hd781-B74b1MTRO&sz=w400","u":"https://www.homedepot.com/p/DECKMATE-Deck-Screws-10-x-4-in-1-lb-44-Piece-115927/313573845","s":"313573845"},
+{"i":"hd-40","t":"DECKMATE Deck Screws 1/4 x 5 in","m":"https://drive.google.com/thumbnail?id=1pGCxFyxVxtwcpwUaHczw43q9wCk0TodK&sz=w400","u":"https://www.homedepot.com/p/DECKMATE-Deck-Screws-1-4-x-5-in-5DMT50/312754855","s":"312754855"},
+{"i":"hd-41","t":"Tapcon Concrete Anchors 1/4 x 1-3/4 in (25-Piece)","m":"https://drive.google.com/thumbnail?id=1MWCMCPZHD0a6MH4EyLvvPu-eXYeuXbuG&sz=w400","u":"https://www.homedepot.com/p/Tapcon-Concrete-Anchors-1-4-x-1-3-4-in-25-Piece-24220/100138746","s":"100138746"},
+{"i":"hd-42","t":"Tapcon Concrete Anchors 1/4 x 2-3/4 in (25-Piece)","m":"https://drive.google.com/thumbnail?id=1EL6S0_7Xzq6fD_OZsBpINyOqQ6ZlPIot&sz=w400","u":"https://www.homedepot.com/p/Tapcon-Concrete-Anchors-1-4-x-2-3-4-in-25-Piece-24230/100114651","s":"100114651"},
+{"i":"hd-43","t":"Tapcon Concrete Anchors 1/4 x 2-1/4 in (25-Piece)","m":"https://drive.google.com/thumbnail?id=1JmdR-VJGgt6bUK_CqeK0EOhIsBS6Sb8V&sz=w400","u":"https://www.homedepot.com/p/Tapcon-Concrete-Anchors-1-4-x-2-1-4-in-25-Piece-24225/100200027","s":"100200027"},
+{"i":"hd-44","t":"Teks Lath Screws #8 x 1/2 in","m":"https://drive.google.com/thumbnail?id=1KHuiH6YySsp_JqhFM8LlbC_gfMVEdV3w&sz=w400","u":"https://www.homedepot.com/p/Teks-Lath-Screws-8-x-1-2-in-99702/322254108","s":"322254108"},
+{"i":"hd-45","t":"Cable Zip Ties 500-Pack","m":"https://drive.google.com/thumbnail?id=1ipJ4AqheAw2sdYaiuVS-FsfkBF2fGL3N&sz=w400","u":"https://www.homedepot.com/p/Cable-Zip-Ties-500-Pack-GT-280STB-500/203531928","s":"203531928"},
+{"i":"hd-46","t":"Husky Steel Utility Blades (100-Pack)","m":"https://drive.google.com/thumbnail?id=1MG_zqPN2WaHfATemeoajYmKYfOF6vVGE&sz=w400","u":"https://www.homedepot.com/p/Husky-Steel-Utility-Blades-100-Pack-84-0977-0000/326155126","s":"326155126"},
+{"i":"hd-47","t":"FIRM GRIP Work Gloves Large 5-Pack","m":"https://drive.google.com/thumbnail?id=15ppQv9eQXc6-hrU-AjcdpRHdfxuHyd-n&sz=w400","u":"https://www.homedepot.com/p/FIRM-GRIP-Work-Gloves-Large-5-Pack-5558-032/205644545","s":"205644545"},
+{"i":"hd-49","t":"BISON LIFE Safety Glasses (Pack of 12)","m":"https://drive.google.com/thumbnail?id=1owL7R4eLZhwHPbLX49M7k-PVQ9LIoPzf&sz=w400","u":"https://www.homedepot.com/p/BISON-LIFE-Safety-Glasses-Pack-of-12-BIS-SG-02-12/301394019","s":"301394019"},
+{"i":"hd-50","t":"Cable Zip Ties 100-Pack","m":"https://drive.google.com/thumbnail?id=1CslEqB7UuQrTevsD_ycZKptdRMwmrzGW&sz=w400","u":"https://www.homedepot.com/p/Cable-Zip-Ties-100-Pack-GT-100MCB/203531918","s":"203531918"},
+{"i":"hd-51","t":"Milwaukee Red Disposable Earplugs 300-Pack","m":"https://drive.google.com/thumbnail?id=17elHZpFENuqxU74qIcjjcejJAxXbdj23&sz=w400","u":"https://www.homedepot.com/p/Milwaukee-Red-Disposable-Earplugs-300-Pack-48-73-3005X3/318101659","s":"318101659"},
+{"i":"hd-52","t":"HDX N95 Respirator Valve Box (15-Pack)","m":"https://drive.google.com/thumbnail?id=1DuEfHpUVEv7iafrZlVTAaVC1mLYdcojk&sz=w400","u":"https://www.homedepot.com/p/HDX-N95-Disposable-Respirator-Valve-Box-15-Pack-H950V/205337121","s":"205337121"},
+{"i":"hd-53","t":"U.S. Trench Drain 9.8 ft Grate (3-Pack Kit)","m":"https://drive.google.com/thumbnail?id=1ZH_0Xvsq9UqZjh8UVwDFZOWLcrlKf4oZ&sz=w400","u":"https://www.homedepot.com/p/U-S-TRENCH-DRAIN-Compact-Series-9-8-ft-Grate-Kit-3-Pack-83500-3/302782641","s":"302782641"},
+{"i":"hd-54","t":"DIABLO Rebar Demon 1/4 x 4 in","m":"https://drive.google.com/thumbnail?id=1BZFTV9MWm3Unp9suAURiAkEgnJtjvcfT&sz=w400","u":"https://www.homedepot.com/p/DIABLO-Rebar-Demon-1-4-x-4-in-DMAPL4060/313780402","s":"313780402"},
+{"i":"hd-55","t":"DIABLO Rebar Demon 5/8 x 12 in","m":"https://drive.google.com/thumbnail?id=1gSTIDxHdEdPaGCQJEtMnwd7P6p4rrBQc&sz=w400","u":"https://www.homedepot.com/p/DIABLO-Rebar-Demon-5-8-x-12-in-DMAPL4230/312593058","s":"312593058"},
+{"i":"hd-56","t":"DIABLO Rebar Demon 1/4 x 18 in","m":"https://drive.google.com/thumbnail?id=1UdEAV8a1NzK_-abrFN_ZpQX51Pu9S04C&sz=w400","u":"https://www.homedepot.com/p/DIABLO-Rebar-Demon-1-4-x-18-in-DMAPL4100/313780409","s":"313780409"},
+{"i":"hd-57","t":"Milwaukee SHOCKWAVE 1/4 x 18 in","m":"https://drive.google.com/thumbnail?id=1Z9CMnYgmvlZD-7B-C4FXZqaKZEYZucHz&sz=w400","u":"https://www.homedepot.com/p/Milwaukee-SHOCKWAVE-1-4-x-18-in-48-20-9013/329189880","s":"329189880"},
+{"i":"hd-58","t":"Simple Green Cleaner 1 Gal","m":"https://drive.google.com/thumbnail?id=1DyW1X3trZIPynVBPyKiysc9eciCd3cS1&sz=w400","u":"https://www.homedepot.com/p/Simple-Green-Cleaner-1-Gal-2730103613005/100060853","s":"100060853"},
+{"i":"hd-59","t":"HDX Terry Towels 14 x 14 in (100-Pack)","m":"https://drive.google.com/thumbnail?id=1SHOfqAHPb7mx9azgV_lmSwEkb-C2sGQl&sz=w400","u":"https://www.homedepot.com/p/HDX-Terry-Towels-14-x-14-in-100-Pack-T-00902-HDX/336959960","s":"336959960"},
+{"i":"hd-60","t":"ZEP Professional Spray Bottle","m":"https://drive.google.com/thumbnail?id=1uBWo--jYpkuFhxB4EIIs0hvhpw8JdMVQ&sz=w400","u":"https://www.homedepot.com/p/ZEP-Professional-Spray-Bottle-HDPRO36/100007602","s":"100007602"},
+{"i":"hd-61","t":"Beam Plate for Lally Column","m":"https://drive.google.com/thumbnail?id=1WFMdMSJmrLg9NDSh4sWBCpVUz_KN1Sfl&sz=w400","u":"https://www.homedepot.com/p/Beam-Plate-for-Lally-Column-5903450/206007301","s":"206007301"},
+{"i":"hd-62","t":"Vestil Floor Jack 16 in Max","m":"https://drive.google.com/thumbnail?id=1JQyZ0jSk3Bdfd1yf5ZfgHEfjfxdZOMJ_&sz=w400","u":"https://www.homedepot.com/p/Vestil-Floor-Jack-16-in-Max-FJB-16/302949195","s":"302949195"},
+{"i":"hd-63","t":"Nylon Elbow Adapter 3/4 in Barb","m":"https://drive.google.com/thumbnail?id=1UVJ_gbvlCLjNDKG0YRC9yS48342nB3xz&sz=w400","u":"https://www.homedepot.com/p/Nylon-Elbow-Adapter-3-4-in-Barb-800359/300862912","s":"300862912"},
+{"i":"hd-64","t":"Bed Risers 6 in Black 4-Pack","m":"https://drive.google.com/thumbnail?id=1tkOVklM6sCy0biAPrv-rVo02sqhe299A&sz=w400","u":"https://www.homedepot.com/p/Bed-Risers-6-in-Black-4-Pack-4902244EV/306757968","s":"306757968"},
+{"i":"hd-65","t":"Scotch Packaging Tape 6 Rolls","m":"https://drive.google.com/thumbnail?id=1GDFrN0b2xA6VXhvYDP-DLgjCJDTryMw9&sz=w400","u":"https://www.homedepot.com/p/Scotch-Packaging-Tape-6-Rolls-3850-6-EF/315635639","s":"315635639"},
+{"i":"hd-66","t":"Superstrut Threaded Rod 3/8 in × 2 ft","m":"https://drive.google.com/thumbnail?id=1x2J9one3Yt9o83bHtuunAl8F0SABtBok&sz=w400","u":"https://www.homedepot.com/p/Superstrut-Threaded-Rod-3-8-in-x-2-ft-ZH104-3-8X2EG-ZH104-3-8X2EG/310614128","s":"310614128"},
+{"i":"hd-67","t":"PLUMBFLEX Pipe Hanger 1-1/2 in Split Ring","m":"https://drive.google.com/thumbnail?id=1UTmdg45MyogGrs4JVwsFKuNFbNySHj9I&sz=w400","u":"https://www.homedepot.com/p/PLUMBFLEX-Pipe-Hanger-1-1-2-in-Split-Ring-112HSHG/309595895","s":"309595895"},
+{"i":"hd-68","t":"Oatey J-Hook Pipe Hanger 1-1/2 in DWV","m":"https://drive.google.com/thumbnail?id=1z88c9HJF7JRCUhgZoAjuMImGel9eO-rx&sz=w400","u":"https://www.homedepot.com/p/Oatey-J-Hook-Pipe-Hanger-1-1-2-in-DWV-33508/301505444","s":"301505444"},
+{"i":"hd-69","t":"Fernco Qwik Cap 1-1/2 in Flex PVC","m":"https://drive.google.com/thumbnail?id=1BnhxgmRaUA0_okdFhDlmCs4yTxI-9sFc&sz=w400","u":"https://www.homedepot.com/p/Fernco-Qwik-Cap-1-1-2-in-Flex-PVC-PQC-101/100372302","s":"100372302"},
+{"i":"hd-70","t":"Fernco Flexible Cap 2 in PVC DWV","m":"https://drive.google.com/thumbnail?id=19RLOESpknqWiIG7EqCvzDtuZ85Y1Sipu&sz=w400","u":"https://www.homedepot.com/p/Fernco-Flexible-Cap-2-in-PVC-DWV-PQC-102/100372303","s":"100372303"},
+{"i":"hd-71","t":"RMR 141 Fungicide 1 Gal Disinfectant","m":"https://drive.google.com/thumbnail?id=13fagaKbSvDWFwLAabWyOEUZqVL0_dS-W&sz=w400","u":"https://www.homedepot.com/p/RMR-141-Fungicide-1-Gal-Disinfectant-RMR141GRTU/312584279","s":"312584279"},
+{"i":"hd-72","t":"RMR 86 Mold Remover 1 Gal PRO Instant","m":"https://drive.google.com/thumbnail?id=1n4Jz39krQE3UHAelqP8dqUQkcVpgTCsR&sz=w400","u":"https://www.homedepot.com/p/RMR-86-Mold-Remover-1-Gal-PRO-Instant-RMR86GPRO/338014565","s":"338014565"},
+{"i":"hd-73","t":"Razor-Back Push Broom 24 in Multi-Surface","m":"https://drive.google.com/thumbnail?id=1yYnGnHerlJpZAdlN-oAjc0SV77eY3VEH&sz=w400","u":"https://www.homedepot.com/p/Razor-Back-Push-Broom-24-in-Multi-Surface-BR24MU16/302469150","s":"302469150"},
+{"i":"hd-74","t":"NDS 90° Elbow 4 in Hub x Hub","m":"https://drive.google.com/thumbnail?id=1wl1nYVz_mWNc9ZjsLgQ20U5QEO1fGzo6&sz=w400","u":"https://www.homedepot.com/p/NDS-90-Elbow-4-in-Hub-x-Hub-4P02/100137163","s":"100137163"},
+{"i":"hd-75","t":"NDS Coupling 4 in Hub x Hub","m":"https://drive.google.com/thumbnail?id=1_GevpB20Yp_OUe2Kmo-bapkVKxsD5_ue&sz=w400","u":"https://www.homedepot.com/p/NDS-Coupling-4-in-Hub-x-Hub-4P05/100192743","s":"100192743"},
+{"i":"hd-76","t":"Downspout Adapter 2x3 in to 4 in Hub","m":"https://drive.google.com/thumbnail?id=1fAiGqG4dagkDrZl3swjeGWkOwErap-OW&sz=w400","u":"https://www.homedepot.com/p/Downspout-Adapter-2x3-in-to-4-in-Hub-904/100377412","s":"100377412"},
+{"i":"hd-77","t":"RELN Grate 8 in Round Green","m":"https://drive.google.com/thumbnail?id=1S3yjhPhTpyCIue6LPyeoocnemz1ScZId&sz=w400","u":"https://www.homedepot.com/p/RELN-8-in-Round-Green-Drainage-Grate-000217/304162971","s":"304162971"},
+{"i":"hd-78","t":"RELN Bullet Basin 6 in Single Outlet","m":"https://drive.google.com/thumbnail?id=1LOsCVBxJKH2VJIdj-aOG2kg4IQIW2pTD&sz=w400","u":"https://www.homedepot.com/p/RELN-6-in-Single-Outlet-Bullet-Basin-000210/304162935","s":"304162935"},
+{"i":"hd-79","t":"JM Eagle Pipe 4 in x 10 ft PVC","m":"https://drive.google.com/thumbnail?id=11Y8uZN_Ik_KrrmUUsZk-dCIAZRUITrmf&sz=w400","u":"https://www.homedepot.com/p/JM-EAGLE-4-in-x-10-ft-PVC-D2729-Sewer-and-Drain-Pipe-1610/202280933","s":"202280933"},
+{"i":"hd-80","t":"NDS 45° Wye 4 in Hub x3","m":"https://drive.google.com/thumbnail?id=1a-Qra6a5QyxoHHoCC0_VBbFraTU0jiP_&sz=w400","u":"https://www.homedepot.com/p/NDS-PVC-S-D-45-Wye-4-in-Hub-X-Hub-X-Hub-4P08/100164403","s":"100164403"},
+{"i":"hd-81","t":"NDS 45° Elbow 4 in Hub x Hub","m":"https://drive.google.com/thumbnail?id=1SP2ADAjNflt6iOalyD-zFlQk80dIFYHS&sz=w400","u":"https://www.homedepot.com/p/NDS-PVC-S-D-45-Elbow-4-in-Hub-X-Hub-4P03/100111278","s":"100111278"},
+{"i":"hd-82","t":"Fernco Coupling 3 in x 3 in","m":"https://drive.google.com/thumbnail?id=1BDg0ordap3EVg6ECUG8JLpZ-TbVsZOK5&sz=w400","u":"https://www.homedepot.com/p/Fernco-3-in-x-3-in-PVC-DWV-Mechanical-Flexible-Coupling-P1056-33/100372296","s":"100372296"},
+{"i":"hd-83","t":"Charlotte Adapter 3 in Male PVC DWV","m":"https://drive.google.com/thumbnail?id=1USFKt4gFkoQMuF-HuxESpK7YToiAizo2&sz=w400","u":"https://www.homedepot.com/p/Charlotte-Pipe-3-in-PVC-DWV-Male-Adapter-PVC001091400HD/203393232","s":"203393232"},
+{"i":"hd-84","t":"PLUMBFLEX Reducer 3 in x 1-1/2 in","m":"https://drive.google.com/thumbnail?id=1l26qL3tl8Knq65hiGnH0fZrh-l9lg0MV&sz=w400","u":"https://www.homedepot.com/p/PLUMBFLEX-3-in-x-1-1-2-in-PVC-Flexible-Reducing-Coupling-with-Stainless-Steel-Clamps-E23843X112/305473567","s":"305473567"},
+{"i":"hd-85","t":"Charlotte Bushing 3 in x 1-1/2 in","m":"https://drive.google.com/thumbnail?id=1xFDnEmlaNmggx9iISrwmwzI9qK2bczyO&sz=w400","u":"https://www.homedepot.com/p/Charlotte-Pipe-3-in-x-1-1-2-in-PVC-DWV-Spigot-Hub-Flush-Bushing-PVC001071200HD/203391597","s":"203391597"},
+{"i":"hd-86","t":"EASTMAN Coupling 4 in x 4 in","m":"https://drive.google.com/thumbnail?id=1IFou487ZCgew-zCQ3gE-OUbXtHi_0Lrb&sz=w400","u":"https://www.homedepot.com/p/EASTMAN-4-in-x-4-in-PVC-DWV-Mechanical-Flexible-Coupling-86007/205995229","s":"205995229"},
+{"i":"hd-87","t":"Charlotte Adapter 4 in Male PVC DWV","m":"https://drive.google.com/thumbnail?id=1Xhe_xepJ4NrLKLSLkf8SsAlqkJ4FfgFr&sz=w400","u":"https://www.homedepot.com/p/Charlotte-Pipe-4-in-PVC-DWV-Male-Adapter-PVC001091600HD/203393240","s":"203393240"},
+{"i":"hd-88","t":"Charlotte Bushing 4 in x 2 in","m":"https://drive.google.com/thumbnail?id=1CHlRP9zH_LYu-O682blh1w-wXUgjHdxh&sz=w400","u":"https://www.homedepot.com/p/Charlotte-Pipe-4-in-x-2-in-PVC-DWV-Spigot-Hub-Flush-Bushing-PVC001071600HD/203393212","s":"203393212"},
+{"i":"hd-89","t":"NIBCO Bushing 2 in x 1-1/2 in","m":"https://drive.google.com/thumbnail?id=1HZlKVx_85iMDM1-VMlD8zchwBmjn8QVM&sz=w400","u":"https://www.homedepot.com/p/NIBCO-2-in-x-1-1-2-in-PVC-DWV-Flush-Bushing-C48012FHD2112/100345144","s":"100345144"},
+{"i":"hd-90","t":"PLUMBFLEX Reducer 4 in x 1-1/2 in","m":"https://drive.google.com/thumbnail?id=19fYWEb_f3Utnmstfu5gHTkBUk4N82yOO&sz=w400","u":"https://www.homedepot.com/p/PLUMBFLEX-4-in-x-1-1-2-in-PVC-Flexible-Reducing-Coupling-with-Stainless-Steel-Clamps-E43844X112/305473571","s":"305473571"},
+{"i":"rt-02","t":"PitBoss Pump 1/2 HP","m":"https://drive.google.com/thumbnail?id=13u9vGW7vPspQ5w3XW2X89FjqNC7Uj7KZ&sz=w400","u":"https://orders.richtechindustries.com/product/1005-pitboss-1-2hp-cast-iron-pump-att-sw-","s":"CIBOS50A"},
+{"i":"rt-03","t":"PitBoss WiFi Combo Kit","m":"https://drive.google.com/thumbnail?id=1gOSKxvWBCn2ppWyLlb4bzFGjLZNzCVSH&sz=w400","u":"https://orders.richtechindustries.com/product/1048-pitboss-plus-wifi-cast-iron-combo","s":"PBPCICOM"},
+{"i":"rt-04","t":"Smart RH&T Monitor","m":"https://drive.google.com/thumbnail?id=1vtfDWxJl_llrzP-wQpIdjV8bRQi6cOYh&sz=w400","u":"https://orders.richtechindustries.com/product/1125-smart-rh-t-monitor-smart-outlet-combo","s":"RICSRHT"},
+{"i":"rt-06","t":"Backup Power System","m":"https://drive.google.com/thumbnail?id=1hIpLmN65dgRlgtZEUT3BFWeEbmvdEWYs&sz=w400","u":"https://orders.richtechindustries.com/product/1032-primary-pump-backup-power-system","s":"INVRIC20"},
+{"i":"rt-07","t":"Battery Case + Cables","m":"https://drive.google.com/thumbnail?id=1uM--kyNp-xCgy6KSP9cYmUVeeC3sFdUe&sz=w400","u":"https://orders.richtechindustries.com/product/856-battery-case-with-cables","s":"PGBATBX"},
+{"i":"rt-08","t":"100 Amp/Hr Battery","m":"https://drive.google.com/thumbnail?id=1W3Zb7aoixDBeurFZKIAVN9F9eeRTB-yM&sz=w400","u":"https://orders.richtechindustries.com/product/1145-100-amp-hr-battery","s":"SLA100I"},
+{"i":"rt-09","t":"Pro Series 1/3 HP","m":"https://drive.google.com/thumbnail?id=12Yvs6YzBR7jgYIep8V_FG_mCukmBxsuq&sz=w400","u":"https://orders.richtechindustries.com/product/1132-pro-series-1-3-hp-stainless-steel-w-dfc2-phcc","s":"S3033-DFC2"},
+{"i":"rt-10","t":"Vertical Float Switch","m":"https://drive.google.com/thumbnail?id=1VF7YeN3jP9umCCwcYd_ixIzXbk8TsL_t&sz=w400","u":"https://orders.richtechindustries.com/product/1021-vertical-float-switch-pipe-mount","s":"RICSWI19"},
+{"i":"rt-11","t":"Dual Float Switch","m":"https://drive.google.com/thumbnail?id=1Xe0lLsa8SK9aBv7CVpooHahWLPtUOkJr&sz=w400","u":"https://orders.richtechindustries.com/product/1096-pro-series-dual-float-deluxe-controller-phcc","s":"DFC2"},
+{"i":"rt-12","t":"Sump Pump Stand","m":"https://drive.google.com/thumbnail?id=1WUa3c8xqQUHvcPHAtMLgxY5yIryUbJcN&sz=w400","u":"https://orders.richtechindustries.com/product/902-sump-pump-stand","s":"RICSTND"},
+{"i":"rt-13","t":"Silencer Check Valve 1-1/2 in PVC","m":"https://drive.google.com/thumbnail?id=16K1QfT1dLJM6k8nRJIiMFIkURSyE3_ou&sz=w400","u":"https://orders.richtechindustries.com/product/170-1-1-2-clear-silencer-check-valve-double-boot","s":"V150SCL"},
+{"i":"rt-14","t":"Dual Sump Discharge Conn.","m":"https://drive.google.com/thumbnail?id=1jOzi5AquQrU823ZmRqizuoturTq8ccCG&sz=w400","u":"https://orders.richtechindustries.com/product/879-y-connector-reducer","s":"RICWYE"},
+{"i":"rt-16","t":"QuikFlo Cleanout Cap","m":"https://drive.google.com/thumbnail?id=11k30hyhFQ2n-g4kQUHudU9vNkUPeUxY8&sz=w400","u":"https://orders.richtechindustries.com/product/1182-quikflo-cleanout-cap","s":"QF04CAP"},
+{"i":"rt-17","t":"QuikFlo Corners","m":"https://drive.google.com/thumbnail?id=1D7nfJTAAzizTkKwXSrooJXbrPM8gtw24&sz=w400","u":"https://orders.richtechindustries.com/product/862-quikflo-corner-2-high","s":"QF04CNR"},
+{"i":"rt-18","t":"QuikFlo Drainage Track","m":"https://drive.google.com/thumbnail?id=1EKHkaRNd0efVy4NMoD8kCngL5XC3hBq0&sz=w400","u":"https://orders.richtechindustries.com/product/881-quikflo-horiz-5-8-double-side","s":"QF10496HS58"},
+{"i":"rt-19","t":"QuikFlo Basin Adapter","m":"https://drive.google.com/thumbnail?id=1xgt0kYVrD251W8oPv_WpqxLQFwSVaU7n&sz=w400","u":"https://orders.richtechindustries.com/product/859-quikflo-basin-inlet-adapter","s":"QF04BIA"},
+{"i":"rt-20","t":"Sump Basin - Perforated","m":"https://drive.google.com/thumbnail?id=17UbzdG6D7yu83arBeSRG79IiwEnfnguL&sz=w400","u":"https://orders.richtechindustries.com/product/838-22-sump-basin-perforated","s":"SB022PF"},
+{"i":"rt-21","t":"Basin Lid - Clear","m":"https://drive.google.com/thumbnail?id=1LvQsAakqdhIVlAUBcHN9xuLx6sDJiS3P&sz=w400","u":"https://orders.richtechindustries.com/product/830-regular-lid-clear-cord-hole-1-1-2-discharge","s":"SBRADCL1"},
+{"i":"rt-22","t":"AprilAire E100W Dehumidifier","m":"https://drive.google.com/thumbnail?id=1Up1LsS9aG_TME11MFIeQGK3wPtfR6OPA&sz=w400","u":"https://orders.richtechindustries.com/product/1165-aprilaire-wifi-dehumidifier-e100w","s":"AADE100W"},
+{"i":"rt-23","t":"AprilAire Dehumidifier E130","m":"https://drive.google.com/thumbnail?id=12u9lyeTvIR5iAJWONWN4lhfz_yJ62gGO&sz=w400","u":"https://orders.richtechindustries.com/product/810-aprilaire-dehumidifier-e130","s":"AADE130"},
+{"i":"rt-24","t":"Dehumidifier Hanging Kit","m":"https://drive.google.com/thumbnail?id=1T-2v_XX9glQEViJEJaoRyxOezN8r8jh7&sz=w400","u":"https://orders.richtechindustries.com/product/949-aprilaire-dehumidifier-hanging-kit","s":"5822"},
+{"i":"rt-25","t":"AprilAire Condensate Pump","m":"https://drive.google.com/thumbnail?id=1SD5WNBjxeHsf5NUmnCWA1vfvCceRJbiB&sz=w400","u":"https://orders.richtechindustries.com/product/997-aprilaire-condensate-pump","s":"4856"},
+{"i":"rt-26","t":"Condensate Pump Bracket","m":"https://drive.google.com/thumbnail?id=1Oxkuqdu4jVEfxDtxaDXPDD0fFAOc8uh-&sz=w400","u":"https://orders.richtechindustries.com/product/1143-aprilaire","s":"5958"},
+{"i":"rt-29","t":"Carbon Fiber Kit","m":"https://drive.google.com/thumbnail?id=1YZB9BDr9tK0iiV0DJfZFg34IsXuDbzzZ&sz=w400","u":"https://orders.richtechindustries.com/product/1179-54-cfs-carbon-fiber-600-bi-6-kit","s":"CFS600654KIT"},
+{"i":"rt-30","t":"Ocher Blocker","m":"https://drive.google.com/thumbnail?id=1-NvlQKVkFfWWmlUzHHq_0p1fR3tbfvba&sz=w400","u":"https://orders.richtechindustries.com/product/912-ocher-blocker-12-5-kg-bucket","s":"RICBLKR125"},
+{"i":"rt-33","t":"White Crawl Space Tape","m":"https://drive.google.com/thumbnail?id=1PwDKKHlglxE2fXDh6jX4eGC6rEBnJv6s&sz=w400","u":"https://orders.richtechindustries.com/product/1218-white-crawl-space-tape-4-x-60-yds-straight-edge","s":"FSTAPE42-ST"},
+{"i":"rt-34","t":"Woven Crawl Liner 4 ft x 200 ft","m":"https://drive.google.com/thumbnail?id=1eOKnO97wGScOoM7d9IGpjOAq5juGTODm&sz=w400","u":"https://orders.richtechindustries.com/product/1183-woven-crawl-space-liner-4-x-200-14-mil","s":"WWS20004"},
+{"i":"rt-35","t":"Channel Cove 15 in x 225 ft","m":"https://drive.google.com/thumbnail?id=1ISKFGzEdFGsChB_0tCNxjCVdIkO7ZUDY&sz=w400","u":"https://orders.richtechindustries.com/product/10-channel-cove-white-15-x-225-roll","s":"CC10501"},
+{"i":"rt-36","t":"Dimple Shield 8 ft x 50 ft","m":"https://drive.google.com/thumbnail?id=18QEIeEBAvZ7Oj4rsoTYdO4befihr-URZ&sz=w400","u":"https://orders.richtechindustries.com/product/23-dimpledrain-8-x-50-","s":"DM80600"},
+{"i":"rt-37","t":"Freeze Drain","m":"https://drive.google.com/thumbnail?id=1IE2GbitK06040mbYb0NvLHNgjlma9v7V&sz=w400","u":"https://orders.richtechindustries.com/product/852-freezflow-discharge-fitting","s":"FREZFLO"},
+{"i":"rt-39","t":"XT Fasteners","m":"https://drive.google.com/thumbnail?id=17eSxFaNkUR5hhwtUz2AKd1RQxrsa2Vuy&sz=w400","u":"https://orders.richtechindustries.com/product/871-0-75-white-xt-fastener","s":"XT07501"},
+{"i":"rt-41","t":"Woven Crawl Liner 8 ft x 100 ft","m":"https://drive.google.com/thumbnail?id=1gehecAiK-Zvwx5uitzhBQVH93XVt-NfJ&sz=w400","u":"https://orders.richtechindustries.com/product/1184-woven-crawl-space-liner-8-x-100-14-mil","s":"WWS10008"},
+{"i":"az-01","t":"Bosch ICON Wiper Blade 20 in","m":"https://drive.google.com/thumbnail?id=1Qxe9hq-KAMynlhlUShmDQm5HvSI1Rcal&sz=w400","u":"https://www.autozone.com/p/bosch-icon-wiper-blade-20a/761542","s":"20A"},
+{"i":"az-02","t":"Techron Fuel System Cleaner 12 oz","m":"https://drive.google.com/thumbnail?id=1G4DhZoMc-z1UOEw1TyusBX0LeqzaeDwQ&sz=w400","u":"https://www.autozone.com/p/techron-fuel-system-cleaner-266362/27795","s":"266362"},
+{"i":"az-03","t":"Black Magic Wheel & Tire Cleaner","m":"https://drive.google.com/thumbnail?id=1qM6kXypMoIihVpxjjL3cJS2NTifq7G5q&sz=w400","u":"https://www.autozone.com/p/black-magic-wheel-and-tire-cleaner-120228/1428224","s":"120228"},
+{"i":"az-04","t":"Prestone Antifreeze/Coolant Pre-Mixed","m":"https://drive.google.com/thumbnail?id=1OX_qe5PiULD-F0KqexAUw-j6NQuNw305&sz=w400","u":"https://www.autozone.com/p/prestone-antifreeze-af850/672816","s":"AF850"},
+{"i":"az-05","t":"Mobil 1 Motor Oil 1 Quart","m":"https://drive.google.com/thumbnail?id=1YbE1-MrGs57MD_pngoRuaqsiGwzRXWDI&sz=w400","u":"https://www.autozone.com/p/mobil-1-motor-oil-112627/628509","s":"112627"},
+{"i":"az-06","t":"Mobil 1 Motor Oil 5 Quart","m":"https://drive.google.com/thumbnail?id=1pfOAeS0OE24Q9rHBnii6qA-mRwsFdUPy&sz=w400","u":"https://www.autozone.com/p/mobil-1-motor-oil-120766/835348","s":"120766"},
+{"i":"az-07","t":"STP Extended Life Oil Filter","m":"https://drive.google.com/thumbnail?id=1lI_Cp_rjf_nlnzwxOh8XcEQTDTmO6pw-&sz=w400","u":"https://www.autozone.com/p/stp-extended-life-engine-oil-filter-s10060xl/663641","s":"S10060XL"},
+{"i":"hd-91","t":"Charlotte Pipe 1-1/2 in. x 10 ft. PVC Schedule 40 DWV Pipe","m":"https://drive.google.com/thumbnail?id=1DppH33ATMtDAwLZ9Bj-Sis5JSD3D2FjY&sz=w400","u":"https://www.homedepot.com/p/Charlotte-Pipe-1-1-2-in-x-10-ft-PVC-Schedule-40-DWV-Pipe-PVC071120600/100348474","s":"100348474"},
+{"i":"hd-92","t":"Husky 20 oz. Fiberglass Rip Claw Hammer","m":"https://drive.google.com/thumbnail?id=1pg-wPvBluJyjF-Ddhdc8pmH1Cc1t73Jf&sz=w400","u":"https://www.homedepot.com/p/Husky-20-oz-Fiberglass-Rip-Claw-Hammer-N-G20SHK/313383605","s":"313383605"},
+{"i":"hd-93","t":"Razor-Back PowerEdge 48.75 in. Fiberglass Handle Square Point Shovel","m":"https://drive.google.com/thumbnail?id=1aSE3FaGd3HgFRzA93GzIa2d1299RIKRV&sz=w400","u":"https://www.homedepot.com/p/Razor-Back-PowerEdge-48-75-in-Fiberglass-Handle-Square-Point-Shovel-3594500/305227383","s":"305227383"},
+{"i":"hd-94","t":"Razor-Back PowerEdge 48 in. Fiberglass Handle Super Socket Digging Shovel","m":"https://drive.google.com/thumbnail?id=1Zj6lTBArAmvXpM2CwzD9KBwoFhRbyLP9&sz=w400","u":"https://www.homedepot.com/p/Razor-Back-PowerEdge-48-in-Fiberglass-Handle-Super-Socket-Digging-Shovel-3594400/305227382","s":"305227382"},
+{"i":"hd-95","t":"Husky 2.5 lb. Pick Mattock with 36 in. Fiberglass Handle","m":"https://drive.google.com/thumbnail?id=1UgXIFmJ3xMElUS3hc6OHREbgqako4HEp&sz=w400","u":"https://www.homedepot.com/p/Husky-2-5-lb-Pick-Mattock-with-36-in-Fiberglass-Handle-34210/204168129","s":"204168129"},
+{"i":"hd-96","t":"Stanley 12 in. Wonder Bar Pry Bar","m":"https://drive.google.com/thumbnail?id=1D59nCsUpHOsQ2MkqczZk_1XykjxYuqAR&sz=w400","u":"https://www.homedepot.com/p/Stanley-12-in-Wonder-Bar-Pry-Bar-55-515K/100093815","s":"100093815"},
+{"i":"hd-97","t":"DEWALT 24 in. Wrecking Bar","m":"https://drive.google.com/thumbnail?id=19cA9nnOxncwF9CgA7kB8ggtMQ5ezvRs5&sz=w400","u":"https://www.homedepot.com/p/DEWALT-24-in-Wrecking-Bar-DWHT55129/202985576","s":"202985576"},
+{"i":"hd-98","t":"Milwaukee SHOCKWAVE Screw Driver Bit Set 45-Piece","m":"https://drive.google.com/thumbnail?id=1m-CC42iPKVAm2hVDYf9zNBnB82xOdaYn&sz=w400","u":"https://www.homedepot.com/p/Milwaukee-SHOCKWAVE-Impact-Duty-Alloy-Steel-Screw-Driver-Bit-Set-45-Piece-48-32-4023/301024184","s":"301024184"},
+{"i":"hd-99","t":"HDX 1 Gallon Multi-Purpose Lawn and Garden Pump Sprayer","m":"https://drive.google.com/thumbnail?id=1xXpjGVZXSb1Ue7MhxP3Ro4IdHJg0hbWF&sz=w400","u":"https://www.homedepot.com/p/HDX-1-Gallon-Multi-Purpose-Lawn-and-Garden-Pump-Sprayer-1501HDXA/307766754","s":"307766754"},
+{"i":"hd-100","t":"BISON LIFE Clear Safety Glasses (Pack of 48)","m":"https://drive.google.com/thumbnail?id=1eO696q5Gevh4HeAHO4Q_VcA9CufEaeGW&sz=w400","u":"https://www.homedepot.com/p/BISON-LIFE-Clear-Safety-Glasses-with-Anti-Scratch-and-Impact-Resistant-Lenses-One-Size-Lightweight-Eye-Protection-Pack-of-48-BIS-SG-02-48-T/325982793","s":"325982793"},
+{"i":"hd-101","t":"HDX 18 in. Indoor-Outdoor Push Broom","m":"https://drive.google.com/thumbnail?id=1_w8SoRqOcSFziMsLdx8GYRHxE2DDu2Ry&sz=w400","u":"https://www.homedepot.com/p/HDX-18-in-Indoor-Outdoor-Push-Broom-3018/318317591","s":"318317591"},
+{"i":"hd-102","t":"Milwaukee SHOCKWAVE Screw Driver Bit Set 60-Piece","m":"https://drive.google.com/thumbnail?id=1hcN6PLE98gBDvx9uc29vQOSPVS3OFMzh&sz=w400","u":"https://www.homedepot.com/p/Milwaukee-SHOCKWAVE-Impact-Duty-Alloy-Steel-Screw-Driver-Bit-Set-60-Piece-48-32-4097/322111515","s":"322111515"},
+{"i":"hd-103","t":"EASTMAN 50 ft. 14/3 SJEOW EZ-FLO Extension Cord","m":"https://drive.google.com/thumbnail?id=1Ir-I7Tx5OqFPyUfsClfK2CVxPBbGa6eR&sz=w400","u":"https://www.homedepot.com/p/EASTMAN-50-ft-14-3-SJEOW-EZ-FLO-Extension-Cord-for-All-Weather-60996/312583734","s":"312583734"},
+{"i":"hd-104","t":"Milwaukee SHOCKWAVE Screw Driver Drill Bit Set 40-Piece","m":"https://drive.google.com/thumbnail?id=1YZXyHEGQQCLQq3E9LJ6A5EIX8WZpsoQW&sz=w400","u":"https://www.homedepot.com/p/Milwaukee-SHOCKWAVE-Impact-Duty-Alloy-Steel-Screw-Driver-Drill-Bit-Set-40-Piece-48-32-4022/301024174","s":"301024174"},
+{"i":"HI-01","t":"Pre-filter AIC (30)","m":"https://drive.google.com/thumbnail?id=1mKROzot1tnGXLUkUsF1vPsy12D-NFUCK&sz=w800","u":"https://www.hilti.com/c/CLS_DUST_WATER_MANAGEMENT/CLS_ACC_DUST_WATER_MANAGEMENT/CLS_FILTER_VACUUM_AIR_CLEANERS/2297324","s":"2297324"},
+{"i":"HI-02","t":"Main filter AIC (3)","m":"https://drive.google.com/thumbnail?id=1f0KS5BZ9aHn93NcK_pNT5OzF1NttwMt2&sz=w800","u":"https://www.hilti.com/c/CLS_DUST_WATER_MANAGEMENT/CLS_ACC_DUST_WATER_MANAGEMENT/CLS_FILTER_VACUUM_AIR_CLEANERS/2320750","s":"2320750"},
+{"i":"HI-03","t":"TE Standard Supply Cord 13' (4m)","m":"https://drive.google.com/thumbnail?id=1-hra5yJVEWDel1smfY2l6vm6KE0fLp7q&sz=w800","u":"https://www.hilti.com/c/CLS_POWER_TOOLS_7125/CLS_TOOLS_7125/CLS_ACC_DEMOLITION_HAMMERS_BREAKERS_7125/2127087","s":"2127087"}
+];
 })();
 </script>
 </body>
