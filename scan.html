@@ -25,17 +25,55 @@ header span { color: #29ABE2; }
 #pop img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; background: #222; flex: 0 0 auto; }
 #pop-name { font-weight: 700; font-size: 16px; line-height: 1.25; }
 #pop-sub { font-size: 14px; color: #9fd8f0; margin-top: 2px; }
+
+#cam-close { position: absolute; top: 8px; right: 10px; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.45); border-radius: 12px; background: rgba(255,255,255,.08); color: #fff; font-size: 26px; line-height: 1; padding: 0; }
+header { position: relative; padding-right: 60px; }
+#edge { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 30; }
+#edge path { fill: none; stroke: #29ABE2; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 100 100; stroke-dashoffset: 100; filter: drop-shadow(0 0 4px rgba(41,171,226,.8)); }
+#edge.searching path { animation: edgeLoad 2.4s linear infinite; }
+#edge.hit path { animation: none; stroke-dashoffset: 0; transition: stroke-dashoffset .3s ease-out; stroke-width: 5; }
+#edge.fade path { opacity: 0; transition: opacity .4s ease; }
+@keyframes edgeLoad { 0% { stroke-dashoffset: 100; opacity: 1; } 85% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+#pop { transition: transform .45s cubic-bezier(.4,0,.2,1), opacity .45s ease; }
+#pop.gone { transform: translateX(-115%) !important; opacity: 0 !important; }
+#cart-pill { position: absolute; right: 14px; bottom: 14px; z-index: 12; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 999px; border: 1px solid #29ABE2; background: rgba(15,23,32,.88); color: #fff; font-size: 16px; font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.4); transition: transform .3s ease, opacity .3s ease; }
+#cart-pill.hide { opacity: 0; transform: translateY(20px); pointer-events: none; }
+#cart-pill.bump { animation: bump .45s ease; }
+@keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
+#cart-pill .cnt { background: #29ABE2; border-radius: 999px; min-width: 24px; height: 24px; line-height: 24px; text-align: center; font-size: 13px; padding: 0 6px; }
+#sheet { position: fixed; left: 10px; right: 10px; top: 70px; bottom: 90px; z-index: 40; display: none; flex-direction: column; background: rgba(15,23,32,.96); border: 1px solid #29ABE2; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.6); transition: transform .35s cubic-bezier(.4,0,.2,1), opacity .35s ease; }
+#sheet.open { display: flex; }
+#sheet.closing { opacity: 0; }
+#sheet.minimizing { opacity: 0; transform: scale(.08); }
+#sheet-head { display: flex; align-items: center; padding: 12px 12px 8px 16px; border-bottom: 1px solid rgba(255,255,255,.1); }
+#sheet-head h2 { margin: 0; font-size: 18px; flex: 1; }
+#sheet-head button { width: 36px; height: 36px; margin-left: 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.06); color: #fff; font-size: 22px; line-height: 1; padding: 0; }
+#sheet-list { flex: 1; overflow-y: auto; padding: 6px 12px; }
+.line { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+.line img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: #222; flex: none; }
+.line .nm { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; line-height: 1.25; }
+.line .pr { font-size: 13px; color: #9fd8f0; margin-top: 2px; font-weight: 400; }
+.qty { display: flex; align-items: center; border: 1px solid #29ABE2; border-radius: 10px; overflow: hidden; flex: none; }
+.qty button { width: 36px; height: 36px; border: 0; background: transparent; color: #fff; font-size: 20px; padding: 0; }
+.qty span { min-width: 28px; text-align: center; font-weight: 700; }
+#sheet-foot { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,.1); display: flex; justify-content: space-between; font-size: 17px; font-weight: 700; }
+.empty { padding: 30px 10px; text-align: center; color: #9ca3af; }
+.hap { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
 </style>
 </head>
 <body>
-<header><span>STORM</span> Inventory — Scan a bin label</header>
-<div id="view"><video id="video" playsinline muted autoplay></video><div id="reader" style="display:none"></div><div id="focus-ring"></div></div>
+<header><span>STORM</span> Inventory — Scan a bin label<button id="cam-close" type="button" aria-label="Close camera">&times;</button></header>
+<div id="view"><video id="video" playsinline muted autoplay></video><div id="reader" style="display:none"></div><div id="focus-ring"></div><button id="cart-pill" type="button" aria-label="Open cart"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><span class="cnt" id="cart-cnt">0</span><span id="cart-tot">$0.00</span></button></div>
 <div id="msg">Looking for a code…</div>
 <div id="foot"><button id="cancel" type="button">Cancel</button><button id="done" type="button">Done</button></div>
 <div id="pop"><img id="pop-img" alt=""><div><div id="pop-name"></div><div id="pop-sub">Added to cart</div></div></div>
+<svg id="edge" aria-hidden="true"><path id="edge-path" pathLength="100"></path></svg>
+<div id="sheet" role="dialog" aria-label="Cart"><div id="sheet-head"><h2>Cart</h2><button id="sheet-min" type="button" aria-label="Minimize">&minus;</button><button id="sheet-x" type="button" aria-label="Close">&times;</button></div><div id="sheet-list"></div><div id="sheet-foot"><span id="sheet-units">0 items</span><span id="sheet-total">$0.00</span></div></div>
+<label class="hap" aria-hidden="true"><input type="checkbox" switch id="hap-input"></label>
 <script>
 (function () {
 // v75: tap-to-focus, scanned popup, Done returns all scans (?scans=).
+// v76 adds the edge loader, beep + haptic and the in-camera cart (see below).
 // The app passes ?return=<app exec URL>. Defaults to the live app.
 var params = new URLSearchParams(location.search);
 var returnUrl = params.get('return') || 'https://script.google.com/macros/s/AKfycbz1Cx5_SxpOPCaNSgHs3DK6wDCqktmepnQ1JMUzmr_kLTJ0B2oPHkZZGBrhjku0FxPINw/exec';
@@ -55,6 +93,133 @@ var popTimer = null;
 var scans = [];
 var lastText = '';
 var lastAt = 0;
+
+// v76: edge loader, beep + haptic, in-camera cart with qty editing.
+// The app passes ?cart=<bin*qty,...>&px=<bin~price,...>. When px is present
+// this page returns the whole edited cart as ?cart=...&ct=<stamp>; with an
+// older app (no px) it falls back to ?scans=.
+var hasCartApi = params.has('px');
+var PX = {};
+(params.get('px') || '').split(',').forEach(function (s) { var a = s.split('~'); if (a[0]) PX[a[0]] = Number(a[1]); });
+var cart = [];
+(params.get('cart') || '').split(',').forEach(function (s) { var a = s.split('*'); var q = Math.floor(Number(a[1])); if (a[0] && q > 0) cart.push({ bin: a[0], qty: q }); });
+var ITEM_BY_ID = null;
+function itemById(id) {
+  if (!ITEM_BY_ID) { ITEM_BY_ID = {}; ITEMS.forEach(function (it) { ITEM_BY_ID[it.i] = it; ITEM_BY_ID[String(it.i).toLowerCase()] = it; }); }
+  return ITEM_BY_ID[id] || ITEM_BY_ID[String(id).toLowerCase()] || null;
+}
+function money(n) { return '$' + Number(n || 0).toFixed(2); }
+function cartTotals() { var u = 0, t = 0; cart.forEach(function (c) { u += c.qty; if (PX[c.bin] != null) t += PX[c.bin] * c.qty; }); return { units: u, total: t }; }
+function cartAdd(bin) { for (var i = 0; i < cart.length; i++) if (cart[i].bin === bin) { cart[i].qty++; return cart[i].qty; } cart.push({ bin: bin, qty: 1 }); return 1; }
+var pill = document.getElementById('cart-pill');
+function renderPill(bump) {
+  var t = cartTotals();
+  document.getElementById('cart-cnt').textContent = t.units;
+  document.getElementById('cart-tot').textContent = money(t.total);
+  if (bump) { pill.classList.remove('bump'); void pill.offsetWidth; pill.classList.add('bump'); }
+}
+// Edge loader: thin blue line from the top middle, around the screen edge, back to the top middle.
+var edge = document.getElementById('edge');
+var edgePath = document.getElementById('edge-path');
+function layoutEdge() {
+  var w = window.innerWidth, h = window.innerHeight, i = 2, r = Math.min(38, w / 6);
+  edge.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+  edgePath.setAttribute('d', 'M' + (w / 2) + ' ' + i + ' H' + (w - i - r) + ' A' + r + ' ' + r + ' 0 0 1 ' + (w - i) + ' ' + (i + r) + ' V' + (h - i - r) + ' A' + r + ' ' + r + ' 0 0 1 ' + (w - i - r) + ' ' + (h - i) + ' H' + (i + r) + ' A' + r + ' ' + r + ' 0 0 1 ' + i + ' ' + (h - i - r) + ' V' + (i + r) + ' A' + r + ' ' + r + ' 0 0 1 ' + (i + r) + ' ' + i + ' Z');
+}
+layoutEdge();
+window.addEventListener('resize', layoutEdge);
+function edgeSearching() { edge.classList.remove('hit', 'fade'); edge.classList.add('searching'); }
+var edgeTimer = null;
+function edgeHit() {
+  var off = 100;
+  try { off = parseFloat(getComputedStyle(edgePath).strokeDashoffset) || 100; } catch (e) {}
+  edge.classList.remove('searching', 'fade');
+  edgePath.style.strokeDashoffset = off;
+  void edgePath.getBoundingClientRect();
+  edge.classList.add('hit');
+  edgePath.style.strokeDashoffset = '';
+  if (edgeTimer) clearTimeout(edgeTimer);
+  edgeTimer = setTimeout(function () { edge.classList.add('fade'); edgeTimer = setTimeout(function () { if (!done) edgeSearching(); }, 450); }, 700);
+}
+// Beep + haptic, together. Silent-mode iPhones skip the beep.
+var actx = null;
+function unlockAudio() {
+  try { if (!actx) { var AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); } if (actx && actx.state === 'suspended') actx.resume(); } catch (e) {}
+}
+['pointerdown', 'touchstart', 'click'].forEach(function (ev) { document.addEventListener(ev, unlockAudio, { passive: true }); });
+unlockAudio();
+function beep() {
+  try {
+    unlockAudio(); if (!actx) return;
+    var o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    o.type = 'square'; o.frequency.setValueAtTime(1850, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + 0.15);
+  } catch (e) {}
+}
+var hapInput = document.getElementById('hap-input');
+function haptic() {
+  try { if (navigator.vibrate) { navigator.vibrate(70); return; } } catch (e) {}
+  try { hapInput.click(); } catch (e2) {} // iOS 17.4+ switch-control haptic, best effort
+}
+// In-camera cart sheet.
+var sheet = document.getElementById('sheet');
+var sheetList = document.getElementById('sheet-list');
+function renderSheet() {
+  var html = '';
+  if (!cart.length) html = '<div class="empty">Your cart is empty. Scan a bin label to add an item.</div>';
+  cart.forEach(function (c, idx) {
+    var it = itemById(c.bin) || { t: c.bin, m: '' };
+    var p = PX[c.bin];
+    html += '<div class="line"><img src="' + (it.m || '') + '" alt=""><div class="nm">' + String(it.t).replace(/</g, '&lt;') + '<div class="pr">' + (p != null ? money(p) + ' each · ' + money(p * c.qty) : 'No price') + '</div></div>'
+      + '<div class="qty"><button type="button" data-dec="' + idx + '" aria-label="Less">&minus;</button><span>' + c.qty + '</span><button type="button" data-inc="' + idx + '" aria-label="More">+</button></div></div>';
+  });
+  sheetList.innerHTML = html;
+  var t = cartTotals();
+  document.getElementById('sheet-units').textContent = t.units + ' item' + (t.units === 1 ? '' : 's');
+  document.getElementById('sheet-total').textContent = money(t.total);
+}
+sheetList.addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (!b) return;
+  if (b.hasAttribute('data-inc')) cart[+b.getAttribute('data-inc')].qty++;
+  else if (b.hasAttribute('data-dec')) { var i = +b.getAttribute('data-dec'); cart[i].qty--; if (cart[i].qty <= 0) cart.splice(i, 1); }
+  renderSheet(); renderPill(false);
+});
+function openSheet() {
+  hidePopup(true);
+  renderSheet();
+  sheet.classList.remove('closing', 'minimizing');
+  sheet.style.transformOrigin = '';
+  sheet.classList.add('open');
+  pill.classList.add('hide');
+}
+function closeSheet(minimize) {
+  if (!sheet.classList.contains('open')) return;
+  if (minimize) {
+    var s = sheet.getBoundingClientRect(), p = pill.getBoundingClientRect();
+    sheet.style.transformOrigin = (p.left + p.width / 2 - s.left) + 'px ' + (p.top + p.height / 2 - s.top) + 'px';
+    sheet.classList.add('minimizing');
+  } else sheet.classList.add('closing');
+  setTimeout(function () {
+    sheet.classList.remove('open', 'closing', 'minimizing');
+    pill.classList.remove('hide'); renderPill(!!minimize);
+  }, 360);
+}
+pill.addEventListener('click', function (e) { e.stopPropagation(); openSheet(); });
+document.getElementById('sheet-min').addEventListener('click', function () { closeSheet(true); });
+document.getElementById('sheet-x').addEventListener('click', function () { closeSheet(false); });
+sheet.addEventListener('click', function (e) { e.stopPropagation(); });
+function cartCsv() { return cart.map(function (c) { return c.bin + '*' + c.qty; }).join(','); }
+function goBackWithCart() {
+  if (!hasCartApi) { goBack(scans.length ? scans.join(',') : null); return; }
+  if (done) return; done = true;
+  stopStream();
+  var url = returnUrl + (returnUrl.indexOf('?') === -1 ? '?' : '&');
+  location.href = url + 'cart=' + encodeURIComponent(cartCsv()) + '&ct=' + Date.now();
+}
+document.getElementById('cam-close').addEventListener('click', function (e) { e.stopPropagation(); goBackWithCart(); });
+renderPill(false);
+edgeSearching();
 function setMsg(text, isErr) { msg.textContent = text; msg.className = isErr ? 'err' : ''; }
 function stopStream() {
   if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
@@ -88,15 +253,21 @@ function showPopup(item, qty) {
   popImg.src = item.m;
   popName.textContent = item.t;
   popSub.textContent = qty > 1 ? ('Added to cart · ×' + qty) : 'Added to cart';
-  pop.classList.remove('show');
+  pop.classList.remove('show', 'gone');
   void pop.offsetWidth;
   pop.classList.add('show');
+  pill.classList.add('hide');
   if (popTimer) clearTimeout(popTimer);
-  popTimer = setTimeout(function () { pop.classList.remove('show'); }, 5000);
+  popTimer = setTimeout(function () {
+    pop.classList.add('gone');
+    popTimer = setTimeout(function () { pop.classList.remove('show', 'gone'); }, 460);
+    if (!sheet.classList.contains('open')) { pill.classList.remove('hide'); renderPill(true); }
+  }, 5000);
 }
-function hidePopup() {
+function hidePopup(keepPill) {
   if (popTimer) { clearTimeout(popTimer); popTimer = null; }
-  pop.classList.remove('show');
+  pop.classList.remove('show', 'gone');
+  if (!keepPill && !sheet.classList.contains('open')) pill.classList.remove('hide');
 }
 function onDecoded(text) {
   if (!text || done) return;
@@ -107,8 +278,11 @@ function onDecoded(text) {
   var it = findScanItem(text);
   if (it) {
     scans.push(it.i);
-    var qty = 0;
-    for (var k = 0; k < scans.length; k++) { if (scans[k] === it.i) qty++; }
+    var qty = cartAdd(it.i);
+    if (!hasCartApi) { qty = 0; for (var k = 0; k < scans.length; k++) { if (scans[k] === it.i) qty++; } }
+    edgeHit(); beep(); haptic();
+    renderPill(false);
+    if (sheet.classList.contains('open')) renderSheet();
     showPopup(it, qty);
     updateDone();
     setMsg('Looking for a code…');
@@ -190,7 +364,7 @@ function startFallback() {
 }
 view.addEventListener('click', function (e) { focusAt(e.clientX, e.clientY); });
 document.getElementById('cancel').addEventListener('click', function () { goBack(null); });
-doneBtn.addEventListener('click', function () { goBack(scans.length ? scans.join(',') : null); });
+doneBtn.addEventListener('click', function () { goBackWithCart(); });
 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
   setMsg('This browser cannot open the camera. Try Chrome or Safari.', true);
 } else {
