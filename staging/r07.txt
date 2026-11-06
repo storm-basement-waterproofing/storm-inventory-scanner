@@ -1,0 +1,1 @@
+  if ($('labels-btn')) $('labels-btn').addEventListener('click', openLabels);
