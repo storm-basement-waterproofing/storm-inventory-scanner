@@ -6,17 +6,17 @@
 <title>Storm Inventory — Scan a bin label</title>
 <style>
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; background: #111; color: #fff; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+html, body { margin: 0; padding: 0; height: 100%; height: 100dvh; background: #111; color: #fff; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 body { display: flex; flex-direction: column; }
-header { background: #000; color: #fff; padding: 14px 16px; font-size: 18px; font-weight: 700; letter-spacing: .5px; flex: 0 0 auto; }
-header span { color: #29ABE2; } header .hdr-logo { height: 22px; width: auto; vertical-align: -5px; margin-right: 8px; }
+header { background: #000; color: #fff; padding: calc(10px + env(safe-area-inset-top)) 56px 10px; text-align: center; min-height: 56px; font-size: 18px; font-weight: 700; letter-spacing: .5px; flex: 0 0 auto; }
+header span { color: #29ABE2; } header .hdr-logo { height: 30px; width: auto; max-width: 60vw; display: block; margin: 0 auto; }
 #view { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; background: #000; overflow: hidden; }
 #video { width: 100%; height: 100%; object-fit: cover; }
 #reader { width: 100%; height: 100%; }
 #focus-ring { position: absolute; width: 72px; height: 72px; margin: -36px 0 0 -36px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
 #msg { padding: 12px 16px; font-size: 16px; line-height: 1.4; text-align: center; min-height: 52px; flex: 0 0 auto; }
 #msg.err { color: #ff5a5a; }
-#foot { flex: 0 0 auto; display: flex; gap: 12px; padding: 0 16px 16px; }
+#foot { flex: 0 0 auto; display: flex; gap: 12px; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); }
 #foot button { flex: 1; padding: 12px; font-size: 16px; border-radius: 8px; }
 #cancel { background: #222; color: #fff; border: 1px solid #555; }
 #done { background: #29ABE2; color: #fff; border: 1px solid #29ABE2; font-weight: 700; }
@@ -26,7 +26,7 @@ header span { color: #29ABE2; } header .hdr-logo { height: 22px; width: auto; ve
 #pop-name { font-weight: 700; font-size: 16px; line-height: 1.25; }
 #pop-sub { font-size: 14px; color: #9fd8f0; margin-top: 2px; }
 
-#cam-close { position: absolute; top: 8px; right: 10px; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.45); border-radius: 12px; background: rgba(255,255,255,.08); color: #fff; font-size: 26px; line-height: 1; padding: 0; }
+#cam-close { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 10px; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.45); border-radius: 12px; background: rgba(255,255,255,.08); color: #fff; font-size: 26px; line-height: 1; padding: 0; }
 header { position: relative; padding-right: 60px; }
 #edge { position: fixed; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; overflow: visible; }
 #safe-probe { position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
@@ -35,6 +35,12 @@ header { position: relative; padding-right: 60px; }
 #trace polygon { fill: rgba(41,171,226,.12); stroke: #29ABE2; stroke-width: 4; stroke-linejoin: round; stroke-dasharray: 100 100; stroke-dashoffset: 100; filter: drop-shadow(0 0 5px rgba(41,171,226,.9)); opacity: 0; transition: opacity .2s ease; }
 #trace.on polygon { opacity: 1; animation: traceDraw .35s ease-out forwards; }
 @keyframes traceDraw { to { stroke-dashoffset: 0; } }
+#edge path { display: none; }
+#glow { position: fixed; inset: 0; pointer-events: none; z-index: 30; opacity: 0; box-shadow: inset 0 0 22px 4px rgba(255,255,255,.75), inset 0 0 60px 10px rgba(255,255,255,.35); transition: opacity .3s ease; }
+#edge.searching + #glow { animation: glowPulse 1.8s ease-in-out infinite; }
+#edge.hit + #glow { animation: none; opacity: 1; box-shadow: inset 0 0 30px 8px rgba(255,255,255,.95), inset 0 0 80px 18px rgba(255,255,255,.5); }
+#edge.fade + #glow { animation: none; opacity: 0; }
+@keyframes glowPulse { 0%, 100% { opacity: .15; } 50% { opacity: .9; } }
 #edge.searching path { animation: edgeLoad 2.4s linear infinite; }
 #edge.hit path { animation: none; stroke-dashoffset: 0; transition: stroke-dashoffset .3s ease-out; stroke-width: 5; }
 #edge.fade path { opacity: 0; transition: opacity .4s ease; }
@@ -67,17 +73,18 @@ header { position: relative; padding-right: 60px; }
 </style>
 </head>
 <body>
-<header><img class="hdr-logo" src="https://drive.google.com/thumbnail?id=1APQ3gyenuDNOoCyvC-NhXg-2L8tM0REM&amp;sz=w400" alt="STORM">Inventory — Scan a bin label<button id="cam-close" type="button" aria-label="Close camera">&times;</button></header>
+<header><img class="hdr-logo" src="https://drive.google.com/thumbnail?id=1APQ3gyenuDNOoCyvC-NhXg-2L8tM0REM&amp;sz=w400" alt="STORM"><button id="cam-close" type="button" aria-label="Close camera">&times;</button></header>
 <div id="view"><video id="video" playsinline muted autoplay></video><div id="reader" style="display:none"></div><div id="focus-ring"></div><svg id="trace" aria-hidden="true" preserveAspectRatio="none"><polygon id="trace-poly" pathLength="100" points=""></polygon></svg><button id="cart-pill" type="button" aria-label="Open cart"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><span class="cnt" id="cart-cnt">0</span><span id="cart-tot">$0.00</span></button></div>
 <div id="msg">Looking for a code…</div>
 <div id="foot"><button id="cancel" type="button">Cancel</button><button id="done" type="button">Done</button></div>
 <div id="pop"><img id="pop-img" alt=""><div><div id="pop-name"></div><div id="pop-sub">Added to cart</div></div></div>
-<div id="safe-probe"></div><svg id="edge" aria-hidden="true" preserveAspectRatio="none"><path id="edge-path" pathLength="100"></path></svg>
+<div id="safe-probe"></div><svg id="edge" aria-hidden="true" preserveAspectRatio="none"><path id="edge-path" pathLength="100"></path></svg><div id="glow"></div>
 <div id="sheet" role="dialog" aria-label="Cart"><div id="sheet-head"><h2>Cart</h2><button id="sheet-min" type="button" aria-label="Minimize">&minus;</button><button id="sheet-x" type="button" aria-label="Close">&times;</button></div><div id="sheet-list"></div><div id="sheet-foot"><span id="sheet-units">0 items</span><span id="sheet-total">$0.00</span></div></div>
 <label class="hap" aria-hidden="true"><input type="checkbox" switch id="hap-input"></label>
 <script>
 (function () {
 // v75: tap-to-focus, scanned popup, Done returns all scans (?scans=).
+// v78: pulsing white side glow instead of the line, centered logo only, buttons clear of the home bar.
 // v77: true-viewport white edge glow, STORM logo, blue QR tracing (jsQR fallback for iPhone).
 // v76 adds the edge loader, beep + haptic and the in-camera cart (see below).
 // The app passes ?return=<app exec URL>. Defaults to the live app.
