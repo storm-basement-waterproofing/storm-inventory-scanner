@@ -1,1 +1,0 @@
-  else if (dy > 0) { topbarUp = 0; topbarHide = Math.min(h, topbarHide + dy); } else if (dy < 0) { topbarUp += -dy; var need = topbarHide >= h ? TOPBAR_REVEAL_DELAY : 0; if (topbarUp > need) topbarHide = Math.max(0, topbarHide - Math.min(-dy, topbarUp - need)); } if (topbarHide > y) topbarHide = Math.max(0, y);
