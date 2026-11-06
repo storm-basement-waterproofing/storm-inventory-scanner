@@ -1,1 +1,0 @@
-var topbarTicking = false; var topbarUp = 0; var TOPBAR_REVEAL_DELAY = 150;
