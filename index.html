@@ -16,13 +16,13 @@
   #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #000; opacity: 0; transition: opacity .35s ease; }
   #app.ready { opacity: 1; }
   #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; transition: opacity .4s ease; }
-  #boot img { width: 54px; animation: pulse 1.4s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(80,190,255,.6)); }
+  #boot img { width: min(72vw, 300px); height: auto; animation: pulse 1.4s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(80,190,255,.6)); }
   #boot.gone { opacity: 0; pointer-events: none; }
   @keyframes pulse { 0%, 100% { opacity: .45; transform: scale(.94); } 50% { opacity: 1; transform: scale(1); } }
 </style>
 </head>
 <body>
-<div id="boot"><img src="assets/drop.png" alt="STORM"></div>
+<div id="boot"><img src="https://drive.google.com/thumbnail?id=1APQ3gyenuDNOoCyvC-NhXg-2L8tM0REM&amp;sz=w800" alt="STORM Basement Waterproofing"></div>
 <iframe id="app" title="STORM Inventory" allow="clipboard-read; clipboard-write; camera; microphone; autoplay; fullscreen; web-share"></iframe>
 <script>
   var EXEC = 'https://script.google.com/macros/s/AKfycbz1Cx5_SxpOPCaNSgHs3DK6wDCqktmepnQ1JMUzmr_kLTJ0B2oPHkZZGBrhjku0FxPINw/exec';
