@@ -100,7 +100,7 @@ header { position: relative; padding-right: 60px; }
 // v76 adds the edge loader, beep + haptic and the in-camera cart (see below).
 // The app passes ?return=<app exec URL>. Defaults to the live app.
 var params = new URLSearchParams(location.search);
-var returnUrl = params.get('return') || 'https://script.google.com/macros/s/AKfycbz1Cx5_SxpOPCaNSgHs3DK6wDCqktmepnQ1JMUzmr_kLTJ0B2oPHkZZGBrhjku0FxPINw/exec';
+var returnUrl = params.get('return') || 'https://script.google.com/macros/s/AKfycbz1Cx5_SxpOPCaNSgHs3DK6wDCqktmepnQ1JMUzmr_kLTJ0B2oPHkZZGBrhjku0FxPINw/exec'; try { if (localStorage.getItem('stormWrap') === '1' && /script\.google\.com\/macros\/s\/[^/]+\/exec/.test(returnUrl)) returnUrl = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/' + (returnUrl.indexOf('?') >= 0 ? returnUrl.slice(returnUrl.indexOf('?')) : ''); } catch (e) {}
 var msg = document.getElementById('msg');
 var video = document.getElementById('video');
 var view = document.getElementById('view');
