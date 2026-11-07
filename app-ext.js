@@ -7,7 +7,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 (function () {
   var A = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/';
   var css = ''
-  + '.storm-logo-anim { position: relative; display: block; width: min(240px, 248px); aspect-ratio: 800 / 206; margin: 0 auto; overflow: visible; pointer-events: none; }'
+  + '.storm-logo-anim { position: relative; display: block; width: min(240px, 248px); aspect-ratio: 800 / 206; margin: 0 auto; overflow: visible; cursor: pointer; -webkit-tap-highlight-color: transparent; }'
   + '.storm-logo-anim img { position: absolute; display: block; max-width: none; margin: 0; }'
   + '.sla-drop { left: 0; top: 0; width: 20.625%; height: 100%; transform-origin: 50% 100%; }'
   + '.sla-storm { left: 20.625%; top: 14.563%; width: 79.375%; height: 67.961%; transform-origin: 50% 100%; }'
@@ -79,9 +79,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
  w.insertAdjacentHTML('afterbegin', fxh);
  var imgs = w.querySelectorAll('img'), left = imgs.length, done = false;
       var swap = function () { if (done) return; done = true; if (!old.parentNode) return; old.parentNode.replaceChild(w, old); void w.offsetWidth; w.classList.add('go'); };
-      var fail = function () { done = true; };
+      var fail = function () { swap(); };
       Array.prototype.forEach.call(imgs, function (im) { im.addEventListener('load', function () { if (--left === 0) swap(); }); im.addEventListener('error', fail); });
-      setTimeout(function () { if (left > 0) fail(); }, 2500);
+      setTimeout(function () { if (left > 0) swap(); }, 1200); w.addEventListener('click', function () { w.classList.remove('go'); void w.offsetWidth; w.classList.add('go'); });
     }
   } catch (e) {}
 
