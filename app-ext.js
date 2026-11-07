@@ -212,3 +212,16 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   if (typeof renderPickSheet === 'function') { var _rp = renderPickSheet; renderPickSheet = function () { var r = _rp.apply(this, arguments); try { var el = document.getElementById('pick-sheet'); var sec = el && el.querySelector('.lbl-sec'); if (sec) sec.parentNode.removeChild(sec); var em = el && el.querySelector('.pick-empty'); if (em) em.style.display = ''; } catch (e) {} return r; }; }
   var tries = 0; (function boot() { if (build()) update(); else if (tries++ < 40) setTimeout(boot, 150); })();
 })();
+
+/* STORM category regroup (Hark, 2026-11-06): preview via app-ext; sheet Category column unchanged */
+(function () {
+  if (typeof render !== 'function' || typeof CATEGORY_ORDER === 'undefined') return;
+  var BY_BIN = { 'rt-25': 'AprilAire Accessories', 'rt-26': 'AprilAire Accessories', 'rt-03': 'Battery Backup', 'rt-04': 'High Water Alarms', 'hd-103': 'Extension Cords' };
+  var RENAME = { 'Power & Backup': 'Battery Backup' };
+  function fix() { if (!items || !items.forEach) return; items.forEach(function (it) { var b = (it.bin || '').toLowerCase(); if (BY_BIN[b]) it.category = BY_BIN[b]; else if (/hanging\s*strap/i.test(it.name || '')) it.category = 'AprilAire Accessories'; else if (RENAME[it.category]) it.category = RENAME[it.category]; }); }
+  var want = ['Pumps', 'Switches & Floats', 'Dehumidifiers', 'AprilAire Accessories', 'Battery Backup', 'High Water Alarms', 'Extension Cords'];
+  var rest = CATEGORY_ORDER.filter(function (c) { return want.indexOf(c) < 0 && c !== 'Power & Backup'; });
+  CATEGORY_ORDER.length = 0; want.concat(rest).forEach(function (c) { CATEGORY_ORDER.push(c); });
+  var _r = render; render = function () { try { fix(); } catch (e) {} return _r.apply(this, arguments); };
+  try { if (items && items.length) { fix(); render(); if (typeof buildDrawerCats === 'function') buildDrawerCats(); } } catch (e) {}
+})();
