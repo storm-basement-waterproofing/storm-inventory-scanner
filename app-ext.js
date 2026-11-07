@@ -47,11 +47,11 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   + '.storm-logo-anim.go .sla-ripple { animation-duration: .9s; }'
   + 'header { overflow: hidden; } header > *:not(.sla-wave) { position: relative; z-index: 1; } header > .scan-btn { position: absolute; }'
   + '.sla-wave { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }'
-  + '.sla-wave i { position: absolute; left: var(--x); top: var(--y); width: var(--r); height: calc(var(--r) * .14); margin-left: calc(var(--r) / -2); margin-top: calc(var(--r) * -.07); border-radius: 50%; border: 1.5px solid rgba(110,200,255,.6); box-shadow: 0 0 10px rgba(60,180,250,.35), inset 0 0 8px rgba(60,180,250,.25); opacity: 0; transform: scale(.02); }'
+  + '.sla-wave i { position: absolute; left: var(--x); top: var(--y); width: var(--r); height: calc(var(--r) * .16); margin-left: calc(var(--r) / -2); margin-top: calc(var(--r) * -.08); border-radius: 50%; border: 0; box-shadow: none; background: radial-gradient(ellipse closest-side, rgba(90,190,255,0) 62%, rgba(110,200,255,.28) 78%, rgba(160,220,255,.12) 88%, rgba(90,190,255,0) 100%); opacity: 0; transform: scale(.05); }'
   + '.sla-wave b { position: absolute; left: var(--x); top: var(--y); width: calc(var(--r) * .5); height: calc(var(--r) * .06); margin-left: calc(var(--r) / -4); margin-top: calc(var(--r) * -.03); border-radius: 50%; background: radial-gradient(ellipse, rgba(70,185,250,.35), rgba(70,185,250,0) 70%); opacity: 0; transform: scale(.05); }'
-  + '.sla-wave.go i { animation: slaWave 1.5s cubic-bezier(.15,.6,.35,1) forwards; } .sla-wave.go i:nth-child(2) { animation-delay: .16s; border-color: rgba(140,215,255,.45); } .sla-wave.go i:nth-child(3) { animation-delay: .34s; border-color: rgba(170,225,255,.3); }'
+  + '.sla-wave.go i { animation: slaWave 1.5s cubic-bezier(.15,.6,.35,1) forwards; } .sla-wave.go i:nth-child(2) { animation-delay: .16s; } .sla-wave.go i:nth-child(3) { animation-delay: .34s; }'
   + '.sla-wave.go b { animation: slaGlow 1.1s ease-out forwards; }'
-  + '@keyframes slaWave { 0% { opacity: 0; transform: scale(.02); } 8% { opacity: 1; } 70% { opacity: .55; } 100% { opacity: 0; transform: scale(1); } }'
+  + '@keyframes slaWave { 0% { opacity: 0; transform: scale(.05); } 12% { opacity: .9; } 55% { opacity: .45; } 100% { opacity: 0; transform: scale(1); } }'
   + '@keyframes slaGlow { 0% { opacity: 0; transform: scale(.05); } 15% { opacity: 1; } 100% { opacity: 0; transform: scale(1.6); } }'
   + '.sla-ripple { display: none !important; }'
   + '@media (prefers-reduced-motion: reduce) { .storm-logo-anim.go * { animation: none !important; } .sla-ripple, .sla-splash, .sla-p, .sla-crown, .sla-dust, .sla-wave { display: none; } }'
@@ -86,7 +86,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
  w.insertAdjacentHTML('afterbegin', fxh);
  var imgs = w.querySelectorAll('img'), left = imgs.length, done = false;
       var hdr = old.closest('header'); var rp = document.createElement('div'); rp.className = 'sla-wave'; rp.innerHTML = '<i></i><i></i><i></i><b></b>'; var rippleT = null;
-      var wave = function () { if (!hdr) return; var hb = hdr.getBoundingClientRect(), wb = w.getBoundingClientRect(); var x = wb.left - hb.left + wb.width * 0.5, y = wb.top - hb.top + wb.height * 0.99; rp.style.setProperty('--x', x.toFixed(1) + 'px'); rp.style.setProperty('--y', y.toFixed(1) + 'px'); rp.style.setProperty('--r', (Math.max(x, hb.width - x) * 2.3).toFixed(0) + 'px'); rp.classList.remove('go'); void rp.offsetWidth; rp.classList.add('go'); };
+      var wave = function () { if (!hdr) return; var hb = hdr.getBoundingClientRect(), wb = w.getBoundingClientRect(); var x = wb.left - hb.left + wb.width * 0.5, y = wb.top - hb.top + wb.height * 0.99; rp.style.setProperty('--x', x.toFixed(1) + 'px'); rp.style.setProperty('--y', y.toFixed(1) + 'px'); rp.style.setProperty('--r', Math.min(wb.width * 1.5, hb.width * 0.95).toFixed(0) + 'px'); rp.classList.remove('go'); void rp.offsetWidth; rp.classList.add('go'); };
       var swap = function () { if (done) return; done = true; if (!old.parentNode) return; old.parentNode.replaceChild(w, old); if (hdr && !rp.parentNode) hdr.insertBefore(rp, hdr.firstChild); void w.offsetWidth; w.classList.add('go'); clearTimeout(rippleT); rippleT = setTimeout(wave, 1020); };
       var fail = function () { swap(); };
       Array.prototype.forEach.call(imgs, function (im) { im.addEventListener('load', function () { if (--left === 0) swap(); }); im.addEventListener('error', fail); });
