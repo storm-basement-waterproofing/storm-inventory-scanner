@@ -75,25 +75,34 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   + '.detail-features h2, .detail-flow h2 { font-size: 13px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: #0B7FC4; padding-left: 9px; border-left: 3px solid #27ABEA; }';
   var st = document.createElement('style'); st.id = 'storm-fx-css'; st.textContent = css; document.head.appendChild(st);
 
-  /* 3) logo intro */
+  /* 3) logo intro: backlit slow flash on first landing; minimal white glow after */
   try {
     var old = document.querySelector('header img.logo');
     if (old) {
-      var w = document.createElement('div'); w.className = 'storm-logo-anim'; w.setAttribute('role', 'img'); w.setAttribute('aria-label', old.alt || 'Storm Basement Waterproofing');
-      w.innerHTML = '<span class="sla-splash l"></span><span class="sla-splash r"></span>'
-        + '<img class="sla-sub" alt="" src="' + A + 'sub.png"><img class="sla-storm" alt="" src="' + A + 'storm.png"><img class="sla-drop" alt="" src="' + A + 'drop.png">';
-      var fxh = ''; var P = [
- ['w',-30,-150,2.4,0], ['w',-55,-95,1.8,.02], ['w',-12,-185,1.6,.03], ['w',18,-170,2.0,.01], ['w',48,-120,2.2,0], ['w',70,-60,1.5,.04], ['w',-75,-40,1.4,.05], ['w',30,-215,1.2,.06]];
- P.forEach(function (q) { fxh += '<span class="sla-p sla-' + q[0] + '" style="--dx:' + q[1] + '%;--dy:' + q[2] + '%;--s:' + q[3] + ';animation-delay:' + (1.0 + q[4]).toFixed(2) + 's"></span>'; });
- fxh += '<span class="sla-crown"></span>';
- w.insertAdjacentHTML('afterbegin', fxh);
- var imgs = w.querySelectorAll('img'), left = imgs.length, done = false;
-      var hdr = old.closest('header'); var rp = document.createElement('div'); rp.className = 'sla-wave'; rp.innerHTML = '<img src="https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/ripple.jpg?v=1" alt="">'; var rippleT = null;
-      var wave = function () { if (!hdr) return; var hb = hdr.getBoundingClientRect(), wb = w.getBoundingClientRect(); var x = wb.left - hb.left + wb.width * 0.5, y = wb.top - hb.top + wb.height * 0.99; rp.style.setProperty('--x', x.toFixed(1) + 'px'); rp.style.setProperty('--y', y.toFixed(1) + 'px'); rp.style.setProperty('--r', Math.min(wb.width * 1.9, hb.width * 1.05).toFixed(0) + 'px'); rp.classList.remove('go'); void rp.offsetWidth; rp.classList.add('go'); };
-      var swap = function () { if (done) return; done = true; if (!old.parentNode) return; old.parentNode.replaceChild(w, old); if (hdr && !rp.parentNode) hdr.insertBefore(rp, hdr.firstChild); void w.offsetWidth; w.classList.add('go'); clearTimeout(rippleT); rippleT = setTimeout(wave, 1020); };
-      var fail = function () { swap(); };
+      var lc = ''
+        + '.storm-logo-lit { position: relative; display: block; width: min(240px, 248px); aspect-ratio: 800 / 206; margin: 0 auto; cursor: pointer; -webkit-tap-highlight-color: transparent; filter: drop-shadow(0 0 2px rgba(255,255,255,.28)) drop-shadow(0 0 6px rgba(255,255,255,.10)); }'
+        + '.storm-logo-lit img { position: absolute; display: block; max-width: none; margin: 0; }'
+        + '.storm-logo-lit .sla-drop { left: 0; top: 0; width: 20.625%; height: 100%; } .storm-logo-lit .sla-storm { left: 20.625%; top: 14.563%; width: 79.375%; height: 67.961%; } .storm-logo-lit .sla-sub { left: 20.625%; top: 82.524%; width: 79.375%; height: 17.476%; }'
+        + '.sll-back { position: absolute; left: 50%; top: 50%; width: 150%; height: 300%; margin: -150% 0 0 -75%; margin-top: 0; transform: translate(0,-50%) scale(.6); border-radius: 50%; background: radial-gradient(ellipse at 50% 50%, rgba(255,255,255,.95) 0%, rgba(225,242,255,.55) 22%, rgba(160,210,255,.18) 45%, rgba(255,255,255,0) 68%); opacity: 0; pointer-events: none; z-index: -1; }'
+        + '.storm-logo-lit.flash { animation: sllLogo 5.2s ease-in-out both; } .storm-logo-lit.flash .sll-back { animation: sllBack 5.2s ease-in-out both; }'
+        + '@keyframes sllLogo { 0% { opacity: 0; filter: brightness(.5) drop-shadow(0 0 0 rgba(255,255,255,0)); } 22% { opacity: 1; filter: brightness(1) drop-shadow(0 0 3px rgba(255,255,255,.3)); } 50% { opacity: 1; filter: brightness(1.55) drop-shadow(0 0 10px rgba(255,255,255,.95)) drop-shadow(0 0 28px rgba(255,255,255,.55)); } 100% { opacity: 1; filter: brightness(1) drop-shadow(0 0 2px rgba(255,255,255,.28)) drop-shadow(0 0 6px rgba(255,255,255,.10)); } }'
+        + '@keyframes sllBack { 0% { opacity: 0; transform: translate(0,-50%) scale(.5); } 20% { opacity: .15; } 50% { opacity: 1; transform: translate(0,-50%) scale(1.05); } 100% { opacity: 0; transform: translate(0,-50%) scale(1.15); } }'
+        + '#sll-shade { position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0; background: radial-gradient(ellipse 120% 85% at 50% 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,.16) 55%, rgba(0,0,0,.30) 100%); }'
+        + '#sll-shade.flash { animation: sllShade 5.2s ease-in-out both; }'
+        + '@keyframes sllShade { 0% { opacity: 0; } 25% { opacity: .2; } 50% { opacity: 1; } 100% { opacity: 0; } }'
+        + '@media (prefers-reduced-motion: reduce) { .storm-logo-lit.flash, .storm-logo-lit.flash .sll-back, #sll-shade.flash { animation: none !important; } }';
+      var st2 = document.createElement('style'); st2.textContent = lc; document.head.appendChild(st2);
+      var w = document.createElement('div'); w.className = 'storm-logo-lit'; w.setAttribute('role', 'img'); w.setAttribute('aria-label', old.alt || 'Storm Basement Waterproofing');
+      w.innerHTML = '<span class="sll-back"></span><img class="sla-sub" alt="" src="' + A + 'sub.png"><img class="sla-storm" alt="" src="' + A + 'storm.png"><img class="sla-drop" alt="" src="' + A + 'drop.png">';
+      var shade = document.createElement('div'); shade.id = 'sll-shade';
+      var KEY = 'stormLogoLitV1', first = true; try { first = !sessionStorage.getItem(KEY); sessionStorage.setItem(KEY, '1'); } catch (e) {}
+      var flash = function () { w.classList.remove('flash'); shade.classList.remove('flash'); void w.offsetWidth; w.classList.add('flash'); shade.classList.add('flash'); };
+      var imgs = w.querySelectorAll('img'), left = imgs.length, done = false;
+      var swap = function () { if (done) return; done = true; if (!old.parentNode) return; if (first) w.style.opacity = '0'; old.parentNode.replaceChild(w, old); if (!shade.parentNode) document.body.appendChild(shade); if (first) { void w.offsetWidth; w.style.opacity = ''; flash(); } };
+      var fail = function () { if (done) return; done = true; };
       Array.prototype.forEach.call(imgs, function (im) { im.addEventListener('load', function () { if (--left === 0) swap(); }); im.addEventListener('error', fail); });
-      setTimeout(function () { if (left > 0) swap(); }, 1200); w.addEventListener('click', function () { w.classList.remove('go'); rp.classList.remove('go'); void w.offsetWidth; w.classList.add('go'); clearTimeout(rippleT); rippleT = setTimeout(wave, 1020); });
+      setTimeout(function () { if (left > 0 && !done) swap(); }, 2500);
+      w.addEventListener('click', flash);
     }
   } catch (e) {}
 
