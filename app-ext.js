@@ -252,14 +252,14 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#pick-sheet.fx-exit { animation: cartExit .46s cubic-bezier(.5,0,.75,0) forwards !important; transition: none !important; }'
     + '@keyframes cartExit { 0% { transform: translate(0,0) scale(1); opacity: 1; animation-timing-function: cubic-bezier(.3,0,.3,1); } 26% { transform: translate(-16px,-6px) scale(1.015); opacity: 1; animation-timing-function: cubic-bezier(.6,0,.9,.4); } 100% { transform: translate(115%,-2px) scale(.98); opacity: 0; } }';
   var st = document.createElement('style'); st.textContent = c; document.head.appendChild(st);
-  document.addEventListener('click', function (e) {
+  window.addEventListener('click', function (e) {
     var t = e.target; if (!t.closest) return;
     var im = t.closest('#pick-sheet .pick-line img');
-    if (im && window.stormZoom) { e.preventDefault(); e.stopPropagation(); var b = (im.getAttribute('src') || '').replace(/([?&]sz=)w\d+/, '$1w1600'); window.stormZoom(im, b !== im.getAttribute('src') ? b : null); return; }
+    if (im && window.stormZoom) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); var b = (im.getAttribute('src') || '').replace(/([?&]sz=)w\d+/, '$1w1600'); window.stormZoom(im, b !== im.getAttribute('src') ? b : null); return; }
     var x = t.closest('#pick-sheet [data-pick-close]');
     if (x && typeof closePickSheet === 'function') {
-      e.preventDefault(); e.stopPropagation();
-      var sh = document.getElementById('pick-sheet'); if (!sh || sh.classList.contains('fx-exit')) return;
+      e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation();
+      var sh = document.getElementById('pick-sheet'); if (!sh || !sh.classList.contains('open') || sh.classList.contains('fx-exit')) return;
       var sc = document.getElementById('pick-scrim'); if (sc) sc.classList.remove('open');
       sh.classList.add('fx-exit');
       setTimeout(function () { sh.style.transition = 'none'; try { closePickSheet(); } catch (er) { sh.classList.remove('open'); } void sh.offsetWidth; sh.classList.remove('fx-exit'); void sh.offsetWidth; setTimeout(function () { sh.style.transition = ''; }, 30); }, 470);
