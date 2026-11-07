@@ -186,12 +186,12 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     sheet.innerHTML = h;
   }
   var zm = null;
-  function zoomOpen(th) {
+  function zoomOpen(th, bigSrc) {
     if (zm) return; var r0 = th.getBoundingClientRect(); var nw = th.naturalWidth || r0.width, nh = th.naturalHeight || r0.height;
     var vw = window.innerWidth, vh = window.innerHeight, pad = 18, top = 70;
     var sc = Math.min((vw - pad * 2) / nw, (vh - top - pad * 2) / nh); var fw = nw * sc, fh = nh * sc; var fx = (vw - fw) / 2, fy = top + (vh - top - fh) / 2 - pad / 2;
     var ov = document.createElement('div'); ov.className = 'lbl-zoom'; ov.innerHTML = '<button type="button" class="lbl-zoom-x" aria-label="Close preview">&times;</button>';
-    var big = document.createElement('img'); big.className = 'lbl-zoom-img'; big.src = th.src; big.alt = 'Bin label preview';
+    var big = document.createElement('img'); big.className = 'lbl-zoom-img'; big.src = th.src; if (bigSrc) { var hi = new Image(); hi.onload = function () { big.src = bigSrc; }; hi.src = bigSrc; } big.alt = 'Bin label preview';
     big.style.left = fx + 'px'; big.style.top = fy + 'px'; big.style.width = fw + 'px'; big.style.height = fh + 'px';
     var from = 'translate(' + (r0.left - fx) + 'px,' + (r0.top - fy) + 'px) scale(' + (r0.width / fw) + ',' + (r0.height / fh) + ')';
     big.style.transform = from; ov.appendChild(big); document.body.appendChild(ov); th.style.visibility = 'hidden';
@@ -200,6 +200,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var close = function (e) { if (e) { e.preventDefault(); e.stopPropagation(); } zoomClose(); };
     ov.querySelector('.lbl-zoom-x').addEventListener('click', close); ov.addEventListener('click', function (e) { if (e.target === ov) close(e); });
   }
+  window.stormZoom = function (th, b) { zoomOpen(th, b); };
   function zoomClose() {
     if (!zm || zm.closing) return; zm.closing = true; var z = zm, r = z.th.getBoundingClientRect();
     var fx = parseFloat(z.big.style.left), fy = parseFloat(z.big.style.top), fw = parseFloat(z.big.style.width), fh = parseFloat(z.big.style.height);
@@ -236,4 +237,25 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   CATEGORY_ORDER.length = 0; want.concat(rest).forEach(function (c) { CATEGORY_ORDER.push(c); });
   var _r = render; render = function () { try { fix(); } catch (e) {} return _r.apply(this, arguments); };
   try { if (items && items.length) { fix(); render(); if (typeof buildDrawerCats === 'function') buildDrawerCats(); } } catch (e) {}
+})();
+
+/* cart: tap a line photo to zoom (same as label preview); X exits with bounce + speed off right */
+(function () {
+  var c = '#pick-sheet .pick-line img { cursor: zoom-in; }'
+    + '#pick-sheet.fx-exit { animation: cartExit .46s cubic-bezier(.5,0,.75,0) forwards !important; transition: none !important; }'
+    + '@keyframes cartExit { 0% { transform: translate(0,0) scale(1); opacity: 1; animation-timing-function: cubic-bezier(.3,0,.3,1); } 26% { transform: translate(-16px,-6px) scale(1.015); opacity: 1; animation-timing-function: cubic-bezier(.6,0,.9,.4); } 100% { transform: translate(115%,-2px) scale(.98); opacity: 0; } }';
+  var st = document.createElement('style'); st.textContent = c; document.head.appendChild(st);
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t.closest) return;
+    var im = t.closest('#pick-sheet .pick-line img');
+    if (im && window.stormZoom) { e.preventDefault(); e.stopPropagation(); var b = (im.getAttribute('src') || '').replace(/([?&]sz=)w\d+/, '$1w1600'); window.stormZoom(im, b !== im.getAttribute('src') ? b : null); return; }
+    var x = t.closest('#pick-sheet [data-pick-close]');
+    if (x && typeof closePickSheet === 'function') {
+      e.preventDefault(); e.stopPropagation();
+      var sh = document.getElementById('pick-sheet'); if (!sh || sh.classList.contains('fx-exit')) return;
+      var sc = document.getElementById('pick-scrim'); if (sc) sc.classList.remove('open');
+      sh.classList.add('fx-exit');
+      setTimeout(function () { sh.style.transition = 'none'; try { closePickSheet(); } catch (er) { sh.classList.remove('open'); } void sh.offsetWidth; sh.classList.remove('fx-exit'); void sh.offsetWidth; setTimeout(function () { sh.style.transition = ''; }, 30); }, 470);
+    }
+  }, true);
 })();
