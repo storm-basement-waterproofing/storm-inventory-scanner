@@ -45,7 +45,16 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   + '.storm-logo-anim.go .sla-dust { animation: slaPuff 1.3s 1.0s ease-out both; } .storm-logo-anim.go .sla-dust.b { animation-duration: 1s; animation-delay: 1.03s; }'
   + '@keyframes slaPuff { 0% { opacity: 0; transform: scale(.3,.2); } 22% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18%) scale(1.5,1.2); } }'
   + '.storm-logo-anim.go .sla-ripple { animation-duration: .9s; }'
-  + '@media (prefers-reduced-motion: reduce) { .storm-logo-anim.go * { animation: none !important; } .sla-ripple, .sla-splash, .sla-p, .sla-crown, .sla-dust { display: none; } }'
+  + 'header { overflow: hidden; } header > *:not(.sla-wave) { position: relative; z-index: 1; } header > .scan-btn { position: absolute; }'
+  + '.sla-wave { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }'
+  + '.sla-wave i { position: absolute; left: var(--x); top: var(--y); width: var(--r); height: calc(var(--r) * .34); margin-left: calc(var(--r) / -2); margin-top: calc(var(--r) * -.17); border-radius: 50%; border: 1.5px solid rgba(110,200,255,.6); box-shadow: 0 0 10px rgba(60,180,250,.35), inset 0 0 8px rgba(60,180,250,.25); opacity: 0; transform: scale(.02); }'
+  + '.sla-wave b { position: absolute; left: var(--x); top: var(--y); width: calc(var(--r) * .5); height: calc(var(--r) * .12); margin-left: calc(var(--r) / -4); margin-top: calc(var(--r) * -.06); border-radius: 50%; background: radial-gradient(ellipse, rgba(70,185,250,.35), rgba(70,185,250,0) 70%); opacity: 0; transform: scale(.05); }'
+  + '.sla-wave.go i { animation: slaWave 1.5s cubic-bezier(.15,.6,.35,1) forwards; } .sla-wave.go i:nth-child(2) { animation-delay: .16s; border-color: rgba(140,215,255,.45); } .sla-wave.go i:nth-child(3) { animation-delay: .34s; border-color: rgba(170,225,255,.3); }'
+  + '.sla-wave.go b { animation: slaGlow 1.1s ease-out forwards; }'
+  + '@keyframes slaWave { 0% { opacity: 0; transform: scale(.02); } 8% { opacity: 1; } 70% { opacity: .55; } 100% { opacity: 0; transform: scale(1); } }'
+  + '@keyframes slaGlow { 0% { opacity: 0; transform: scale(.05); } 15% { opacity: 1; } 100% { opacity: 0; transform: scale(1.6); } }'
+  + '.sla-ripple { display: none !important; }'
+  + '@media (prefers-reduced-motion: reduce) { .storm-logo-anim.go * { animation: none !important; } .sla-ripple, .sla-splash, .sla-p, .sla-crown, .sla-dust, .sla-wave { display: none; } }'
   /* detail window fade, matching the banner's fade */
   + '#detail.open.fx-in { animation: fxDetailIn .26s ease-out both; }'
   + '#detail.open.fx-out { animation: fxDetailOut .2s ease-in both; pointer-events: none; }'
@@ -68,20 +77,20 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var old = document.querySelector('header img.logo');
     if (old) {
       var w = document.createElement('div'); w.className = 'storm-logo-anim'; w.setAttribute('role', 'img'); w.setAttribute('aria-label', old.alt || 'Storm Basement Waterproofing');
-      w.innerHTML = '<span class="sla-ripple"></span><span class="sla-splash l"></span><span class="sla-splash r"></span>'
+      w.innerHTML = '<span class="sla-splash l"></span><span class="sla-splash r"></span>'
         + '<img class="sla-sub" alt="" src="' + A + 'sub.png"><img class="sla-storm" alt="" src="' + A + 'storm.png"><img class="sla-drop" alt="" src="' + A + 'drop.png">';
       var fxh = ''; var P = [
- ['w',-30,-150,2.4,0], ['w',-55,-95,1.8,.02], ['w',-12,-185,1.6,.03], ['w',18,-170,2.0,.01], ['w',48,-120,2.2,0], ['w',70,-60,1.5,.04], ['w',-75,-40,1.4,.05], ['w',30,-215,1.2,.06],
- ['m',-45,-70,1.9,.02], ['m',38,-85,2.2,.03], ['m',-20,-110,1.4,.05], ['m',60,-35,1.6,.04], ['m',-65,-20,1.3,.06], ['m',10,-60,1.1,.07],
- ['d',-110,-30,1,.0], ['d',100,-36,1,.03], ['d',-60,-55,.8,.06], ['d',70,-60,.9,.08], ['d',0,-45,.7,.1]];
+ ['w',-30,-150,2.4,0], ['w',-55,-95,1.8,.02], ['w',-12,-185,1.6,.03], ['w',18,-170,2.0,.01], ['w',48,-120,2.2,0], ['w',70,-60,1.5,.04], ['w',-75,-40,1.4,.05], ['w',30,-215,1.2,.06]];
  P.forEach(function (q) { fxh += '<span class="sla-p sla-' + q[0] + '" style="--dx:' + q[1] + '%;--dy:' + q[2] + '%;--s:' + q[3] + ';animation-delay:' + (1.0 + q[4]).toFixed(2) + 's"></span>'; });
- fxh += '<span class="sla-crown"></span><span class="sla-dust"></span><span class="sla-dust b"></span>';
+ fxh += '<span class="sla-crown"></span>';
  w.insertAdjacentHTML('afterbegin', fxh);
  var imgs = w.querySelectorAll('img'), left = imgs.length, done = false;
-      var swap = function () { if (done) return; done = true; if (!old.parentNode) return; old.parentNode.replaceChild(w, old); void w.offsetWidth; w.classList.add('go'); };
+      var hdr = old.closest('header'); var rp = document.createElement('div'); rp.className = 'sla-wave'; rp.innerHTML = '<i></i><i></i><i></i><b></b>'; var rippleT = null;
+      var wave = function () { if (!hdr) return; var hb = hdr.getBoundingClientRect(), wb = w.getBoundingClientRect(); var x = wb.left - hb.left + wb.width * 0.103, y = wb.top - hb.top + wb.height * 0.985; rp.style.setProperty('--x', x.toFixed(1) + 'px'); rp.style.setProperty('--y', y.toFixed(1) + 'px'); rp.style.setProperty('--r', (Math.max(x, hb.width - x) * 2.3).toFixed(0) + 'px'); rp.classList.remove('go'); void rp.offsetWidth; rp.classList.add('go'); };
+      var swap = function () { if (done) return; done = true; if (!old.parentNode) return; old.parentNode.replaceChild(w, old); if (hdr && !rp.parentNode) hdr.insertBefore(rp, hdr.firstChild); void w.offsetWidth; w.classList.add('go'); clearTimeout(rippleT); rippleT = setTimeout(wave, 1020); };
       var fail = function () { swap(); };
       Array.prototype.forEach.call(imgs, function (im) { im.addEventListener('load', function () { if (--left === 0) swap(); }); im.addEventListener('error', fail); });
-      setTimeout(function () { if (left > 0) swap(); }, 1200); w.addEventListener('click', function () { w.classList.remove('go'); void w.offsetWidth; w.classList.add('go'); });
+      setTimeout(function () { if (left > 0) swap(); }, 1200); w.addEventListener('click', function () { w.classList.remove('go'); rp.classList.remove('go'); void w.offsetWidth; w.classList.add('go'); clearTimeout(rippleT); rippleT = setTimeout(wave, 1020); });
     }
   } catch (e) {}
 
@@ -129,6 +138,13 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   + '.fab-dock .lbl-fab.gone { display: none; }'
   + 'body:has(#lbl-sheet.open) .fab-dock { opacity: 0; pointer-events: none; }'
   + '#pick-sheet .lbl-sec { display: none !important; }'
+  + '.lbl-zoom { position: fixed; inset: 0; z-index: 150; background: rgba(8,12,18,0); -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); transition: background .32s ease, backdrop-filter .32s ease, -webkit-backdrop-filter .32s ease; }'
+  + '.lbl-zoom.open { background: rgba(8,12,18,.82); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }'
+  + '.lbl-zoom-img { position: fixed; margin: 0; max-width: none; object-fit: contain; background: #fff; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,.45); transform-origin: 0 0; transition: transform .34s cubic-bezier(.2,.8,.2,1), opacity .34s ease; }'
+  + '.lbl-zoom-img.back { opacity: .35; transition: transform .34s cubic-bezier(.4,0,.2,1), opacity .34s ease-in; }'
+  + '.lbl-zoom-x { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: 14px; width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(255,255,255,.5); background: rgba(15,23,32,.38); -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4); color: #fff; font-size: 28px; line-height: 1; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .25s ease .1s; }'
+  + '.lbl-zoom.open .lbl-zoom-x { opacity: 1; }'
+  + '#lbl-sheet .lbl-row img { cursor: zoom-in; }'
   + '.pick-scrim { z-index: 102 !important; } .pick-sheet { z-index: 103 !important; } .confirm-scrim { z-index: 104 !important; } .confirm-box { z-index: 105 !important; } #toast { z-index: 140 !important; }'
   + '#lbl-sheet .pick-lines { padding-bottom: 8px; } #lbl-sheet .lbl-sec { margin: 0; border: 0; padding: 0; } #lbl-sheet .lbl-sec-head { display: none; }';
   var st = document.createElement('style'); st.id = 'storm-qr-css'; st.textContent = css; document.head.appendChild(st);
@@ -145,7 +161,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     document.body.appendChild(scrim); document.body.appendChild(sheet);
     fab.addEventListener('click', function (e) { e.preventDefault(); openSheet(); });
     scrim.addEventListener('click', closeSheet);
-    sheet.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-lbl-sheet-close]')) closeSheet(); });
+    sheet.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-lbl-sheet-close]')) { closeSheet(); return; } var im = e.target.closest && e.target.closest('.lbl-row img'); if (im) { e.preventDefault(); e.stopPropagation(); zoomOpen(im); } });
     return true;
   }
   function render() {
@@ -157,8 +173,30 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (a.length) h += '<div class="pick-sheet-foot"><button type="button" class="pick-copy" data-lbl-print>Print ' + a.length + ' label' + (a.length === 1 ? '' : 's') + '</button><button type="button" class="pick-clear" data-lbl-clear>Clear all</button></div>';
     sheet.innerHTML = h;
   }
+  var zm = null;
+  function zoomOpen(th) {
+    if (zm) return; var r0 = th.getBoundingClientRect(); var nw = th.naturalWidth || r0.width, nh = th.naturalHeight || r0.height;
+    var vw = window.innerWidth, vh = window.innerHeight, pad = 18, top = 70;
+    var sc = Math.min((vw - pad * 2) / nw, (vh - top - pad * 2) / nh); var fw = nw * sc, fh = nh * sc; var fx = (vw - fw) / 2, fy = top + (vh - top - fh) / 2 - pad / 2;
+    var ov = document.createElement('div'); ov.className = 'lbl-zoom'; ov.innerHTML = '<button type="button" class="lbl-zoom-x" aria-label="Close preview">&times;</button>';
+    var big = document.createElement('img'); big.className = 'lbl-zoom-img'; big.src = th.src; big.alt = 'Bin label preview';
+    big.style.left = fx + 'px'; big.style.top = fy + 'px'; big.style.width = fw + 'px'; big.style.height = fh + 'px';
+    var from = 'translate(' + (r0.left - fx) + 'px,' + (r0.top - fy) + 'px) scale(' + (r0.width / fw) + ',' + (r0.height / fh) + ')';
+    big.style.transform = from; ov.appendChild(big); document.body.appendChild(ov); th.style.visibility = 'hidden';
+    zm = { ov: ov, big: big, th: th };
+    void big.offsetWidth; ov.classList.add('open'); big.style.transform = 'none';
+    var close = function (e) { if (e) { e.preventDefault(); e.stopPropagation(); } zoomClose(); };
+    ov.querySelector('.lbl-zoom-x').addEventListener('click', close); ov.addEventListener('click', function (e) { if (e.target === ov) close(e); });
+  }
+  function zoomClose() {
+    if (!zm || zm.closing) return; zm.closing = true; var z = zm, r = z.th.getBoundingClientRect();
+    var fx = parseFloat(z.big.style.left), fy = parseFloat(z.big.style.top), fw = parseFloat(z.big.style.width), fh = parseFloat(z.big.style.height);
+    if (r.width) z.big.style.transform = 'translate(' + (r.left - fx) + 'px,' + (r.top - fy) + 'px) scale(' + (r.width / fw) + ',' + (r.height / fh) + ')';
+    z.big.classList.add('back'); z.ov.classList.remove('open');
+    setTimeout(function () { z.th.style.visibility = ''; if (z.ov.parentNode) z.ov.parentNode.removeChild(z.ov); zm = null; }, 380);
+  }
   function openSheet() { if (!build()) return; render(); scrim.classList.add('open'); sheet.classList.add('open'); }
-  function closeSheet() { if (!sheet) return; scrim.classList.remove('open'); sheet.classList.remove('open'); }
+  function closeSheet() { if (zm) { zm.th.style.visibility = ''; if (zm.ov.parentNode) zm.ov.parentNode.removeChild(zm.ov); zm = null; } if (!sheet) return; scrim.classList.remove('open'); sheet.classList.remove('open'); }
   function update() {
     if (!build()) return; var n = lblList().length;
     if (n !== lastN) {
