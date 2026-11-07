@@ -38,11 +38,11 @@ header { position: relative; padding-right: 60px; }
 #trace.on polygon { opacity: 1; animation: traceDraw .35s ease-out forwards; }
 @keyframes traceDraw { to { stroke-dashoffset: 0; } }
 #edge path { display: none; }
-#glow { position: fixed; inset: 0; pointer-events: none; z-index: 30; opacity: 0; box-shadow: inset 0 0 22px 4px rgba(255,255,255,.75), inset 0 0 60px 10px rgba(255,255,255,.35); transition: opacity .3s ease; }
+#glow { position: fixed; inset: 0; pointer-events: none; z-index: 30; opacity: 0; box-shadow: inset 0 0 22px 4px rgba(255,255,255,.55), inset 0 0 60px 10px rgba(255,255,255,.24); transition: opacity .3s ease; }
 #edge.searching + #glow { animation: glowPulse 1.8s ease-in-out infinite; }
-#edge.hit + #glow { animation: none; opacity: 1; box-shadow: inset 0 0 30px 8px rgba(255,255,255,.95), inset 0 0 80px 18px rgba(255,255,255,.5); }
+#edge.hit + #glow { animation: none; opacity: 1; box-shadow: inset 0 0 30px 8px rgba(255,255,255,.75), inset 0 0 80px 18px rgba(255,255,255,.36); }
 #edge.fade + #glow { animation: none; opacity: 0; }
-@keyframes glowPulse { 0%, 100% { opacity: .15; } 50% { opacity: .9; } }
+@keyframes glowPulse { 0%, 100% { opacity: .1; } 50% { opacity: .68; } }
 #edge.searching path { animation: edgeLoad 2.4s linear infinite; }
 #edge.hit path { animation: none; stroke-dashoffset: 0; transition: stroke-dashoffset .3s ease-out; stroke-width: 5; }
 #edge.fade path { opacity: 0; transition: opacity .4s ease; }
