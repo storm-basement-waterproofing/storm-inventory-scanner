@@ -53,6 +53,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   + '.sla-wave.go b { animation: slaGlow 1.1s ease-out forwards; }'
   + '@keyframes slaWave { 0% { opacity: 0; transform: scale(.05); } 12% { opacity: .9; } 55% { opacity: .45; } 100% { opacity: 0; transform: scale(1); } }'
   + '@keyframes slaGlow { 0% { opacity: 0; transform: scale(.05); } 15% { opacity: 1; } 100% { opacity: 0; transform: scale(1.6); } }'
+  + '.sla-wave img { position: absolute; left: var(--x); top: var(--y); width: var(--r); height: calc(var(--r) * .25); margin-left: calc(var(--r) / -2); margin-top: calc(var(--r) * -.125); max-width: none; mix-blend-mode: screen; opacity: 0; transform: scale(.08, .05); -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 55%, transparent 100%); mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 55%, transparent 100%); }'
+  + '.sla-wave.go img { animation: slaPool 1.9s cubic-bezier(.12,.7,.3,1) forwards; }'
+  + '@keyframes slaPool { 0% { opacity: 0; transform: scale(.08, .05); } 10% { opacity: .95; } 45% { opacity: .8; } 100% { opacity: 0; transform: scale(1, 1); } }'
   + '.sla-ripple { display: none !important; }'
   + '@media (prefers-reduced-motion: reduce) { .storm-logo-anim.go * { animation: none !important; } .sla-ripple, .sla-splash, .sla-p, .sla-crown, .sla-dust, .sla-wave { display: none; } }'
   /* detail window fade, matching the banner's fade */
@@ -85,8 +88,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
  fxh += '<span class="sla-crown"></span>';
  w.insertAdjacentHTML('afterbegin', fxh);
  var imgs = w.querySelectorAll('img'), left = imgs.length, done = false;
-      var hdr = old.closest('header'); var rp = document.createElement('div'); rp.className = 'sla-wave'; rp.innerHTML = '<i></i><i></i><i></i><b></b>'; var rippleT = null;
-      var wave = function () { if (!hdr) return; var hb = hdr.getBoundingClientRect(), wb = w.getBoundingClientRect(); var x = wb.left - hb.left + wb.width * 0.5, y = wb.top - hb.top + wb.height * 0.99; rp.style.setProperty('--x', x.toFixed(1) + 'px'); rp.style.setProperty('--y', y.toFixed(1) + 'px'); rp.style.setProperty('--r', Math.min(wb.width * 1.5, hb.width * 0.95).toFixed(0) + 'px'); rp.classList.remove('go'); void rp.offsetWidth; rp.classList.add('go'); };
+      var hdr = old.closest('header'); var rp = document.createElement('div'); rp.className = 'sla-wave'; rp.innerHTML = '<img src="https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/ripple.jpg?v=1" alt="">'; var rippleT = null;
+      var wave = function () { if (!hdr) return; var hb = hdr.getBoundingClientRect(), wb = w.getBoundingClientRect(); var x = wb.left - hb.left + wb.width * 0.5, y = wb.top - hb.top + wb.height * 0.99; rp.style.setProperty('--x', x.toFixed(1) + 'px'); rp.style.setProperty('--y', y.toFixed(1) + 'px'); rp.style.setProperty('--r', Math.min(wb.width * 1.9, hb.width * 1.05).toFixed(0) + 'px'); rp.classList.remove('go'); void rp.offsetWidth; rp.classList.add('go'); };
       var swap = function () { if (done) return; done = true; if (!old.parentNode) return; old.parentNode.replaceChild(w, old); if (hdr && !rp.parentNode) hdr.insertBefore(rp, hdr.firstChild); void w.offsetWidth; w.classList.add('go'); clearTimeout(rippleT); rippleT = setTimeout(wave, 1020); };
       var fail = function () { swap(); };
       Array.prototype.forEach.call(imgs, function (im) { im.addEventListener('load', function () { if (--left === 0) swap(); }); im.addEventListener('error', fail); });
