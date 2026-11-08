@@ -303,8 +303,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var st = document.createElement('style');
   st.textContent = 'html.storm-handoff header .storm-logo-lit, html.storm-handoff header img.logo { visibility: hidden !important; } html.storm-handoff header .storm-logo-lit, html.storm-handoff header .storm-logo-lit * { animation: none !important; }';
   document.head.appendChild(st);
-  var FLY = 1150, sent = false, t0 = Date.now();
-  function reveal() { de.classList.remove('storm-handoff'); try { if (window.stormLogoFlash) window.stormLogoFlash(); } catch (e) {} }
+  var FLY = 1100, sent = false, t0 = Date.now(), shown = false;
+  window.addEventListener('message', function (ev) { if (ev.data && ev.data.storm === 'landed') reveal(); });
+  function reveal() { if (shown) return; shown = true; de.classList.remove('storm-handoff'); try { if (window.stormLogoFlash) window.stormLogoFlash(); } catch (e) {} }
   (function find() {
     if (sent) return;
     var el = document.querySelector('header .storm-logo-lit') || (Date.now() - t0 > 2600 ? document.querySelector('header img.logo') : null);
@@ -312,7 +313,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (r && r.width > 20) {
       sent = true;
       try { window.top.postMessage({ storm: 'logo', x: r.left, y: r.top, w: r.width, h: r.height, fly: FLY }, '*'); } catch (e) {}
-      setTimeout(reveal, FLY);
+      setTimeout(reveal, FLY + 700); /* fallback if the wrapper never says it landed */
       return;
     }
     if (Date.now() - t0 > 4000) { sent = true; reveal(); return; }
