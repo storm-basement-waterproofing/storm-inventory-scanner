@@ -510,3 +510,23 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (!document.hidden && back && back.ext) setTimeout(reopen, 120);
   });
 })();
+
+/* v82 (Hark, 2026-11-07): camera as a layer in the wrapper. The X brings you back to the same spot, no reload. */
+(function () {
+  var inWrap = false;
+  try { var ao = location.ancestorOrigins; if (ao) for (var i = 0; i < ao.length; i++) if (/github\.io$/.test(ao[i])) inWrap = true; } catch (e) {}
+  if (!inWrap || typeof openScanner !== 'function') return;
+  var WRAP = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/';
+  var _os = openScanner;
+  openScanner = function () {
+    var q = '';
+    try { q = '?return=' + encodeURIComponent(WRAP) + (typeof scanCartParams === 'function' ? scanCartParams() : ''); } catch (e) { return _os.apply(this, arguments); }
+    try { window.top.postMessage({ storm: 'scan', q: q }, '*'); } catch (e) { return _os.apply(this, arguments); }
+  };
+  window.addEventListener('message', function (ev) {
+    var m = ev.data; if (!m || m.storm !== 'scanResult' || !/github\.io$/.test(ev.origin)) return;
+    try { if (m.ct && typeof applyCartParam === 'function') applyCartParam(m.cart || '', m.ct); } catch (x) {}
+    try { if (m.scans && typeof applyScansParam === 'function') applyScansParam(m.scans); } catch (x) {}
+    try { if (typeof updatePickBar === 'function') updatePickBar(); if (typeof renderPickSheet === 'function') renderPickSheet(); } catch (x) {}
+  });
+})();
