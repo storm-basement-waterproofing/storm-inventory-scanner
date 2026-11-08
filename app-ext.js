@@ -242,13 +242,14 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 (function () {
   if (typeof render !== 'function' || typeof CATEGORY_ORDER === 'undefined') return;
   var BY_BIN = { 'rt-25': 'AprilAire Accessories', 'rt-26': 'AprilAire Accessories', 'rt-03': 'Battery Backup', 'rt-04': 'High Water Alarms', 'hd-103': 'Extension Cords',
-    /* v79 (2026-11-07, Dave's reorganize) */ 'rt-13': 'Switches & Floats', 'rt-34': 'Vapor Barrier', 'rt-41': 'Vapor Barrier', 'rt-36': 'Vapor Barrier', 'rt-29': 'CFS Carbon Fiber' };
-  var RENAME = { 'Power & Backup': 'Battery Backup', 'Sump Basins & Liners': 'Sump Basins & Lids', 'Wall Treatments': 'Vapor Barrier' };
+    /* v79 (2026-11-07, Dave's reorganize) */ 'rt-13': 'Check Valves', 'rt-34': 'Vapor Barrier / Waterproofing Membrane', 'rt-41': 'Vapor Barrier / Waterproofing Membrane', 'rt-36': 'Vapor Barrier / Waterproofing Membrane', 'rt-29': 'CFS Carbon Fiber',
+    /* v85 (2026-11-08, Dave's 15-point list) */ 'rt-14': 'Pumps & Accessories', 'hd-63': 'AprilAire Accessories', 'hd-77': 'Exterior Discharge', 'hd-78': 'Exterior Discharge', 'hd-79': 'Exterior Discharge', 'rt-37': 'Exterior Discharge', 'rt-35': 'Vapor Barrier / Waterproofing Membrane', 'hd-08': 'Vapor Barrier / Waterproofing Membrane', 'hd-18': 'Vapor Barrier / Waterproofing Membrane' };
+  var RENAME = { 'Power & Backup': 'Battery Backup', 'Sump Basins & Liners': 'Sump Basins & Lids', 'Wall Treatments': 'Vapor Barrier / Waterproofing Membrane', 'Vapor Barrier': 'Vapor Barrier / Waterproofing Membrane', 'Pumps': 'Pumps & Accessories' };
   function fix() { if (!items || !items.forEach) return; items.forEach(function (it) { var b = (it.bin || '').toLowerCase(); if (BY_BIN[b]) it.category = BY_BIN[b]; else if (/hanging\s*strap/i.test(it.name || '')) it.category = 'AprilAire Accessories'; else if ((it.supplier === 'Hilti' || /^hi-/.test(b)) && /cord/i.test(it.name || '')) it.category = 'Extension Cords'; else if (RENAME[it.category]) it.category = RENAME[it.category]; }); }
-  var want = ['Sump Basins & Lids', 'Pumps', 'Switches & Floats', 'High Water Alarms', 'Dehumidifiers', 'AprilAire Accessories', 'Battery Backup', 'Extension Cords', 'Drainage', 'Vapor Barrier', 'CFS Carbon Fiber'];
-  var rest = CATEGORY_ORDER.filter(function (c) { return want.indexOf(c) < 0 && !RENAME[c]; });
+  var want = ['Sump Basins & Lids', 'Pumps & Accessories', 'Battery Backup', 'Check Valves', 'Switches & Floats', 'High Water Alarms', 'Dehumidifiers', 'AprilAire Accessories', 'Extension Cords', 'Drainage', 'Exterior Discharge', 'Vapor Barrier / Waterproofing Membrane', 'CFS Carbon Fiber'];
+  var rest = CATEGORY_ORDER.filter(function (c) { return want.indexOf(c) < 0 && !RENAME[c] && !/^PVC & Fittings .{1,3}Other sizes$/.test(c); });
   /* set order inside a category (listed bins first, in this order; everything else stays A to Z after them) */
-  var RANK = {}; ['rt-20', 'rt-21', 'rt-10', 'rt-11', 'rt-13', 'hd-103', 'HILTI-CORD', 'rt-18', 'rt-17', 'rt-19', 'rt-16', 'rt-34', 'rt-41', 'rt-36'].forEach(function (b, i) { RANK[b] = i + 1; });
+  var RANK = {}; ['rt-20', 'rt-21', 'rt-10', 'rt-11', 'rt-13', 'hd-103', 'HILTI-CORD', 'rt-18', 'rt-17', 'rt-19', 'rt-16', 'rt-34', 'rt-41', 'rt-36', 'rt-35', 'hd-08', 'hd-18'].forEach(function (b, i) { RANK[b] = i + 1; });
   function rk(it) { var b = (it.bin || '').toLowerCase(); if (RANK[b]) return RANK[b]; if (it.category === 'Extension Cords' && /^hi-/.test(b)) return RANK['HILTI-CORD']; return 0; }
   if (typeof byName === 'function') { var _bn = byName; byName = function (a, b) { if (a && b && a.category === b.category) { var x = rk(a), y = rk(b); if (x || y) { if (!x) return 1; if (!y) return -1; return x - y; } } return _bn(a, b); }; }
   CATEGORY_ORDER.length = 0; want.concat(rest).forEach(function (c) { CATEGORY_ORDER.push(c); });
