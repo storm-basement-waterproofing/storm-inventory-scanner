@@ -475,3 +475,33 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addChecklistSection); else addChecklistSection();
   setTimeout(addChecklistSection, 1500);
 })();
+
+/* v77 (Hark, 2026-11-07): coming back from a page opened from the drawer reopens the drawer just as it was
+   (same sections expanded, same scroll), so nobody has to tap the menu again. Covers Bin Labels, Checklists, and Jobber. */
+(function () {
+  var back = null; /* saved drawer state while a drawer page is open */
+  function d() { return document.getElementById('drawer'); }
+  function scrollers() { var dr = d(); if (!dr) return []; var a = [dr]; dr.querySelectorAll('*').forEach(function (n) { if (n.scrollHeight > n.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowY)) a.push(n); }); return a; }
+  function save() { back = { at: Date.now(), s: scrollers().map(function (n) { return [n, n.scrollTop]; }) }; }
+  function anyPageOpen() { return ['labels', 'chk-view', 'lbl-detail', 'detail'].some(function (id) { var v = document.getElementById(id); return v && v.classList.contains('open'); }); }
+  function reopen() {
+    if (!back) return; var b = back; back = null;
+    try { openDrawer(); } catch (x) { return; }
+    b.s.forEach(function (p) { try { p[0].scrollTop = p[1]; } catch (x) {} });
+    requestAnimationFrame(function () { b.s.forEach(function (p) { try { p[0].scrollTop = p[1]; } catch (x) {} }); });
+  }
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest || !t.closest('#drawer')) return;
+    if (t.closest('[data-drawer-labels], [data-drawer-checklist]')) save();
+    else if (t.closest('[data-jobber]')) { save(); back.ext = true; }
+  }, true);
+  /* every page close (its X or the phone's back) goes through history.back(), so check once the page has closed */
+  window.addEventListener('popstate', function () {
+    if (!back || back.ext) return;
+    setTimeout(function () { if (back && !back.ext && !anyPageOpen() && !d().classList.contains('open')) reopen(); }, 90);
+  });
+  /* back from Jobber (another app): reopen the drawer when STORM Inventory is showing again */
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && back && back.ext) setTimeout(reopen, 120);
+  });
+})();
