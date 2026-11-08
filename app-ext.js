@@ -303,7 +303,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var st = document.createElement('style');
   st.textContent = 'html.storm-handoff header .storm-logo-lit, html.storm-handoff header img.logo { visibility: hidden !important; } html.storm-handoff header .storm-logo-lit, html.storm-handoff header .storm-logo-lit * { animation: none !important; }';
   document.head.appendChild(st);
-  var FLY = 750, sent = false, t0 = Date.now();
+  var FLY = 1150, sent = false, t0 = Date.now();
   function reveal() { de.classList.remove('storm-handoff'); try { if (window.stormLogoFlash) window.stormLogoFlash(); } catch (e) {} }
   (function find() {
     if (sent) return;
@@ -318,4 +318,159 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (Date.now() - t0 > 4000) { sent = true; reveal(); return; }
     setTimeout(find, 40);
   })();
+})();
+
+/* v75 (Hark, 2026-11-07): drawer arrows, drawer-nav slide, Bin Labels grid + label details, Checklists */
+(function () {
+  var BASE = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/';
+  var CHEV = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5l7 7-7 7'/></svg>";
+  var css = ''
+    /* arrows: one style everywhere; right when closed, turns clockwise to point down when open */
+    + '.drawer-chevron { font-size: 0 !important; color: transparent !important; display: inline-block !important; flex: none; width: 18px; height: 18px; margin-left: 8px; background: url("' + CHEV + '") center / 18px 18px no-repeat; transform: rotate(0deg) !important; transition: transform .38s cubic-bezier(.4,0,.2,1) !important; }'
+    + '.drawer-section.expanded > .drawer-section-head .drawer-chevron, .drawer-supplier.open > .drawer-item .drawer-chevron { transform: rotate(90deg) !important; }'
+    /* drawer-style slide in from the left */
+    + '@keyframes stormSlideL { from { transform: translateX(-102%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }'
+    + '.storm-slide-in { animation: stormSlideL .3s ease both; }'
+    + '#list.storm-slide-in { animation-duration: .32s; }'
+    /* Bin Labels grid */
+    + '.bl-intro { font-size: 15px; color: #6B7280; margin: 0 0 14px; }'
+    + '.bl-cat { margin: 18px 0 8px; padding: 6px 10px; border-left: 3px solid var(--blue); background: #F3F4F6; border-radius: 6px; font-size: 13px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--dark); }'
+    + '.bl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }'
+    + '.bl-card { position: relative; display: flex; gap: 12px; align-items: center; background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; padding: 10px; cursor: pointer; transition: border-color .2s ease, box-shadow .2s ease, transform .1s ease; -webkit-user-select: none; user-select: none; }'
+    + '.bl-card:active { transform: scale(.98); }'
+    + '.bl-card.in { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,.25); }'
+    + '.bl-card img { flex: none; width: 120px; height: 62px; object-fit: contain; background: #fff; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.18); }'
+    + '.bl-info { flex: 1; min-width: 0; }'
+    + '.bl-bin { font-size: 12px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: var(--dark); }'
+    + '.bl-name { font-size: 15px; font-weight: 700; line-height: 1.3; margin-top: 2px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }'
+    + '.bl-state { margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--blue); }'
+    + '.bl-card.in .bl-state { color: #16a34a; }'
+    + '.bl-none { color: #6B7280; font-size: 15px; }'
+    + '#lbl-detail { z-index: 101; }'
+    + '#lbl-detail .bld-label { display: block; width: 100%; height: auto; border: 1px solid #E5E7EB; border-radius: 10px; background: #fff; }'
+    + '#lbl-detail .bld-add { display: block; width: 100%; margin-top: 16px; min-height: 54px; border: 0; border-radius: 10px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 700; }'
+    + '#lbl-detail .bld-add.in { background: #16a34a; }'
+    + '#lbl-detail .bld-photo { display: block; width: 96px; height: 96px; object-fit: contain; border: 1px solid #E5E7EB; border-radius: 10px; background: #fff; flex: none; }'
+    + '#lbl-detail .bld-row { display: flex; gap: 12px; align-items: center; margin-top: 14px; }'
+    /* Checklists */
+    + '#chk-view { z-index: 101; background: #F3F4F6; }'
+    + '.chk-page { display: block; width: 100%; height: auto; margin: 0 0 12px; background: #fff; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }'
+    + '.chk-open { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 54px; margin: 0 0 14px; border-radius: 10px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 700; text-decoration: none; }'
+    + '.drawer-chk-ico { width: 20px; height: 20px; flex: none; }';
+  var st = document.createElement('style'); st.id = 'storm-v75-css'; st.textContent = css; document.head.appendChild(st);
+
+  function slideIn(el) { if (!el) return; el.classList.remove('storm-slide-in'); void el.offsetWidth; el.classList.add('storm-slide-in'); setTimeout(function () { el.classList.remove('storm-slide-in'); }, 420); }
+  function e$(s) { return document.getElementById(s); }
+  function h(s) { try { return esc(s); } catch (x) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); } }
+  function lurl(bin) { try { return lblUrl(bin); } catch (x) { return BASE + 'labels/' + encodeURIComponent(bin) + '.jpg?v=1'; } }
+  function inList(bin) { try { return lblHas(bin); } catch (x) { return false; } }
+  function pushOverlay(name) { try { history.pushState({ overlay: name }, ''); } catch (x) {} }
+
+  /* ---- Checklists drawer section ---- */
+  var CHECKLISTS = [
+    { id: 'box-truck', name: 'Box Truck Pre Check', pdf: BASE + 'checklists/box-truck-pre-check.pdf', pages: [BASE + 'checklists/box-truck-pre-check-1.jpg'] },
+    { id: 'tools', name: 'Tool Checklist', pdf: BASE + 'checklists/tool-checklist.pdf', pages: [BASE + 'checklists/tool-checklist-1.jpg', BASE + 'checklists/tool-checklist-2.jpg'] }
+  ];
+  var ICO = '<svg class="drawer-chk-ico" viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 11l2 2 4-4"/><path d="M8.5 17h7"/></svg>';
+  function addChecklistSection() {
+    var dr = e$('drawer'); if (!dr || e$('drawer-checklists')) return;
+    var sec = document.createElement('div'); sec.className = 'drawer-section'; sec.id = 'drawer-checklists';
+    var hh = '<button class="drawer-section-head" type="button">Checklists <span class="drawer-chevron">&#9662;</span></button><div class="drawer-items">';
+    CHECKLISTS.forEach(function (c) { hh += '<button class="drawer-item" type="button" data-drawer-checklist="' + c.id + '">' + ICO + '<span class="drawer-item-name" style="font-size:16px;color:#111827">' + h(c.name) + '</span></button>'; });
+    sec.innerHTML = hh + '</div>';
+    var after = e$('drawer-labels'), foot = dr.querySelector('.drawer-foot');
+    if (after && after.parentNode === dr) dr.insertBefore(sec, after.nextSibling); else if (foot) dr.insertBefore(sec, foot); else dr.appendChild(sec);
+    sec.querySelector('.drawer-section-head').addEventListener('click', function () { sec.classList.toggle('expanded'); });
+  }
+  function overlayEl(id) { var v = e$(id); if (!v) { v = document.createElement('div'); v.id = id; v.className = 'detail-overlay'; document.body.appendChild(v); } return v; }
+  function openChecklist(id) {
+    var c = CHECKLISTS.filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    var v = overlayEl('chk-view');
+    var hh = '<div class="detail-bar"><button class="detail-close" type="button" data-chk-close aria-label="Close">&times;</button><div style="font-weight:700;font-size:17px">' + h(c.name) + '</div></div><div class="detail-body">'
+      + '<a class="chk-open" href="' + c.pdf + '" target="_blank" rel="noopener">Open PDF to print</a>';
+    c.pages.forEach(function (p, i) { hh += '<img class="chk-page" src="' + p + '" alt="' + h(c.name) + ' page ' + (i + 1) + '">'; });
+    v.innerHTML = hh + '</div>';
+    v.classList.add('open'); v.scrollTop = 0; slideIn(v);
+    pushOverlay('chk');
+  }
+  function closeChecklist(fromPop) { var v = e$('chk-view'); if (!v || !v.classList.contains('open')) return; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
+
+  /* ---- Bin Labels grid ---- */
+  var blStore = null;
+  function natBin(a, b) { var re = /(\d+)/; var x = String(a.bin), y = String(b.bin); var px = x.replace(re, ''), py = y.replace(re, ''); if (px !== py) return px < py ? -1 : 1; return (parseInt((x.match(re) || [0, 0])[1], 10) - parseInt((y.match(re) || [0, 0])[1], 10)); }
+  function openLabelGrid(store) {
+    blStore = store;
+    var list = (window.items || items || []).filter(function (it) { return it && it.supplier === store && !/^HI-/i.test(it.bin); }).sort(natBin);
+    var cats = [], by = {};
+    list.forEach(function (it) { var c = it.category || 'Other'; if (!by[c]) { by[c] = []; cats.push(c); } by[c].push(it); });
+    var hh = '<div class="detail-bar"><button class="detail-close" type="button" id="labels-close" aria-label="Close">&times;</button><div style="font-weight:700;font-size:17px">Bin Labels &middot; ' + h(store) + '</div></div><div class="detail-body" style="max-width:1100px">'
+      + '<p class="bl-intro">Tap a label to add it to the print list (the QR button). Tap the label picture to see what the item is for.</p>';
+    if (!list.length) hh += '<p class="bl-none">No labels for this store yet.</p>';
+    cats.forEach(function (c) {
+      hh += '<div class="bl-cat">' + h(c) + '</div><div class="bl-grid">';
+      by[c].forEach(function (it) {
+        var on = inList(it.bin);
+        hh += '<div class="bl-card' + (on ? ' in' : '') + '" role="button" tabindex="0" data-bl-card="' + h(it.bin) + '">'
+          + '<img src="' + lurl(it.bin) + '" alt="Bin label ' + h(it.bin) + '" loading="lazy" data-bl-detail="' + h(it.bin) + '" onerror="this.style.visibility=\'hidden\'">'
+          + '<div class="bl-info"><div class="bl-bin">' + h(it.bin) + '</div><div class="bl-name">' + h(it.name) + '</div><div class="bl-state">' + (on ? '&#10003; In print list' : '+ Tap to add') + '</div></div></div>';
+      });
+      hh += '</div>';
+    });
+    hh += '</div>';
+    var v = e$('labels'); if (!v) return;
+    v.innerHTML = hh; v.classList.add('open'); v.scrollTop = 0; slideIn(v);
+    pushOverlay('labels');
+    try { overlayOpen = 'labels'; } catch (x) {}
+  }
+  function refreshGrid() {
+    document.querySelectorAll('[data-bl-card]').forEach(function (c) { var on = inList(c.getAttribute('data-bl-card')); c.classList.toggle('in', on); var s = c.querySelector('.bl-state'); if (s) s.innerHTML = on ? '&#10003; In print list' : '+ Tap to add'; });
+    var b = document.querySelector('#lbl-detail [data-bld-add]'); if (b) { var on2 = inList(b.getAttribute('data-bld-add')); b.classList.toggle('in', on2); b.innerHTML = on2 ? '&#10003; In print list &middot; tap to remove' : '+ Add to print list'; }
+  }
+  if (typeof lblSync === 'function') { var _ls = lblSync; lblSync = function () { var r = _ls.apply(this, arguments); try { refreshGrid(); } catch (x) {} return r; }; }
+  function openLabelDetail(bin) {
+    var it = findItem(bin); if (!it) return;
+    var feats = String(it.features || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    var fh = feats.length ? '<ul>' + feats.map(function (f) { return '<li>' + h(f) + '</li>'; }).join('') + '</ul>' : '<p style="color:#6B7280">No key features listed for this item yet.</p>';
+    var v = overlayEl('lbl-detail');
+    v.innerHTML = '<div class="detail-bar"><button class="detail-close" type="button" data-bld-close aria-label="Close">&times;</button><div style="font-weight:700;font-size:17px">Label details</div></div><div class="detail-body">'
+      + '<img class="bld-label" src="' + lurl(bin) + '" alt="Bin label ' + h(bin) + '">'
+      + '<div class="bld-row">' + (it.photoUrl ? '<img class="bld-photo" src="' + h(it.photoUrl) + '" alt="">' : '') + '<div><div class="detail-name" style="margin-top:0">' + h(it.name) + '</div><div class="detail-meta">' + h(it.bin) + ' &middot; ' + h(it.supplier) + (it.category ? ' &middot; ' + h(it.category) : '') + '<br>SKU: ' + h(it.sku || '\u2014') + '</div></div></div>'
+      + (it.specs ? '<div class="detail-flow"><h2>Flow rate</h2><ul>' + String(it.specs).split('\n').map(function (s) { return s.trim(); }).filter(Boolean).map(function (s) { return '<li>' + h(s) + '</li>'; }).join('') + '</ul></div>' : '')
+      + '<div class="detail-features"><h2>Key features</h2>' + fh + '</div>'
+      + '<button type="button" class="bld-add" data-bld-add="' + h(bin) + '">+ Add to print list</button></div>';
+    v.classList.add('open'); v.scrollTop = 0;
+    try { v.classList.remove('fx-in'); void v.offsetWidth; v.classList.add('fx-in'); } catch (x) {}
+    refreshGrid();
+    pushOverlay('lbldetail');
+  }
+  function closeLabelDetail(fromPop) { var v = e$('lbl-detail'); if (!v || !v.classList.contains('open')) return false; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } return true; }
+
+  /* ---- clicks (window capture runs before the app's own drawer handler) ---- */
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var lab = t.closest('[data-drawer-labels]');
+    if (lab) { e.stopImmediatePropagation(); e.preventDefault(); var s = lab.getAttribute('data-drawer-labels'); try { closeDrawer(); } catch (x) {} setTimeout(function () { openLabelGrid(s); }, 170); return; }
+    var ck = t.closest('[data-drawer-checklist]');
+    if (ck) { e.stopImmediatePropagation(); e.preventDefault(); var id = ck.getAttribute('data-drawer-checklist'); try { closeDrawer(); } catch (x) {} setTimeout(function () { openChecklist(id); }, 170); return; }
+    if (t.closest('[data-chk-close]')) { e.stopImmediatePropagation(); closeChecklist(false); return; }
+    if (t.closest('[data-bld-close]')) { e.stopImmediatePropagation(); closeLabelDetail(false); return; }
+    var ba = t.closest('[data-bld-add]');
+    if (ba) { e.stopImmediatePropagation(); try { lblToggle(ba.getAttribute('data-bld-add')); } catch (x) {} refreshGrid(); return; }
+    var bd = t.closest('[data-bl-detail]');
+    if (bd) { e.stopImmediatePropagation(); openLabelDetail(bd.getAttribute('data-bl-detail')); return; }
+    var bc = t.closest('[data-bl-card]');
+    if (bc) { e.stopImmediatePropagation(); try { lblToggle(bc.getAttribute('data-bl-card')); } catch (x) {} refreshGrid(); return; }
+    /* drawer navigation that lands on the main list: slide it in like the drawer */
+    if (t.closest('#drawer') && t.closest('[data-drawer-category], [data-drawer-template], [data-drawer-supplier="All"]')) {
+      setTimeout(function () { slideIn(e$('list')); }, 160);
+    }
+  }, true);
+  window.addEventListener('popstate', function () {
+    var st2 = history.state && history.state.overlay;
+    if (st2 !== 'lbldetail') closeLabelDetail(true);
+    if (st2 !== 'chk') closeChecklist(true);
+  });
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addChecklistSection); else addChecklistSection();
+  setTimeout(addChecklistSection, 1500);
 })();
