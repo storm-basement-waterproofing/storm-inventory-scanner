@@ -28,79 +28,60 @@
   #app { transition: opacity .5s ease; }
   #boot.gone { opacity: 0; pointer-events: none; transition: opacity .22s cubic-bezier(.4,0,.2,1); }
   @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.95); } }
+  /* v86 (Hark, 2026-11-08): no logo on the loading screen. A neon line (same look as the header logo trace) starts at the top middle,
+     runs clockwise around the edge of the screen while the app loads, and closes at the top just as the page is ready;
+     that is the moment the header STORM trace starts, so it reads as one loop. */
+  #edge { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none;
+    filter: drop-shadow(0 0 2px rgba(90,195,255,.95)) drop-shadow(0 0 7px rgba(60,170,255,.6)); transition: opacity .55s ease; }
+  #edge path { fill: none; stroke: #effaff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+  #boot.done #edge { opacity: 0; }
   #camwrap { position: fixed; inset: 0; z-index: 5; background: #000; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; opacity: 0; transition: opacity .18s ease; }
   #camwrap.on { opacity: 1; }
   #camwrap iframe { width: 100%; height: 100%; border: 0; display: block; background: #000; }
 </style>
 </head>
 <body style="background:#000">
-<div id="boot"><div id="cover"></div><img src="assets/logo.png?v=1" width="1412" height="364" decoding="async" alt="STORM Basement Waterproofing"></div>
+<div id="boot"><div id="cover"></div><svg id="edge" aria-hidden="true"><path id="edgep" pathLength="1"></path></svg></div>
 <iframe id="app" title="STORM Inventory" allow="clipboard-read; clipboard-write; camera; microphone; autoplay; fullscreen; web-share"></iframe>
 <script>
   var EXEC = 'https://script.google.com/macros/s/AKfycbz1Cx5_SxpOPCaNSgHs3DK6wDCqktmepnQ1JMUzmr_kLTJ0B2oPHkZZGBrhjku0FxPINw/exec';
   try { localStorage.setItem('stormWrap', '1'); } catch (e) {}
-  var f = document.getElementById('app'), boot = document.getElementById('boot'), img = boot.querySelector('img');
-  var settled = false, cover = document.getElementById('cover');
-  (function () { var go = function () { requestAnimationFrame(function () { img.classList.add('in'); }); };
-    if (img.complete && img.naturalWidth) { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(go); }
-    else { img.addEventListener('load', function () { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(go); }); img.addEventListener('error', go); }
-  })();
-  function plainFade() { if (settled) return; settled = true; f.classList.add('ready'); setTimeout(function () { boot.classList.add('gone'); }, 250); }
-  /* v76 (Hark, 2026-11-07): one GPU-only flight (transform + opacity), so it runs at the screen's full refresh (120 Hz on the Pixel).
-     Push back, glide up while fading a little more, then punch in on the header. The app's header animation starts the moment it lands. */
-  function handoff(m, src) {
-    if (settled) return; settled = true;
-    var r0 = img.getBoundingClientRect(), op = parseFloat(getComputedStyle(img).opacity) || 1;
-    img.style.animation = 'none'; img.style.transition = 'none'; img.style.position = 'absolute'; img.style.margin = '0';
-    img.style.left = r0.left + 'px'; img.style.top = r0.top + 'px'; img.style.width = r0.width + 'px';
-    img.style.transform = 'translate3d(0,0,0)'; img.style.transformOrigin = '0 0'; img.style.opacity = op;
-    img.style.willChange = 'transform, opacity'; img.style.backfaceVisibility = 'hidden';
-    void img.offsetWidth;
-    var T = m.fly || 1100, k = m.w / r0.width, dx = m.x - r0.left, dy = m.y - r0.top;
-    /* v81: push, glide (fading a little), land, then a quick press-in. The press is what starts the app's trace animation. */
-    var w0 = r0.width, h0 = r0.height, cx1 = dx + m.w / 2, cy1 = dy + m.h / 2;
-    function ss(x) { x = Math.max(0, Math.min(1, x)); return x * x * x * (x * (x * 6 - 15) + 10); } /* smootherstep */
-    function bell(x) { if (x <= 0 || x >= 1) return 0; var v = Math.sin(Math.PI * x); return v * v; }
-    T = 1380; var LAND = 1040, PRESS = 1150, UP = 1380; /* ms: arrives, bottom of the press, released */
-    function press(ms) { /* 0..1 depth of the press-in */
-      if (ms <= LAND - 70 || ms >= UP) return 0;
-      if (ms < PRESS) { var u = (ms - (LAND - 70)) / (PRESS - (LAND - 70)); return u * u * (3 - 2 * u); }
-      var v = (ms - PRESS) / (UP - PRESS); return 1 - (1 - Math.pow(1 - v, 3));
-    }
-    var move = [], fade = [], N = 86;
-    for (var i = 0; i <= N; i++) {
-      var t = i / N, ms = t * T, p = ss((ms - 40) / (LAND - 40));
-      var sc = (1 + (k - 1) * p) * (1 - .06 * bell(ms / 380)) * (1 - .1 * press(ms));
-      var cx = w0 / 2 + (cx1 - w0 / 2) * p, cy = h0 / 2 + (cy1 - h0 / 2) * p;
-      move.push({ transform: 'translate3d(' + (cx - sc * w0 / 2).toFixed(2) + 'px,' + (cy - sc * h0 / 2).toFixed(2) + 'px,0) scale(' + sc.toFixed(4) + ')', offset: t });
-      var g = ms / (LAND - 60), base = op + (1 - op) * ss(g);
-      fade.push({ opacity: +(base - (base - .3) * bell(g) * .95).toFixed(3), offset: t });
-    }
-    var told = false;
-    function tell() { if (told) return; told = true; try { if (src) src.postMessage({ storm: 'landed' }, '*'); } catch (e) {} }
-    function landed() { tell(); boot.classList.add('gone'); }
-    setTimeout(tell, PRESS - 40); /* the trace starts at the bottom of the press (40 ms head start for the hop into the app) */
-    setTimeout(function () { boot.classList.add('gone'); }, PRESS + 30); /* the wrapper logo lets go as the press releases */
-    f.classList.add('ready'); /* the app is already faded in under the black cover */
-    try {
-      var a1 = img.animate(move, { duration: T, fill: 'forwards', easing: 'linear' });
-      img.animate(fade, { duration: T, fill: 'forwards', easing: 'linear' });
-      /* v83 (Hark, 2026-11-07): a small flash hugging every letter and the droplet at the press-in (drop-shadow follows the logo's own shape) */
-      var F0 = (LAND - 60) / T, FP = (PRESS - 20) / T;
-      img.animate([
-        { filter: 'brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 0 rgba(120,200,255,0))', offset: 0 },
-        { filter: 'brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 0 rgba(120,200,255,0))', offset: F0 },
-        { filter: 'brightness(1.3) drop-shadow(0 0 1.5px rgba(255,255,255,1)) drop-shadow(0 0 7px rgba(140,210,255,.85))', offset: FP },
-        { filter: 'brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 0 rgba(120,200,255,0))', offset: 1 }
-      ], { duration: T, fill: 'forwards', easing: 'linear' });
-      cover.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T * .7, delay: T * .1, fill: 'forwards', easing: 'cubic-bezier(.4,0,.2,1)' });
-      a1.onfinish = landed;
-    } catch (e) { cover.style.opacity = '0'; setTimeout(landed, 50); }
-    boot.classList.add('fly');
+  var f = document.getElementById('app'), boot = document.getElementById('boot'), cover = document.getElementById('cover');
+  var edge = document.getElementById('edge'), ep = document.getElementById('edgep');
+  function edgePath() {
+    var W = window.innerWidth, H = window.innerHeight, i = 3, R = Math.min(44, Math.round(Math.min(W, H) * .06));
+    var L = i, T = i, Rt = W - i, B = H - i, M = W / 2;
+    ep.setAttribute('d', 'M' + M + ' ' + T + ' H' + (Rt - R) + ' A' + R + ' ' + R + ' 0 0 1 ' + Rt + ' ' + (T + R) + ' V' + (B - R)
+      + ' A' + R + ' ' + R + ' 0 0 1 ' + (Rt - R) + ' ' + B + ' H' + (L + R) + ' A' + R + ' ' + R + ' 0 0 1 ' + L + ' ' + (B - R)
+      + ' V' + (T + R) + ' A' + R + ' ' + R + ' 0 0 1 ' + (L + R) + ' ' + T + ' Z');
+    edge.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   }
-  window.addEventListener('message', function (e) { var m = e.data; if (m && m.storm === 'logo' && typeof m.x === 'number') handoff(m, e.source); });
+  edgePath(); window.addEventListener('resize', edgePath);
+  /* pace: one loop in about 2.2 s; if the app is not ready by ~88% the line creeps, then finishes at full pace once it is */
+  var LOOP = 2200, HOLD = .88, p = 0, last = 0, ready = false, src = null, finished = false, settled = false;
+  function markReady(s2) { if (ready) return; ready = true; if (s2) src = s2; f.classList.add('ready'); }
+  function tick(now) {
+    if (!last) last = now; var dt = Math.min(50, now - last); last = now;
+    var v = 1 / LOOP;
+    if (!ready && p >= HOLD) v *= .08;               /* still loading: creep so the loop never closes early */
+    else if (ready && p >= HOLD) v *= 1.15;          /* ready: run home a touch quicker */
+    p = Math.min(1, p + v * dt);
+    ep.style.strokeDashoffset = (1 - p).toFixed(4);
+    if (ready) cover.style.opacity = Math.max(0, Math.min(1, (1 - p) / .12)).toFixed(3); /* the page shows through over the last stretch */
+    if (p >= 1) return finish();
+    requestAnimationFrame(tick);
+  }
+  function finish() {
+    if (finished) return; finished = true; settled = true;
+    try { (src || f.contentWindow).postMessage({ storm: 'landed' }, '*'); } catch (e) {}  /* header STORM trace starts right as the loop closes */
+    cover.style.opacity = '0'; boot.classList.add('done');
+    setTimeout(function () { boot.classList.add('gone'); }, 600);
+  }
+  requestAnimationFrame(tick);
+  function plainFade() { markReady(null); }
+  window.addEventListener('message', function (e) { var m = e.data; if (m && m.storm === 'logo') markReady(e.source); });
   var loaded = false;
-  f.addEventListener('load', function () { if (loaded) return; loaded = true; setTimeout(plainFade, 4500); });
+  f.addEventListener('load', function () { if (loaded) return; loaded = true; setTimeout(plainFade, 3000); });
   f.src = EXEC + location.search;
   setTimeout(plainFade, 9000);
   /* v82 (Hark, 2026-11-07): the camera opens as a layer on top of the app. Closing it (X, Cancel or Done) just removes the layer,
