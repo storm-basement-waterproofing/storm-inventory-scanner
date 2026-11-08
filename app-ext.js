@@ -586,11 +586,11 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 })();
 
 /* v85 (Hark, 2026-11-08): on a detail page (item details, Bin Labels, Checklists) the cart, camera and QR buttons slide right and fade,
-   tucked against the edge so they stay in view without covering the words; they slide and fade back in on the main page */
+   v87: they now slide fully off the page; they slide and fade back in on the main page */
 (function () {
   var st = document.createElement('style');
   st.textContent = '#fab-dock.fab-dock { transition: transform .42s cubic-bezier(.34,1.3,.5,1), opacity .32s ease !important; }'
-    + 'body:has(.detail-overlay.open) #fab-dock.fab-dock { transform: translateX(calc(100% - 4px)); opacity: .55; transition: transform .38s cubic-bezier(.5,-0.35,.6,1), opacity .3s ease !important; }'
+    + 'body:has(.detail-overlay.open) #fab-dock.fab-dock { transform: translateX(calc(100% + 40px)); opacity: 0; pointer-events: none; transition: transform .38s cubic-bezier(.5,-0.35,.6,1), opacity .3s ease !important; }'
     + 'body:has(.detail-overlay.open) #fab-dock.fab-dock .cart-fab-total { opacity: 0; }';
   document.head.appendChild(st);
 })();
