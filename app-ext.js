@@ -293,3 +293,29 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var d = document.getElementById('detail');
   if (d && window.MutationObserver) new MutationObserver(function () { try { lift(); } catch (e) {} }).observe(d, { childList: true });
 })();
+
+/* v74: boot handoff - wrapper's pulsing logo flies into the header, then the header intro plays (2026-11-07) */
+(function () {
+  var inWrap = false;
+  try { var ao = location.ancestorOrigins; if (ao) for (var i = 0; i < ao.length; i++) if (/github\.io$/.test(ao[i])) inWrap = true; } catch (e) {}
+  if (!inWrap) return;
+  var de = document.documentElement; de.classList.add('storm-handoff');
+  var st = document.createElement('style');
+  st.textContent = 'html.storm-handoff header .storm-logo-lit, html.storm-handoff header img.logo { visibility: hidden !important; } html.storm-handoff header .storm-logo-lit, html.storm-handoff header .storm-logo-lit * { animation: none !important; }';
+  document.head.appendChild(st);
+  var FLY = 750, sent = false, t0 = Date.now();
+  function reveal() { de.classList.remove('storm-handoff'); try { if (window.stormLogoFlash) window.stormLogoFlash(); } catch (e) {} }
+  (function find() {
+    if (sent) return;
+    var el = document.querySelector('header .storm-logo-lit') || (Date.now() - t0 > 2600 ? document.querySelector('header img.logo') : null);
+    var r = el && el.getBoundingClientRect();
+    if (r && r.width > 20) {
+      sent = true;
+      try { window.top.postMessage({ storm: 'logo', x: r.left, y: r.top, w: r.width, h: r.height, fly: FLY }, '*'); } catch (e) {}
+      setTimeout(reveal, FLY);
+      return;
+    }
+    if (Date.now() - t0 > 4000) { sent = true; reveal(); return; }
+    setTimeout(find, 40);
+  })();
+})();
