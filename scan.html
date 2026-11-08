@@ -81,6 +81,8 @@ header { position: relative; padding-right: 60px; }
 #sheet-foot { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,.1); display: flex; justify-content: space-between; font-size: 17px; font-weight: 700; }
 .empty { padding: 30px 10px; text-align: center; color: #9ca3af; }
 .hap { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
+#glow, #edge { display: none !important; }
+video { image-rendering: auto; }
 </style>
 </head>
 <body>
@@ -383,14 +385,50 @@ function focusAt(clientX, clientY) {
     if (caps.focusMode && caps.focusMode.indexOf('single-shot') !== -1) { adv.focusMode = 'single-shot'; ok = true; }
     if (caps.pointsOfInterest) { adv.pointsOfInterest = [{ x: x, y: y }]; ok = true; }
     if (!ok) { adv.pointsOfInterest = [{ x: x, y: y }]; adv.focusMode = 'single-shot'; }
-    track.applyConstraints({ advanced: [adv] }).catch(function () {
+    backToContinuous(); track.applyConstraints({ advanced: [adv] }).catch(function () {
       track.applyConstraints({ advanced: [{ focusPoint: { x: x, y: y } }] }).catch(function () {});
     });
   } catch (e) {}
 }
+
+// v83 (Hark, 2026-11-07): sharper camera. Ask for full HD, the main back lens, and continuous autofocus.
+var CAM_HI = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
+function camOpen(extra) { var v = { facingMode: { ideal: 'environment' } }; for (var k in CAM_HI) v[k] = CAM_HI[k]; for (var j in (extra || {})) { if (extra[j] === undefined) delete v[j]; else v[j] = extra[j]; } return navigator.mediaDevices.getUserMedia({ video: v, audio: false }); }
+function camTune(s) {
+  try {
+    var t = s.getVideoTracks()[0]; if (!t) return;
+    var c = t.getCapabilities ? t.getCapabilities() : {}, adv = {};
+    if (c.focusMode && c.focusMode.indexOf('continuous') !== -1) adv.focusMode = 'continuous';
+    if (c.exposureMode && c.exposureMode.indexOf('continuous') !== -1) adv.exposureMode = 'continuous';
+    if (c.whiteBalanceMode && c.whiteBalanceMode.indexOf('continuous') !== -1) adv.whiteBalanceMode = 'continuous';
+    if (Object.keys(adv).length) t.applyConstraints({ advanced: [adv] }).catch(function () {});
+  } catch (e) {}
+}
+function getSharpStream() {
+  return camOpen().then(function (s) {
+    var t = s.getVideoTracks()[0], label = (t && t.label) || '';
+    // Android Chrome labels lenses "camera2 N, facing back"; camera2 0 is the main lens. Switch if we got another one.
+    if (!/android/i.test(navigator.userAgent) || /camera2 0\b/.test(label) || !navigator.mediaDevices.enumerateDevices) { camTune(s); return s; }
+    return navigator.mediaDevices.enumerateDevices().then(function (ds) {
+      var main = ds.filter(function (d) { return d.kind === 'videoinput' && /camera2 0\b/.test(d.label) && /back/i.test(d.label); })[0];
+      if (!main) { camTune(s); return s; }
+      s.getTracks().forEach(function (x) { x.stop(); });
+      return camOpen({ deviceId: { exact: main.deviceId }, facingMode: undefined }).then(function (s2) { camTune(s2); return s2; }, function () { return camOpen().then(function (s3) { camTune(s3); return s3; }); });
+    }, function () { camTune(s); return s; });
+  });
+}
+// After a tap-to-focus, go back to continuous focus so the picture never stays soft.
+var _refocusT = null;
+function backToContinuous() { clearTimeout(_refocusT); _refocusT = setTimeout(function () { if (stream) camTune(stream); }, 2500); }
+// Stop the camera when the page is hidden; restart it when the user comes back.
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) { if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; } }
+  else if (!done && !stream && video && video.style.display !== 'none') { getSharpStream().then(function (s) { stream = s; video.srcObject = s; return video.play(); }).catch(function () {}); }
+});
+window.addEventListener('pagehide', function () { if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; } });
 function startNative() {
   if (!('BarcodeDetector' in window)) { startFallback(); return; }
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+  getSharpStream()
     .then(function (s) {
       stream = s;
       video.srcObject = s;
@@ -423,7 +461,7 @@ function startFallback() {
   document.head.appendChild(js);
 }
 function startJsQR() {
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
+  getSharpStream()
     .then(function (s) { stream = s; video.srcObject = s; return video.play(); })
     .then(function () {
       setMsg('Looking for a code…');
