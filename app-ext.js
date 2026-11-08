@@ -320,7 +320,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (r && r.width > 20) {
       sent = true;
       try { window.top.postMessage({ storm: 'logo', x: r.left, y: r.top, w: r.width, h: r.height, fly: FLY }, '*'); } catch (e) {}
-      setTimeout(reveal, FLY + 500); /* fallback if the wrapper never says it landed */
+      setTimeout(reveal, 9000); /* v88: fallback if the wrapper never says the edge loop closed (the loop waits for this page) */
       return;
     }
     if (Date.now() - t0 > 4000) { sent = true; reveal(); return; }
