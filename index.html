@@ -17,33 +17,41 @@
   #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #000; opacity: 0; transition: opacity .35s ease; }
   #app { visibility: hidden; } #app.ready { opacity: 1; visibility: visible; }
   #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: transparent; transition: opacity .4s ease; }
-  #boot img { position: absolute; left: 50%; top: 50%; width: min(62vw, 300px); height: auto; transform: translate(-50%, -50%); animation: pulse 1.4s ease-in-out infinite; }
+  /* v85 (Hark, 2026-11-08): the logo is centred by the flex box (no translate tricks), its size is reserved before the picture loads,
+     and it starts invisible: once the picture is decoded it fades in, then the pulse starts. No jump on iPad or Android. */
+  #boot img { position: relative; display: block; width: min(62vw, 300px); height: auto; aspect-ratio: 1412 / 364; opacity: 0; transform-origin: 50% 50%; }
+  #boot img.in { animation: bootIn .7s cubic-bezier(.25,.1,.25,1) forwards, pulse 1.4s ease-in-out .7s infinite; }
+  @keyframes bootIn { from { opacity: 0; } to { opacity: 1; } }
   #boot { z-index: 2; }
   #cover { position: absolute; inset: 0; background: #000; will-change: opacity; }
   #boot.fly { pointer-events: none; background: transparent; }
   #app { transition: opacity .5s ease; }
   #boot.gone { opacity: 0; pointer-events: none; transition: opacity .22s cubic-bezier(.4,0,.2,1); }
-  @keyframes pulse { 0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 50% { opacity: .5; transform: translate(-50%, -50%) scale(.95); } } /* v84: starts full and centered, so there is no jump at launch */
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.95); } }
   #camwrap { position: fixed; inset: 0; z-index: 5; background: #000; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; opacity: 0; transition: opacity .18s ease; }
   #camwrap.on { opacity: 1; }
   #camwrap iframe { width: 100%; height: 100%; border: 0; display: block; background: #000; }
 </style>
 </head>
 <body style="background:#000">
-<div id="boot"><div id="cover"></div><img src="assets/logo.png?v=1" alt="STORM Basement Waterproofing"></div>
+<div id="boot"><div id="cover"></div><img src="assets/logo.png?v=1" width="1412" height="364" decoding="async" alt="STORM Basement Waterproofing"></div>
 <iframe id="app" title="STORM Inventory" allow="clipboard-read; clipboard-write; camera; microphone; autoplay; fullscreen; web-share"></iframe>
 <script>
   var EXEC = 'https://script.google.com/macros/s/AKfycbz1Cx5_SxpOPCaNSgHs3DK6wDCqktmepnQ1JMUzmr_kLTJ0B2oPHkZZGBrhjku0FxPINw/exec';
   try { localStorage.setItem('stormWrap', '1'); } catch (e) {}
   var f = document.getElementById('app'), boot = document.getElementById('boot'), img = boot.querySelector('img');
   var settled = false, cover = document.getElementById('cover');
+  (function () { var go = function () { requestAnimationFrame(function () { img.classList.add('in'); }); };
+    if (img.complete && img.naturalWidth) { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(go); }
+    else { img.addEventListener('load', function () { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(go); }); img.addEventListener('error', go); }
+  })();
   function plainFade() { if (settled) return; settled = true; f.classList.add('ready'); setTimeout(function () { boot.classList.add('gone'); }, 250); }
   /* v76 (Hark, 2026-11-07): one GPU-only flight (transform + opacity), so it runs at the screen's full refresh (120 Hz on the Pixel).
      Push back, glide up while fading a little more, then punch in on the header. The app's header animation starts the moment it lands. */
   function handoff(m, src) {
     if (settled) return; settled = true;
     var r0 = img.getBoundingClientRect(), op = parseFloat(getComputedStyle(img).opacity) || 1;
-    img.style.animation = 'none'; img.style.transition = 'none';
+    img.style.animation = 'none'; img.style.transition = 'none'; img.style.position = 'absolute'; img.style.margin = '0';
     img.style.left = r0.left + 'px'; img.style.top = r0.top + 'px'; img.style.width = r0.width + 'px';
     img.style.transform = 'translate3d(0,0,0)'; img.style.transformOrigin = '0 0'; img.style.opacity = op;
     img.style.willChange = 'transform, opacity'; img.style.backfaceVisibility = 'hidden';
