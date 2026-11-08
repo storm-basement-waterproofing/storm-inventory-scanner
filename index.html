@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="STORM Inventory">
 <title>STORM Inventory</title>
-<link rel="icon" href="assets/drop.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=2">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-icon-180.png?v=2">
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
@@ -46,23 +46,30 @@
     img.style.willChange = 'transform, opacity'; img.style.backfaceVisibility = 'hidden';
     void img.offsetWidth;
     var T = m.fly || 1100, k = m.w / r0.width, dx = m.x - r0.left, dy = m.y - r0.top;
-    /* v80: one continuous curve sampled every ~16 ms - no stop between the push, the glide and the punch, so no hesitation */
+    /* v81: push, glide (fading a little), land, then a quick press-in. The press is what starts the app's trace animation. */
     var w0 = r0.width, h0 = r0.height, cx1 = dx + m.w / 2, cy1 = dy + m.h / 2;
     function ss(x) { x = Math.max(0, Math.min(1, x)); return x * x * x * (x * (x * 6 - 15) + 10); } /* smootherstep */
     function bell(x) { if (x <= 0 || x >= 1) return 0; var v = Math.sin(Math.PI * x); return v * v; }
-    var move = [], fade = [], N = 70;
+    T = 1380; var LAND = 1040, PRESS = 1150, UP = 1380; /* ms: arrives, bottom of the press, released */
+    function press(ms) { /* 0..1 depth of the press-in */
+      if (ms <= LAND - 70 || ms >= UP) return 0;
+      if (ms < PRESS) { var u = (ms - (LAND - 70)) / (PRESS - (LAND - 70)); return u * u * (3 - 2 * u); }
+      var v = (ms - PRESS) / (UP - PRESS); return 1 - (1 - Math.pow(1 - v, 3));
+    }
+    var move = [], fade = [], N = 86;
     for (var i = 0; i <= N; i++) {
-      var t = i / N, p = ss((t - .04) / .86);
-      var sc = (1 + (k - 1) * p) * (1 - .06 * bell(t / .34)) * (1 + .07 * bell((t - .7) / .3));
+      var t = i / N, ms = t * T, p = ss((ms - 40) / (LAND - 40));
+      var sc = (1 + (k - 1) * p) * (1 - .06 * bell(ms / 380)) * (1 - .1 * press(ms));
       var cx = w0 / 2 + (cx1 - w0 / 2) * p, cy = h0 / 2 + (cy1 - h0 / 2) * p;
       move.push({ transform: 'translate3d(' + (cx - sc * w0 / 2).toFixed(2) + 'px,' + (cy - sc * h0 / 2).toFixed(2) + 'px,0) scale(' + sc.toFixed(4) + ')', offset: t });
-      var base = op + (1 - op) * ss(t / .82);
-      fade.push({ opacity: +(base - (base - .3) * bell(t / .82) * .95).toFixed(3), offset: t });
+      var g = ms / (LAND - 60), base = op + (1 - op) * ss(g);
+      fade.push({ opacity: +(base - (base - .3) * bell(g) * .95).toFixed(3), offset: t });
     }
     var told = false;
     function tell() { if (told) return; told = true; try { if (src) src.postMessage({ storm: 'landed' }, '*'); } catch (e) {} }
-    function landed() { tell(); requestAnimationFrame(function () { requestAnimationFrame(function () { boot.classList.add('gone'); }); }); }
-    setTimeout(tell, T - 45); /* tell the app a hair early so its header animation starts on the exact landing frame */
+    function landed() { tell(); boot.classList.add('gone'); }
+    setTimeout(tell, PRESS - 40); /* the trace starts at the bottom of the press (40 ms head start for the hop into the app) */
+    setTimeout(function () { boot.classList.add('gone'); }, PRESS + 30); /* the wrapper logo lets go as the press releases */
     f.classList.add('ready'); /* the app is already faded in under the black cover */
     try {
       var a1 = img.animate(move, { duration: T, fill: 'forwards', easing: 'linear' });
