@@ -75,13 +75,13 @@
   /* pace: one loop in about 2.2 s; if the app is not ready by ~88% the line creeps, then finishes at full pace once it is */
   var LOOP = 2200, HOLD = .88, p = 0, last = 0, ready = false, src = null, finished = false, settled = false;
   var lt = document.getElementById('ltrace'), lpaths = lt ? lt.querySelectorAll('path') : [], q0 = -1, rect = null, present = false;
-  var DELAYS = [], TT = 2.68; Array.prototype.forEach.call(lpaths, function (pa, k) { DELAYS.push(.14 * k); });
+  var DELAYS = [0.0, 0.4, 0.65, 0.9, 0.98, 1.21, 1.29, 1.48], DUR = .9, TT = 2.72; /* v89: left to right - each part starts as the sweep reaches its left edge */
   function placeLogo(r) { if (!lt || !r || !(r.w > 20)) return false; rect = r; lt.style.left = r.x + 'px'; lt.style.top = r.y + 'px'; lt.style.width = r.w + 'px'; lt.style.height = r.h + 'px'; lt.setAttribute('preserveAspectRatio', 'none'); lt.style.display = 'block'; return true; }
   /* where the header logo sits is the same every launch for a given screen size, so remember it and start the trace right away */
   var KEY = 'stormLogoRect';
   try { var c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && c.vw === window.innerWidth && c.vh === window.innerHeight && placeLogo(c)) q0 = 0; } catch (e) {}
   function ez(u) { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); }
-  function drawLogo(q) { for (var k = 0; k < lpaths.length; k++) { var u = ez((q * TT - DELAYS[k]) / 1.7); lpaths[k].style.strokeDashoffset = (1 - u).toFixed(4); } }
+  function drawLogo(q) { for (var k = 0; k < lpaths.length; k++) { var u = ez((q * TT - (DELAYS[k] || 0)) / DUR); lpaths[k].style.strokeDashoffset = (1 - u).toFixed(4); } }
   function markReady(s2, m) {
     if (m && m.w > 20) {
       try { localStorage.setItem(KEY, JSON.stringify({ x: m.x, y: m.y, w: m.w, h: m.h, vw: window.innerWidth, vh: window.innerHeight })); } catch (e) {}
