@@ -269,6 +269,7 @@ function goBackWithCart() {
   if (!hasCartApi) { goBack(scans.length ? scans.join(',') : null); return; }
   if (done) return; done = true;
   stopStream();
+  if (inLayer()) { layerDone({ cart: cartCsv(), ct: String(Date.now()) }); return; }
   var url = returnUrl + (returnUrl.indexOf('?') === -1 ? '?' : '&');
   location.href = url + 'cart=' + encodeURIComponent(cartCsv()) + '&ct=' + Date.now();
 }
@@ -288,9 +289,13 @@ function updateDone() {
 // matched against the item lookup below; matches stay on the camera and
 // collect in `scans` (same item twice = quantity 2) until Done returns to
 // the app with ?scans=<comma-separated item ids>. Cancel returns with none.
+// v84 (Hark, 2026-11-07): inside the wrapper the scanner is a layer over the app; closing it hands results back with no reload.
+function inLayer() { try { return params.get('layer') === '1' && window.parent !== window && window.parent.location.origin === location.origin; } catch (e) { return false; } }
+function layerDone(r) { r.storm = 'scanDone'; try { window.parent.postMessage(r, location.origin); } catch (e) {} }
 function goBack(scansCsv) {
   if (done) return; done = true;
   stopStream();
+  if (inLayer()) { layerDone({ scans: scansCsv || '' }); return; }
   var url = returnUrl + (returnUrl.indexOf('?') === -1 ? '?' : '&');
   if (scansCsv) url += 'scans=' + encodeURIComponent(scansCsv);
   location.href = url;
