@@ -25,7 +25,7 @@
 </style>
 </head>
 <body>
-<div id="boot"><img src="https://drive.google.com/thumbnail?id=1APQ3gyenuDNOoCyvC-NhXg-2L8tM0REM&amp;sz=w800" alt="STORM Basement Waterproofing"></div>
+<div id="boot"><img src="assets/logo.png?v=1" alt="STORM Basement Waterproofing"></div>
 <iframe id="app" title="STORM Inventory" allow="clipboard-read; clipboard-write; camera; microphone; autoplay; fullscreen; web-share"></iframe>
 <script>
   var EXEC = 'https://script.google.com/macros/s/AKfycbz1Cx5_SxpOPCaNSgHs3DK6wDCqktmepnQ1JMUzmr_kLTJ0B2oPHkZZGBrhjku0FxPINw/exec';
@@ -35,17 +35,25 @@
   function plainFade() { if (settled) return; settled = true; f.classList.add('ready'); setTimeout(function () { boot.classList.add('gone'); }, 250); }
   function handoff(m) {
     if (settled) return; settled = true;
-    var r0 = img.getBoundingClientRect(), op = getComputedStyle(img).opacity;
+    var r0 = img.getBoundingClientRect(), op = parseFloat(getComputedStyle(img).opacity) || 1;
     img.style.animation = 'none'; img.style.transition = 'none';
     img.style.left = r0.left + 'px'; img.style.top = r0.top + 'px'; img.style.width = r0.width + 'px';
-    img.style.transform = 'none'; img.style.opacity = op;
+    img.style.transform = 'none'; img.style.transformOrigin = '0 0'; img.style.opacity = op;
     void img.offsetWidth;
-    var d = (m.fly || 750) / 1000;
-    img.style.transition = 'left ' + d + 's cubic-bezier(.6,0,.2,1), top ' + d + 's cubic-bezier(.6,0,.2,1), width ' + d + 's cubic-bezier(.6,0,.2,1), opacity .3s ease';
-    img.style.left = m.x + 'px'; img.style.top = m.y + 'px'; img.style.width = m.w + 'px'; img.style.opacity = '1';
+    var T = m.fly || 1150, k = m.w / r0.width;
+    var dx = m.x - r0.left, dy = m.y - r0.top;
+    var cx = r0.width * 0.04, cy = r0.height * 0.04; /* keep the push centred */
+    var frames = [
+      { transform: 'translate(0px,0px) scale(1)', opacity: op, offset: 0, easing: 'cubic-bezier(.4,0,.6,1)' },
+      { transform: 'translate(' + cx + 'px,' + cy + 'px) scale(.92)', opacity: Math.min(op, .82), offset: .2, easing: 'cubic-bezier(.65,0,.3,1)' },
+      { transform: 'translate(' + (dx * .78) + 'px,' + (dy * .78) + 'px) scale(' + (1 + (k - 1) * .78) + ')', opacity: .7, offset: .78, easing: 'cubic-bezier(.3,0,.2,1)' },
+      { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + k + ')', opacity: 0, offset: 1 }
+    ];
+    try { img.animate(frames, { duration: T, fill: 'forwards' }); }
+    catch (e) { img.style.transition = 'left .8s ease, top .8s ease, width .8s ease, opacity .8s ease'; img.style.left = m.x + 'px'; img.style.top = m.y + 'px'; img.style.width = m.w + 'px'; img.style.opacity = '0'; }
     boot.classList.add('fly');
     f.classList.add('ready');
-    setTimeout(function () { boot.classList.add('gone'); }, (m.fly || 750) + 60);
+    setTimeout(function () { boot.classList.add('gone'); }, T + 60);
   }
   window.addEventListener('message', function (e) { var m = e.data; if (m && m.storm === 'logo' && typeof m.x === 'number') handoff(m); });
   var loaded = false;
