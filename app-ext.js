@@ -244,8 +244,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var BY_BIN = { 'rt-25': 'AprilAire Accessories', 'rt-26': 'AprilAire Accessories', 'rt-03': 'Battery Backup', 'rt-04': 'High Water Alarms', 'hd-103': 'Extension Cords',
     /* v79 (2026-11-07, Dave's reorganize) */ 'rt-13': 'Check Valves', 'rt-34': 'Vapor Barrier / Waterproofing Membrane', 'rt-41': 'Vapor Barrier / Waterproofing Membrane', 'rt-36': 'Vapor Barrier / Waterproofing Membrane', 'rt-29': 'CFS Carbon Fiber',
     /* v85 (2026-11-08, Dave's 15-point list) */ 'rt-14': 'Pumps & Accessories', 'hd-63': 'AprilAire Accessories', 'hd-77': 'Exterior Discharge', 'hd-78': 'Exterior Discharge', 'hd-79': 'Exterior Discharge', 'rt-37': 'Exterior Discharge', 'rt-35': 'Vapor Barrier / Waterproofing Membrane', 'hd-08': 'Vapor Barrier / Waterproofing Membrane', 'hd-18': 'Vapor Barrier / Waterproofing Membrane' };
+  var SUFFIX = { 'hd-103': ' (15AMP)', 'hi-03': ' (TE-2000)' }; /* v85: Dave's description adds */
   var RENAME = { 'Power & Backup': 'Battery Backup', 'Sump Basins & Liners': 'Sump Basins & Lids', 'Wall Treatments': 'Vapor Barrier / Waterproofing Membrane', 'Vapor Barrier': 'Vapor Barrier / Waterproofing Membrane', 'Pumps': 'Pumps & Accessories' };
-  function fix() { if (!items || !items.forEach) return; items.forEach(function (it) { var b = (it.bin || '').toLowerCase(); if (BY_BIN[b]) it.category = BY_BIN[b]; else if (/hanging\s*strap/i.test(it.name || '')) it.category = 'AprilAire Accessories'; else if ((it.supplier === 'Hilti' || /^hi-/.test(b)) && /cord/i.test(it.name || '')) it.category = 'Extension Cords'; else if (RENAME[it.category]) it.category = RENAME[it.category]; }); }
+  function fix() { if (!items || !items.forEach) return; items.forEach(function (it) { var b = (it.bin || '').toLowerCase(); if (BY_BIN[b]) it.category = BY_BIN[b]; else if (/hanging\s*strap/i.test(it.name || '')) it.category = 'AprilAire Accessories'; else if ((it.supplier === 'Hilti' || /^hi-/.test(b)) && /cord/i.test(it.name || '')) it.category = 'Extension Cords'; else if (RENAME[it.category]) it.category = RENAME[it.category]; var sx = SUFFIX[b]; if (sx && it.name && it.name.slice(-sx.length) !== sx) it.name += sx; }); }
   var want = ['Sump Basins & Lids', 'Pumps & Accessories', 'Battery Backup', 'Check Valves', 'Switches & Floats', 'High Water Alarms', 'Dehumidifiers', 'AprilAire Accessories', 'Extension Cords', 'Drainage', 'Exterior Discharge', 'Vapor Barrier / Waterproofing Membrane', 'CFS Carbon Fiber'];
   var rest = CATEGORY_ORDER.filter(function (c) { return want.indexOf(c) < 0 && !RENAME[c] && !/^PVC & Fittings .{1,3}Other sizes$/.test(c); });
   /* set order inside a category (listed bins first, in this order; everything else stays A to Z after them) */
@@ -407,7 +408,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function natBin(a, b) { var re = /(\d+)/; var x = String(a.bin), y = String(b.bin); var px = x.replace(re, ''), py = y.replace(re, ''); if (px !== py) return px < py ? -1 : 1; return (parseInt((x.match(re) || [0, 0])[1], 10) - parseInt((y.match(re) || [0, 0])[1], 10)); }
   function openLabelGrid(store) {
     blStore = store;
-    var list = (window.items || items || []).filter(function (it) { return it && it.supplier === store && !/^HI-/i.test(it.bin); }).sort(natBin);
+    var list = (window.items || items || []).filter(function (it) { return it && it.supplier === store ; }).sort(natBin);
     var cats = [], by = {};
     list.forEach(function (it) { var c = it.category || 'Other'; if (!by[c]) { by[c] = []; cats.push(c); } by[c].push(it); });
     var hh = '<div class="detail-bar"><button class="detail-close" type="button" id="labels-close" aria-label="Close">&times;</button><div style="font-weight:700;font-size:17px">Bin Labels &middot; ' + h(store) + '</div></div><div class="detail-body" style="max-width:1100px">'
@@ -567,4 +568,29 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       last = now; return _st.apply(this, arguments);
     };
   }
+})();
+
+
+/* v85 (Hark, 2026-11-08): Hilti gets its own Bin Labels entry (logo + item count) like the other stores */
+(function () {
+  function add() {
+    var box = document.querySelector('#drawer-labels .drawer-items'); if (!box) return false;
+    if (box.querySelector('[data-drawer-labels="Hilti"]')) return true;
+    var n = (window.items || (typeof items !== 'undefined' ? items : []) || []).filter(function (it) { return it && it.supplier === 'Hilti'; }).length;
+    if (!n) return false;
+    var b = document.createElement('button'); b.className = 'drawer-item'; b.type = 'button'; b.setAttribute('data-drawer-labels', 'Hilti');
+    b.innerHTML = '<img src="https://drive.google.com/thumbnail?id=1MKBIU1ENmbXftk3hgdv-yCUFJB7vcDKh&amp;sz=w400" alt=""><span class="drawer-item-name">Hilti</span><span class="drawer-count">' + n + '</span>';
+    box.appendChild(b); return true;
+  }
+  var t = 0; (function go() { if (!add() && t++ < 60) setTimeout(go, 250); })();
+})();
+
+/* v85 (Hark, 2026-11-08): on a detail page (item details, Bin Labels, Checklists) the cart, camera and QR buttons slide right and fade,
+   tucked against the edge so they stay in view without covering the words; they slide and fade back in on the main page */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '#fab-dock.fab-dock { transition: transform .42s cubic-bezier(.34,1.3,.5,1), opacity .32s ease !important; }'
+    + 'body:has(.detail-overlay.open) #fab-dock.fab-dock { transform: translateX(calc(100% - 4px)); opacity: .55; transition: transform .38s cubic-bezier(.5,-0.35,.6,1), opacity .3s ease !important; }'
+    + 'body:has(.detail-overlay.open) #fab-dock.fab-dock .cart-fab-total { opacity: 0; }';
+  document.head.appendChild(st);
 })();
