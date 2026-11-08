@@ -22,7 +22,7 @@
   #cover { position: absolute; inset: 0; background: #000; will-change: opacity; }
   #boot.fly { pointer-events: none; background: transparent; }
   #app { transition: opacity .5s ease; }
-  #boot.gone { opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+  #boot.gone { opacity: 0; pointer-events: none; transition: opacity .22s cubic-bezier(.4,0,.2,1); }
   @keyframes pulse { 0%, 100% { opacity: .45; transform: translate(-50%, -50%) scale(.94); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 </style>
 </head>
@@ -46,31 +46,26 @@
     img.style.willChange = 'transform, opacity'; img.style.backfaceVisibility = 'hidden';
     void img.offsetWidth;
     var T = m.fly || 1100, k = m.w / r0.width, dx = m.x - r0.left, dy = m.y - r0.top;
-    function at(s, fx, fy) { /* scale s about the logo's centre, then move by fraction fx, fy */
-      var ox = r0.width * (1 - s) / 2 * (1 - fx), oy = r0.height * (1 - s) / 2 * (1 - fy);
-      return 'translate3d(' + (dx * fx + ox).toFixed(2) + 'px,' + (dy * fy + oy).toFixed(2) + 'px,0) scale(' + s.toFixed(4) + ')';
+    /* v80: one continuous curve sampled every ~16 ms - no stop between the push, the glide and the punch, so no hesitation */
+    var w0 = r0.width, h0 = r0.height, cx1 = dx + m.w / 2, cy1 = dy + m.h / 2;
+    function ss(x) { x = Math.max(0, Math.min(1, x)); return x * x * x * (x * (x * 6 - 15) + 10); } /* smootherstep */
+    function bell(x) { if (x <= 0 || x >= 1) return 0; var v = Math.sin(Math.PI * x); return v * v; }
+    var move = [], fade = [], N = 70;
+    for (var i = 0; i <= N; i++) {
+      var t = i / N, p = ss((t - .04) / .86);
+      var sc = (1 + (k - 1) * p) * (1 - .06 * bell(t / .34)) * (1 + .07 * bell((t - .7) / .3));
+      var cx = w0 / 2 + (cx1 - w0 / 2) * p, cy = h0 / 2 + (cy1 - h0 / 2) * p;
+      move.push({ transform: 'translate3d(' + (cx - sc * w0 / 2).toFixed(2) + 'px,' + (cy - sc * h0 / 2).toFixed(2) + 'px,0) scale(' + sc.toFixed(4) + ')', offset: t });
+      var base = op + (1 - op) * ss(t / .82);
+      fade.push({ opacity: +(base - (base - .3) * bell(t / .82) * .95).toFixed(3), offset: t });
     }
-    var P = 1.07; /* punch: lands a touch big, then snaps to size */
-    var move = [
-      { transform: at(1, 0, 0), offset: 0, easing: 'cubic-bezier(.45,0,.55,1)' },
-      { transform: at(.94, 0, 0), offset: .16, easing: 'cubic-bezier(.55,0,.2,1)' },
-      { transform: at(k * P, 1, 1).replace(/translate3d\(([-\d.]+)px,([-\d.]+)px/, function (_, x, y) { return 'translate3d(' + (+x - m.w * (P - 1) / 2).toFixed(2) + 'px,' + (+y - m.h * (P - 1) / 2).toFixed(2) + 'px'; }), offset: .84, easing: 'cubic-bezier(.2,.9,.3,1)' },
-      { transform: at(k, 1, 1), offset: 1 }
-    ];
-    var fade = [
-      { opacity: op, offset: 0 },
-      { opacity: Math.min(op, .85), offset: .16 },
-      { opacity: .32, offset: .55 },
-      { opacity: 1, offset: .84 },
-      { opacity: 1, offset: 1 }
-    ];
-    function landed() {
-      try { if (src) src.postMessage({ storm: 'landed' }, '*'); } catch (e) {}
-      requestAnimationFrame(function () { requestAnimationFrame(function () { boot.classList.add('gone'); }); });
-    }
+    var told = false;
+    function tell() { if (told) return; told = true; try { if (src) src.postMessage({ storm: 'landed' }, '*'); } catch (e) {} }
+    function landed() { tell(); requestAnimationFrame(function () { requestAnimationFrame(function () { boot.classList.add('gone'); }); }); }
+    setTimeout(tell, T - 45); /* tell the app a hair early so its header animation starts on the exact landing frame */
     f.classList.add('ready'); /* the app is already faded in under the black cover */
     try {
-      var a1 = img.animate(move, { duration: T, fill: 'forwards' });
+      var a1 = img.animate(move, { duration: T, fill: 'forwards', easing: 'linear' });
       img.animate(fade, { duration: T, fill: 'forwards', easing: 'linear' });
       cover.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T * .7, delay: T * .1, fill: 'forwards', easing: 'cubic-bezier(.4,0,.2,1)' });
       a1.onfinish = landed;
