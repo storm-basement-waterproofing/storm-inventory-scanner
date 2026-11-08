@@ -545,3 +545,25 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   document.addEventListener('selectstart', function (e) { if (onBtn(e.target) || (e.target.closest && e.target.closest('.card') && !e.target.closest('input, textarea'))) e.preventDefault(); }, true);
   document.addEventListener('contextmenu', function (e) { if (onBtn(e.target)) e.preventDefault(); }, true);
 })();
+
+/* v84 (Hark, 2026-11-07): rapid "+ Add to order" taps no longer bog down the page.
+   While the cart sheet is closed, its rebuild waits for the next frame and runs once for a burst of taps; the toast updates in place. */
+(function () {
+  if (typeof renderPickSheet !== 'function') return;
+  var _rp = renderPickSheet, queued = false;
+  function sheetOpen() { var s = document.getElementById('pick-sheet'); return !!(s && s.classList.contains('open')); }
+  renderPickSheet = function () {
+    if (sheetOpen()) { queued = false; return _rp.apply(this, arguments); }
+    if (queued) return; queued = true;
+    requestAnimationFrame(function () { if (!queued) return; queued = false; try { _rp(); } catch (e) {} });
+  };
+  if (typeof openPickSheet === 'function') { var _op = openPickSheet; openPickSheet = function () { if (queued) { queued = false; try { _rp(); } catch (e) {} } return _op.apply(this, arguments); }; }
+  if (typeof showToast === 'function') {
+    var _st = showToast, last = 0, tm = null, pend = null;
+    showToast = function (msg, isErr, ms) {
+      var now = Date.now();
+      if (!isErr && now - last < 250) { pend = [msg, isErr, ms]; clearTimeout(tm); tm = setTimeout(function () { var p = pend; pend = null; last = Date.now(); _st.apply(null, p); }, 250); return; }
+      last = now; return _st.apply(this, arguments);
+    };
+  }
+})();
