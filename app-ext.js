@@ -271,3 +271,25 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     }
   }, true);
 })();
+
+/* v73: Order controls under the item photo in Item details, so the cart/QR buttons never cover them (2026-11-07) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '#detail .detail-body > .controls.ctl-top { margin-top: 12px; margin-bottom: 4px; }';
+  document.head.appendChild(st);
+  function lift() {
+    var body = document.querySelector('#detail .detail-body'); if (!body) return;
+    var ctl = body.querySelector(':scope > .controls'); if (!ctl || ctl.classList.contains('ctl-top')) return;
+    var photo = body.querySelector(':scope > .detail-photo');
+    var name = body.querySelector(':scope > .detail-name');
+    var anchor = photo ? photo.nextSibling : (name || body.firstChild);
+    body.insertBefore(ctl, anchor);
+    ctl.classList.add('ctl-top');
+  }
+  if (typeof openDetail === 'function') {
+    var _o = openDetail;
+    openDetail = function () { var r = _o.apply(this, arguments); try { lift(); } catch (e) {} return r; };
+  }
+  var d = document.getElementById('detail');
+  if (d && window.MutationObserver) new MutationObserver(function () { try { lift(); } catch (e) {} }).observe(d, { childList: true });
+})();
