@@ -34,7 +34,14 @@
   #edge { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none;
     filter: drop-shadow(0 0 2px rgba(90,195,255,.95)) drop-shadow(0 0 7px rgba(60,170,255,.6)); transition: opacity .55s ease; }
   #edge path { fill: none; stroke: #effaff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
-  #boot.done #edge { opacity: 0; }
+  /* v87: once the loop closes the line stays lit and flashes in step with the header logo (same 5.2 s curve, peak at 60%), then fades */
+  #boot.done { pointer-events: none; }
+  #boot.done #edge { animation: edgeFlash 5.2s ease-in-out both; }
+  @keyframes edgeFlash {
+    0% { opacity: 1; filter: brightness(1) drop-shadow(0 0 2px rgba(90,195,255,.95)) drop-shadow(0 0 7px rgba(60,170,255,.6)); }
+    40% { opacity: 1; filter: brightness(1) drop-shadow(0 0 2px rgba(90,195,255,.95)) drop-shadow(0 0 7px rgba(60,170,255,.6)); }
+    60% { opacity: 1; filter: brightness(1.5) drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px rgba(200,235,255,.95)) drop-shadow(0 0 18px rgba(70,180,255,.7)); }
+    100% { opacity: 0; filter: brightness(1) drop-shadow(0 0 2px rgba(90,195,255,.5)) drop-shadow(0 0 4px rgba(60,170,255,.2)); } }
   #camwrap { position: fixed; inset: 0; z-index: 5; background: #000; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; opacity: 0; transition: opacity .18s ease; }
   #camwrap.on { opacity: 1; }
   #camwrap iframe { width: 100%; height: 100%; border: 0; display: block; background: #000; }
@@ -48,19 +55,24 @@
   try { localStorage.setItem('stormWrap', '1'); } catch (e) {}
   var f = document.getElementById('app'), boot = document.getElementById('boot'), cover = document.getElementById('cover');
   var edge = document.getElementById('edge'), ep = document.getElementById('edgep');
+  var lastW = 0, lastH = 0;
   function edgePath() {
-    var W = window.innerWidth, H = window.innerHeight, i = 3, R = Math.min(44, Math.round(Math.min(W, H) * .06));
+    var r = edge.getBoundingClientRect(), de = document.documentElement;
+    var W = Math.round(Math.max(r.width, de.clientWidth || 0)), H = Math.round(Math.max(r.height, de.clientHeight || 0));
+    if (!W || !H || (W === lastW && H === lastH)) return; lastW = W; lastH = H;
+    var i = 3, R = Math.min(44, Math.round(Math.min(W, H) * .06));
     var L = i, T = i, Rt = W - i, B = H - i, M = W / 2;
     ep.setAttribute('d', 'M' + M + ' ' + T + ' H' + (Rt - R) + ' A' + R + ' ' + R + ' 0 0 1 ' + Rt + ' ' + (T + R) + ' V' + (B - R)
       + ' A' + R + ' ' + R + ' 0 0 1 ' + (Rt - R) + ' ' + B + ' H' + (L + R) + ' A' + R + ' ' + R + ' 0 0 1 ' + L + ' ' + (B - R)
       + ' V' + (T + R) + ' A' + R + ' ' + R + ' 0 0 1 ' + (L + R) + ' ' + T + ' Z');
     edge.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   }
-  edgePath(); window.addEventListener('resize', edgePath);
+  edgePath(); window.addEventListener('resize', edgePath); window.addEventListener('orientationchange', function () { setTimeout(edgePath, 60); }); if (window.visualViewport) visualViewport.addEventListener('resize', edgePath);
   /* pace: one loop in about 2.2 s; if the app is not ready by ~88% the line creeps, then finishes at full pace once it is */
   var LOOP = 2200, HOLD = .88, p = 0, last = 0, ready = false, src = null, finished = false, settled = false;
   function markReady(s2) { if (ready) return; ready = true; if (s2) src = s2; f.classList.add('ready'); }
   function tick(now) {
+    edgePath(); /* cheap: only rebuilds when the screen size really changed */
     if (!last) last = now; var dt = Math.min(50, now - last); last = now;
     var v = 1 / LOOP;
     if (!ready && p >= HOLD) v *= .08;               /* still loading: creep so the loop never closes early */
@@ -75,7 +87,7 @@
     if (finished) return; finished = true; settled = true;
     try { (src || f.contentWindow).postMessage({ storm: 'landed' }, '*'); } catch (e) {}  /* header STORM trace starts right as the loop closes */
     cover.style.opacity = '0'; boot.classList.add('done');
-    setTimeout(function () { boot.classList.add('gone'); }, 600);
+    setTimeout(function () { boot.classList.add('gone'); }, 5300);
   }
   requestAnimationFrame(tick);
   function plainFade() { markReady(null); }
