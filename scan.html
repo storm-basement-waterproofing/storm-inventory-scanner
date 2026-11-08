@@ -300,10 +300,34 @@ function goBack(scansCsv) {
   if (scansCsv) url += 'scans=' + encodeURIComponent(scansCsv);
   location.href = url;
 }
+var camRetried = false;
+function isIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+function showAllowBtn() {
+  var b = document.getElementById('allowCam');
+  if (!b) {
+    b = document.createElement('button'); b.id = 'allowCam'; b.type = 'button'; b.textContent = 'Tap to turn on camera';
+    b.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:50;padding:16px 26px;font:600 17px -apple-system,system-ui,sans-serif;color:#000;background:#fff;border:0;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.5);-webkit-user-select:none;user-select:none;touch-action:manipulation';
+    b.addEventListener('click', function () {
+      b.textContent = 'Starting camera…';
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }).then(function (s) {
+        s.getTracks().forEach(function (t) { t.stop(); });
+        b.remove(); setMsg('Starting camera…'); startNative();
+      }, function () {
+        b.textContent = 'Tap to turn on camera';
+        setMsg(isIOS() ? 'iPad blocked the camera. Open Settings > Safari > Camera, choose Ask or Allow, then tap the button again.' : 'Camera access was blocked. Allow the camera for this site in your browser settings, then tap the button again.', true);
+      });
+    });
+    document.body.appendChild(b);
+  }
+  setMsg(isIOS() ? 'Tap the button, then tap Allow when iPad asks.' : 'Tap the button, then allow the camera.', true);
+}
 function cameraError(err) {
   var name = (err && err.name) || '';
   if (name === 'NotAllowedError' || name === 'SecurityError') {
-    setMsg('Camera access was blocked. Allow the camera for this site in your browser settings and try again.', true);
+    // v85 (Hark, 2026-11-07): iOS sometimes refuses without asking when the camera starts on its own.
+    // Retry once quietly, then show a button: a tap is a user gesture, so iOS shows the Allow prompt again.
+    if (!camRetried) { camRetried = true; setTimeout(startNative, 450); return; }
+    showAllowBtn();
   } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
     setMsg('No camera was found on this device.', true);
   } else {
