@@ -877,3 +877,13 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
   var n = 0; (function go() { if (!addSection() && n++ < 40) setTimeout(go, 150); })();
 })();
+
+/* v98 (Hark, 2026-11-08): Jobber button in the drawer footer shows the logo only (no "Open Jobber app" text), like CompanyCam */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '.drawer-jobber[data-jobber] > span { display: none !important; }';
+  document.head.appendChild(st);
+  function lab() { var b = document.querySelector('.drawer-jobber[data-jobber]'); if (b && !b.getAttribute('aria-label')) b.setAttribute('aria-label', 'Open Jobber app'); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', lab); else lab();
+  setTimeout(lab, 1500);
+})();
