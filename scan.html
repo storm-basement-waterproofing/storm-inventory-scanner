@@ -753,6 +753,8 @@ var ITEMS = [
   Array.prototype.forEach.call(imgs, function (im) { im.addEventListener('load', function () { if (--left === 0) swap(); }); im.addEventListener('error', function () { done = true; }); });
   setTimeout(function () { if (!done && left <= 1) swap(); }, 2500);
   w.addEventListener('click', function (e) { e.stopPropagation(); flash(); });
+  /* v99 (Hark, 2026-11-09): every successful QR scan replays this line trace + glow, in step with the beep */
+  try { var _eh = window.edgeHit; if (typeof _eh === 'function') { window.edgeHit = function () { var r = _eh.apply(this, arguments); try { if (!w.parentNode) swap(); flash(); } catch (e) {} return r; }; } } catch (e) {}
 })();
 </script>
 </body>
