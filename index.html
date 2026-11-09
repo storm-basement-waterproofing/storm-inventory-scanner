@@ -50,6 +50,9 @@
   #ltrace path { fill: none; stroke: #effaff; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 0 99999; }
   #boot.done #ltrace { animation: ltOut .35s ease .12s both; }
   @keyframes ltOut { to { opacity: 0; } }
+  /* v128 (Hard Work, 2026-11-09): the mode-tap flash — the same edge + logo lines, shown instantly (no trace), then a soft fade out. */
+  #boot.flash #edge { animation: edgeFlash 1.8s ease-out both; }
+  #boot.flash #ltrace { animation: ltOut 1.2s ease .3s both; }
   #camwrap { position: fixed; inset: 0; z-index: 5; background: #000; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; opacity: 0; transition: opacity .18s ease; }
   #camwrap.on { opacity: 1; }
   #camwrap iframe { width: 100%; height: 100%; border: 0; display: block; background: #000; }
@@ -106,8 +109,11 @@
     }
     if (ready) return; ready = true; if (s2) src = s2; f.classList.add('ready');
   }
+  /* v128 (Hard Work, 2026-11-09): the edge + logo trace no longer runs on load — Dave wants the lines to appear on the mode tap, not at startup. The boot screen just fades away once the app is ready; the picker videos play in the app. */
+  var NO_TRACE = true;
   function tick(now) {
     edgePath(); /* cheap: only rebuilds when the screen size really changed */
+    if (NO_TRACE) { if (ready) return finish(); requestAnimationFrame(tick); return; }
     if (!last) last = now; var dt = Math.min(50, now - last); last = now;
     var v = 1 / LOOP;
     if (!ready && p >= HOLD) v *= .08;               /* still loading: creep so the loop never closes early */
@@ -159,6 +165,19 @@
   window.addEventListener('popstate', function () { if (document.getElementById('camwrap')) closeCam(false, true); });
   window.addEventListener('message', function (e) {
     var m = e.data; if (!m) return;
+    if (m.storm === 'modePicked') { /* v128: first mode pick — the edge + logo outlines appear instantly (fully drawn, no trace) over a black fade-in, with the camera flash, then a soft fade out. */
+      try { edgePath(); } catch (eE) {}
+      p = 1; setEdge(); /* full perimeter line, instantly */
+      var lr = (m.logo && m.logo.w > 20) ? m.logo : null;
+      if (!lr) { try { lr = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (eC) {} }
+      if (lr && placeLogo(lr)) { drawLogo(1); lt.style.opacity = '1'; }
+      boot.style.transition = 'none'; boot.style.opacity = '1'; boot.classList.remove('gone');
+      cover.style.transition = 'opacity .12s ease'; cover.style.opacity = '1';
+      boot.classList.remove('flash'); void boot.offsetWidth; boot.classList.add('flash');
+      setTimeout(function () { cover.style.transition = 'opacity .9s ease'; cover.style.opacity = '0'; }, 150);
+      setTimeout(function () { boot.classList.remove('flash'); boot.style.transition = ''; boot.style.opacity = ''; boot.classList.add('gone'); p = 0; setEdge(); if (lt) { drawLogo(0); lt.style.opacity = '0'; } }, 2100);
+      return;
+    }
     if (m.storm === 'scan' && typeof m.q === 'string') { openCam(m.q, e.source); return; }
     /* v97 (Hark, 2026-11-08): video downloads start here at the top level, so the app never opens a blank tab and hangs */
     if (m.storm === 'download' && typeof m.url === 'string' && /^https:\/\/[a-z0-9.-]+\.smugmug\.com\//i.test(m.url)) {
