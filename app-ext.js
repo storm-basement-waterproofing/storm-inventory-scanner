@@ -1122,3 +1122,11 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     try { window.top.postMessage({ storm: 'print', pages: pages }, '*'); } catch (x) { window.open(a.href, '_blank'); }
   }, true);
 })();
+
+/* v119 (Hark, 2026-11-09): bigger icons in the pull-out drawer (20px -> 26px), all the same size so the names stay lined up */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '#drawer .drawer-item > svg, #drawer .drawer-item > .v116-ico, #drawer .drawer-item > .drawer-chk-ico, #drawer .drawer-item > .res-ico, #drawer .drawer-item > .chk-ico-img { width: 26px !important; height: 26px !important; flex: none; }'
+    + '#drawer .drawer-item .v116-name svg { height: 24px !important; width: auto !important; }';
+  document.head.appendChild(st);
+})();
