@@ -934,3 +934,24 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     note(ios ? 'Starting download. Tap Download if asked; it saves to Files > Downloads.' : 'Downloading video. It shows in your notifications and Downloads.');
   }, true);
 })();
+
+/* v102 (Hark, 2026-11-08): Checklists live inside the Resource Center (the old Checklists section is hidden, its rows copied in) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '#drawer-checklists { display: none !important; }';
+  document.head.appendChild(st);
+  var tries = 0;
+  function move() {
+    var res = document.getElementById('drawer-resources'), chk = document.getElementById('drawer-checklists');
+    var box = res && res.querySelector('.drawer-items');
+    if (!box || !chk) { if (++tries < 40) setTimeout(move, 250); return; }
+    if (box.querySelector('[data-drawer-checklist]')) return;
+    chk.querySelectorAll('[data-drawer-checklist]').forEach(function (b) {
+      var c = b.cloneNode(true);
+      if (!c.querySelector('.drawer-chevron')) c.insertAdjacentHTML('beforeend', '<span class="drawer-chevron">&#9662;</span>');
+      box.appendChild(c);
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', move); else move();
+  setTimeout(move, 1800);
+})();
