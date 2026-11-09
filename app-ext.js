@@ -1249,3 +1249,22 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     setTimeout(function () { if (drawerOpen() && !pageOpen()) { try { overlayOpen = 'drawer'; } catch (x) {} } }, 0);
   });
 })();
+
+/* v125 (Hark, 2026-11-09): Item details shows Dave's own photo, upscaled 3x (assets/items-hd/<bin>.jpg). The list keeps the normal photo. Falls back to the normal photo if the sharp one is missing. */
+(function () {
+  var HD = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/items-hd/';
+  function sharp() {
+    var bin = (typeof currentDetailBin !== 'undefined') && currentDetailBin; if (!bin) return;
+    var u = HD + encodeURIComponent(bin) + '.jpg?v=1';
+    document.querySelectorAll('#detail img.detail-photo').forEach(function (im) {
+      if (im.getAttribute('data-hd') === bin) return;
+      var prev = im.getAttribute('src');
+      im.setAttribute('data-hd', bin);
+      var t = new Image();
+      t.onload = function () { if (im.isConnected && im.getAttribute('data-hd') === bin) { im.removeAttribute('data-ctr'); im.removeAttribute('data-ctr-src'); im.src = u; } };
+      t.onerror = function () { /* keep prev */ };
+      t.src = u;
+    });
+  }
+  if (typeof openDetail === 'function') { var _o = openDetail; openDetail = function () { var r = _o.apply(this, arguments); try { document.querySelectorAll('#detail img.detail-photo').forEach(function (im) { im.removeAttribute('data-hd'); }); sharp(); setTimeout(sharp, 300); } catch (e) {} return r; }; }
+})();
