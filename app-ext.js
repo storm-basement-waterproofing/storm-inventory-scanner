@@ -374,7 +374,12 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#chk-view { z-index: 101; background: #F3F4F6; }'
     + '.chk-page { display: block; width: 100%; height: auto; margin: 0 0 12px; background: #fff; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }'
     + '.chk-open { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 54px; margin: 0 0 14px; border-radius: 10px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 700; text-decoration: none; }'
-    + '.drawer-chk-ico { width: 20px; height: 20px; flex: none; }';
+    + '.drawer-chk-ico { width: 20px; height: 20px; flex: none; }'
+    + '.chk-page { cursor: zoom-in; } .chk-hint { text-align: center; color: #6B7280; font-size: 13px; margin: 2px 0 18px; }'
+    + '#chk-zoom { position: fixed; inset: 0; z-index: 200; background: #0B0F14; touch-action: none; overflow: hidden; opacity: 0; transition: opacity .2s ease; }'
+    + '#chk-zoom.open { opacity: 1; } #chk-zoom canvas { position: absolute; left: 0; top: 0; display: block; }'
+    + '#chk-zoom .cz-x { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 2; width: 44px; height: 44px; border: 0; border-radius: 22px; background: rgba(255,255,255,.16); color: #fff; font-size: 28px; line-height: 44px; }'
+    + '#chk-zoom .cz-tip { position: absolute; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); text-align: center; color: rgba(255,255,255,.7); font-size: 13px; pointer-events: none; transition: opacity .6s ease; }';
   var st = document.createElement('style'); st.id = 'storm-v75-css'; st.textContent = css; document.head.appendChild(st);
 
   function slideIn(el) { if (!el) return; el.classList.remove('storm-slide-in'); void el.offsetWidth; el.classList.add('storm-slide-in'); setTimeout(function () { el.classList.remove('storm-slide-in'); }, 420); }
@@ -386,8 +391,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
   /* ---- Checklists drawer section ---- */
   var CHECKLISTS = [
-    { id: 'box-truck', name: 'Box Truck Pre Check', pdf: BASE + 'checklists/box-truck-pre-check.pdf', pages: [BASE + 'checklists/box-truck-pre-check-1.jpg'] },
-    { id: 'tools', name: 'Tool Checklist', pdf: BASE + 'checklists/tool-checklist.pdf', pages: [BASE + 'checklists/tool-checklist-1.jpg', BASE + 'checklists/tool-checklist-2.jpg'] }
+    { id: 'box-truck', name: 'Box Truck Pre Check', pdf: BASE + 'checklists/box-truck-pre-check.pdf', pages: [BASE + 'checklists/box-truck-pre-check-hd-1.jpg'] },
+    { id: 'tools', name: 'Tool Checklist', pdf: BASE + 'checklists/tool-checklist.pdf', pages: [BASE + 'checklists/tool-checklist-hd-1.jpg', BASE + 'checklists/tool-checklist-hd-2.jpg'] }
   ];
   var ICO = '<svg class="drawer-chk-ico" viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 11l2 2 4-4"/><path d="M8.5 17h7"/></svg>';
   function addChecklistSection() {
@@ -406,12 +411,62 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var v = overlayEl('chk-view');
     var hh = '<div class="detail-bar"><button class="detail-close" type="button" data-chk-close aria-label="Close">&times;</button><div style="font-weight:700;font-size:17px">' + h(c.name) + '</div></div><div class="detail-body">'
       + '<a class="chk-open" href="' + c.pdf + '" target="_blank" rel="noopener">Open PDF to print</a>';
-    c.pages.forEach(function (p, i) { hh += '<img class="chk-page" src="' + p + '" alt="' + h(c.name) + ' page ' + (i + 1) + '">'; });
+    c.pages.forEach(function (p, i) { hh += '<img class="chk-page" data-chk-zoom="' + p + '" src="' + p + '" alt="' + h(c.name) + ' page ' + (i + 1) + '">'; });
+    hh += '<div class="chk-hint">Tap a page to zoom</div>';
     v.innerHTML = hh + '</div>';
     v.classList.add('open'); v.scrollTop = 0; slideIn(v);
     pushOverlay('chk');
   }
-  function closeChecklist(fromPop) { var v = e$('chk-view'); if (!v || !v.classList.contains('open')) return; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
+  /* v92 (Hark, 2026-11-08): tap a checklist page to open it full screen in high res; pinch to zoom, drag to move around, double-tap to zoom in/out */
+  function openZoom(src) {
+    if (document.getElementById('chk-zoom')) return;
+    var z = document.createElement('div'); z.id = 'chk-zoom';
+    z.innerHTML = '<button class="cz-x" type="button" aria-label="Close">&times;</button><canvas></canvas><div class="cz-tip">Pinch to zoom &middot; drag to move &middot; double-tap</div>';
+    document.body.appendChild(z);
+    /* v105 canvas zoom: only the visible part is drawn, so deep zoom never goes white */ var cv = z.querySelector('canvas'), ctx = cv.getContext('2d'), im = new Image(), dpr = 1, ds = 1, dx = 0, dy = 0, raf = 0, tw = null, s = 1, x = 0, y = 0, fit = 1, W = 0, H = 0, pts = {}, start = null, lastTap = 0, moved = false;
+    function size() { if (!W && im.naturalWidth) { W = im.naturalWidth; H = im.naturalHeight; im.style.width = W + 'px'; im.style.height = H + 'px'; fit = Math.min(z.clientWidth / W, z.clientHeight / H); s = fit; } }
+    function clamp() { size(); var vw = z.clientWidth, vh = z.clientHeight, iw = W * s, ih = H * s;
+      x = iw <= vw ? (vw - iw) / 2 : Math.min(0, Math.max(vw - iw, x)); y = ih <= vh ? (vh - ih) / 2 : Math.min(0, Math.max(vh - ih, y)); }
+    function size() { var vw = z.clientWidth, vh = z.clientHeight; dpr = Math.min(window.devicePixelRatio || 1, 3); cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr); cv.style.width = vw + 'px'; cv.style.height = vh + 'px'; }
+    function paint() { raf = 0; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#0B0F14'; ctx.fillRect(0, 0, cv.width, cv.height); if (!W) return;
+      var vw = z.clientWidth, vh = z.clientHeight, sx = Math.max(0, -dx / ds), sy = Math.max(0, -dy / ds), ex = Math.min(W, (vw - dx) / ds), ey = Math.min(H, (vh - dy) / ds);
+      if (ex <= sx || ey <= sy) return; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(im, sx, sy, ex - sx, ey - sy, dx + sx * ds, dy + sy * ds, (ex - sx) * ds, (ey - sy) * ds); }
+    function req() { if (!raf) raf = requestAnimationFrame(paint); }
+    function draw(anim) { clamp();
+      if (!anim) { tw = null; ds = s; dx = x; dy = y; req(); return; }
+      tw = { t0: performance.now(), s0: ds, x0: dx, y0: dy, s1: s, x1: x, y1: y };
+      (function step(now) { if (!tw) return; var k = Math.min(1, (now - tw.t0) / 250), q = 1 - Math.pow(1 - k, 3); ds = tw.s0 + (tw.s1 - tw.s0) * q; dx = tw.x0 + (tw.x1 - tw.x0) * q; dy = tw.y0 + (tw.y1 - tw.y0) * q; paint(); if (k < 1) requestAnimationFrame(step); else tw = null; })(performance.now()); }
+    function zoomAt(ns, cx, cy, anim) { ns = Math.max(fit, Math.min(fit * 10, ns)); x = cx - (cx - x) * ns / s; y = cy - (cy - y) * ns / s; s = ns; draw(anim); }
+    function toggleAt(cx, cy) { zoomAt(s > fit * 1.3 ? fit : fit * 2.6, cx, cy, true); }
+    size(); req(); im.onload = function () { W = im.naturalWidth; H = im.naturalHeight; size(); fit = Math.min(z.clientWidth / W, z.clientHeight / H); s = fit; x = 0; y = 0; draw(false); };
+    im.src = src;
+    requestAnimationFrame(function () { z.classList.add('open'); });
+    setTimeout(function () { var t = z.querySelector('.cz-tip'); if (t) t.style.opacity = '0'; }, 2600);
+    function list() { return Object.keys(pts).map(function (k) { return pts[k]; }); }
+    function snap() { var p = list(); if (p.length >= 2) { var a = p[0], b = p[1]; start = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, s: s, x: x, y: y }; } else if (p.length === 1) { start = { px: p[0].x, py: p[0].y, x: x, y: y }; } else start = null; }
+    z.addEventListener('pointerdown', function (ev) { if (ev.target.closest('.cz-x')) return; ev.preventDefault(); try { z.setPointerCapture(ev.pointerId); } catch (q) {} pts[ev.pointerId] = { x: ev.clientX, y: ev.clientY }; moved = false; snap(); });
+    z.addEventListener('pointermove', function (ev) {
+      if (!pts[ev.pointerId] || !start) return; pts[ev.pointerId] = { x: ev.clientX, y: ev.clientY }; var p = list(), r = z.getBoundingClientRect();
+      if (p.length >= 2 && start.d) { var a = p[0], b = p[1], d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2 - r.left, cy = (a.y + b.y) / 2 - r.top, scx = start.cx - r.left, scy = start.cy - r.top;
+        var ns = Math.max(fit * .85, Math.min(fit * 10, start.s * d / start.d)); x = cx - (scx - start.x) * ns / start.s; y = cy - (scy - start.y) * ns / start.s; s = ns; moved = true; draw(false); }
+      else if (p.length === 1 && start.px != null) { var dx = p[0].x - start.px, dy = p[0].y - start.py; if (Math.abs(dx) + Math.abs(dy) > 6) moved = true; x = start.x + dx; y = start.y + dy; draw(false); }
+    });
+    function up(ev) {
+      if (!pts[ev.pointerId]) return; delete pts[ev.pointerId];
+      if (!list().length) { if (s < fit) { s = fit; draw(true); }
+        if (!moved) { var now = Date.now(); if (now - lastTap < 400) { var r = z.getBoundingClientRect(); toggleAt(ev.clientX - r.left, ev.clientY - r.top); lastTap = 0; } else lastTap = now; } }
+      snap();
+    }
+    z.addEventListener('pointerup', up); z.addEventListener('pointercancel', up);
+    z.addEventListener('dblclick', function (ev) { ev.preventDefault(); });
+    z.addEventListener('click', function (ev) { ev.stopPropagation(); }, false);
+    z.addEventListener('wheel', function (ev) { ev.preventDefault(); var r = z.getBoundingClientRect(); zoomAt(s * (ev.deltaY < 0 ? 1.15 : 1 / 1.15), ev.clientX - r.left, ev.clientY - r.top, false); }, { passive: false });
+    z.querySelector('.cz-x').addEventListener('click', function (ev) { ev.stopPropagation(); closeZoom(); });
+    window.addEventListener('resize', function () { size(); if (!W) return; fit = Math.min(z.clientWidth / W, z.clientHeight / H); if (s < fit) s = fit; draw(false); });
+  }
+  function closeZoom() { var z = document.getElementById('chk-zoom'); if (!z) return false; z.id = 'chk-zoom-closing'; z.classList.remove('open'); setTimeout(function () { z.remove(); }, 200); return true; }
+  function closeChecklist(fromPop) { closeZoom(); var v = e$('chk-view'); if (!v || !v.classList.contains('open')) return; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
 
   /* ---- Bin Labels grid ---- */
   var blStore = null;
@@ -471,6 +526,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var ck = t.closest('[data-drawer-checklist]');
     if (ck) { e.stopImmediatePropagation(); e.preventDefault(); var id = ck.getAttribute('data-drawer-checklist'); try { closeDrawer(); } catch (x) {} setTimeout(function () { openChecklist(id); }, 170); return; }
     if (t.closest('[data-chk-close]')) { e.stopImmediatePropagation(); closeChecklist(false); return; }
+    var zm = t.closest('[data-chk-zoom]'); if (zm) { e.stopImmediatePropagation(); openZoom(zm.getAttribute('data-chk-zoom')); return; }
     if (t.closest('[data-bld-close]')) { e.stopImmediatePropagation(); closeLabelDetail(false); return; }
     var ba = t.closest('[data-bld-add]');
     if (ba) { e.stopImmediatePropagation(); try { lblToggle(ba.getAttribute('data-bld-add')); } catch (x) {} refreshGrid(); return; }
@@ -831,6 +887,119 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var n = 0; (function go() { if (!addSection() && n++ < 40) setTimeout(go, 150); })();
 })();
 
+/* v98 (Hark, 2026-11-08): Jobber button in the drawer footer shows the logo only (no "Open Jobber app" text), like CompanyCam */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '.drawer-jobber[data-jobber] > span { display: none !important; }';
+  document.head.appendChild(st);
+  function lab() { var b = document.querySelector('.drawer-jobber[data-jobber]'); if (b && !b.getAttribute('aria-label')) b.setAttribute('aria-label', 'Open Jobber app'); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', lab); else lab();
+  setTimeout(lab, 1500);
+})();
+
+/* v99 (Hark, 2026-11-08): "Par" reads "Keep on hand" for the crew (display only; the sheet's Par column is unchanged) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = 'button.par { white-space: nowrap; }';
+  document.head.appendChild(st);
+  var busy = false;
+  function fix() {
+    busy = false;
+    document.querySelectorAll('button.par').forEach(function (b) {
+      var t = b.textContent;
+      if (t === 'Set par') b.textContent = 'Set keep on hand';
+      else if (/^Par: /.test(t)) b.textContent = 'Keep on hand: ' + t.slice(5);
+    });
+    document.querySelectorAll('span').forEach(function (s) { if (s.childNodes.length === 1 && s.textContent === 'Par') s.textContent = 'Keep on hand'; });
+    document.querySelectorAll('input.par-input').forEach(function (i) { if (i.placeholder === 'Par') i.placeholder = 'Keep'; });
+  }
+  function soon() { if (!busy) { busy = true; requestAnimationFrame(fix); } }
+  function start() { fix(); try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true, characterData: true }); } catch (x) {} }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+
+/* v100 (Hark, 2026-11-08): menu drawer shows no item counts (cleaner look) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '#drawer .drawer-count, .drawer .drawer-count { display: none !important; }';
+  document.head.appendChild(st);
+})();
+
+/* v101 (Hark, 2026-11-08): video Download no longer opens a blank tab that hangs. The wrapper page starts the download; the app stays put */
+(function () {
+  function note(msg) {
+    var d = document.createElement('div');
+    d.textContent = msg;
+    d.style.cssText = 'position:fixed;left:16px;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:300;padding:12px 14px;border-radius:12px;background:#0F1720;color:#fff;font:600 15px -apple-system,Roboto,sans-serif;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:opacity .25s ease';
+    document.body.appendChild(d); requestAnimationFrame(function () { d.style.opacity = '1'; });
+    setTimeout(function () { d.style.opacity = '0'; setTimeout(function () { d.remove(); }, 300); }, 4200);
+  }
+  window.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest && e.target.closest('a.res-mdl'); if (!a) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    var url = a.href, ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (window.top !== window) { try { window.top.postMessage({ storm: 'download', url: url }, '*'); } catch (x) { location.href = url; } }
+    else location.href = url;
+    note(ios ? 'Starting download. Tap Download if asked; it saves to Files > Downloads.' : 'Downloading video. It shows in your notifications and Downloads.');
+  }, true);
+})();
+
+/* v102 (Hark, 2026-11-08): Checklists live inside the Resource Center (the old Checklists section is hidden, its rows copied in) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '#drawer-checklists { display: none !important; } #drawer-resources img.chk-ico-img { width: 24px; height: 24px; max-width: none; object-fit: contain; flex: none; }';
+  document.head.appendChild(st);
+  var tries = 0;
+  function move() {
+    var res = document.getElementById('drawer-resources'), chk = document.getElementById('drawer-checklists');
+    var box = res && res.querySelector('.drawer-items');
+    if (!box || !chk) { if (++tries < 40) setTimeout(move, 250); return; }
+    if (box.querySelector('[data-drawer-checklist]')) return;
+    chk.querySelectorAll('[data-drawer-checklist]').forEach(function (b) {
+      var c = b.cloneNode(true);
+      /* v104: line icons in the same style as the camera and cart (Hilti TE-3000 jackhammer for tools, box truck for the pre check) */
+      var SV = '<svg class="drawer-chk-ico" viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+      var ic = { 'tools': SV + '<path d="M3 5h4M17 5h4"/><path d="M7 3.5h10v3l-1.2 8.5H8.2L7 6.5z"/><path d="M10 15h4v2.5h-4z"/><path d="M11 17.5v3l1 2 1-2v-3"/><path d="M7.5 9C4.5 10 3.5 13 4.5 17"/></svg>',
+                 'box-truck': SV + '<path d="M2 5h12v11H2z"/><path d="M14 9h4.2l3.3 4v3H14"/><circle cx="6" cy="18" r="2"/><circle cx="17.5" cy="18" r="2"/><path d="M8 16h7.5"/></svg>' }[c.getAttribute('data-drawer-checklist')], old = c.querySelector('svg');
+      if (ic && old) { old.insertAdjacentHTML('beforebegin', ic); old.remove(); }
+      if (!c.querySelector('.drawer-chevron')) c.insertAdjacentHTML('beforeend', '<span class="drawer-chevron">&#9662;</span>');
+      box.appendChild(c);
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', move); else move();
+  setTimeout(move, 1800);
+})();
+
+/* v113 (Hark, 2026-11-08): store logos in the drawer redrawn as line icons in the same family as the camera, cart and Resource Center icons
+   (24-unit grid, 2-unit dark stroke, round caps): each brand's mark plus its name in matching single-line letters. Replaces v106-v112. */
+(function () {
+  var P = {"Hilti":[60.6,"<rect x=\"1.5\" y=\"1.5\" width=\"21\" height=\"21\" rx=\"6\"/><g transform=\"translate(12 12) scale(.62) translate(-12 -12)\" stroke-width=\"3.2\"><rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path d=\"M9 9.5v5M15 9.5v5M9 12h6\"/></g><path transform=\"translate(29.00 7.50) scale(0.75)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"2.27\"/><path transform=\"translate(38.15 7.50) scale(0.75)\" d=\"M0 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(42.05 7.50) scale(0.75)\" d=\"M0 0V12H6\" stroke-width=\"2.27\"/><path transform=\"translate(50.45 7.50) scale(0.75)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(59.60 7.50) scale(0.75)\" d=\"M0 0V12\" stroke-width=\"2.27\"/>"],"AutoZone":[98.55,"<rect x=\"1.5\" y=\"1.5\" width=\"21\" height=\"21\" rx=\"6\"/><g transform=\"translate(12 12) scale(.62) translate(-12 -12)\" stroke-width=\"3.2\"><path d=\"M2.5 17L6 7\"/><path d=\"M6.5 17L10 7\"/><path d=\"M12 7h9l-8.5 10H21\"/></g><path transform=\"translate(29.00 7.50) scale(0.75)\" d=\"M0 12L3.5 0L7 12M1.3 8H5.7\" stroke-width=\"2.27\"/><path transform=\"translate(38.15 7.50) scale(0.75)\" d=\"M0 0V8C0 10.2 1.5 12 3.5 12S7 10.2 7 8V0\" stroke-width=\"2.27\"/><path transform=\"translate(47.30 7.50) scale(0.75)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(56.45 7.50) scale(0.75)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.27\"/><path transform=\"translate(65.60 7.50) scale(0.75)\" d=\"M0 0H7L0 12H7\" stroke-width=\"2.27\"/><path transform=\"translate(74.75 7.50) scale(0.75)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.27\"/><path transform=\"translate(83.90 7.50) scale(0.75)\" d=\"M0 12V0L7 12V0\" stroke-width=\"2.27\"/><path transform=\"translate(93.05 7.50) scale(0.75)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.27\"/>"],"Home Depot":[112.35,"<rect x=\"1.5\" y=\"1.5\" width=\"21\" height=\"21\" rx=\"6\"/><g transform=\"rotate(-45 12 12)\"><path transform=\"translate(8.38 4.70) scale(0.25)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"3.00\"/><path transform=\"translate(11.25 4.70) scale(0.25)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"3.00\"/><path transform=\"translate(14.12 4.70) scale(0.25)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"3.00\"/><path transform=\"translate(3.47 9.48) scale(0.42)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"2.26\"/><path transform=\"translate(8.18 9.48) scale(0.42)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.26\"/><path transform=\"translate(12.88 9.48) scale(0.42)\" d=\"M0 12V0L4 7L8 0V12\" stroke-width=\"2.26\"/><path transform=\"translate(18.01 9.48) scale(0.42)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.26\"/><path transform=\"translate(5.05 16.18) scale(0.27)\" d=\"M0 0V12H3C5.2 12 7 9.3 7 6S5.2 0 3 0H0Z\" stroke-width=\"2.96\"/><path transform=\"translate(8.15 16.18) scale(0.27)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.96\"/><path transform=\"translate(10.99 16.18) scale(0.27)\" d=\"M0 12V0H3.5C5.2 0 6.5 1.4 6.5 3.25S5.2 6.5 3.5 6.5H0\" stroke-width=\"2.96\"/><path transform=\"translate(13.96 16.18) scale(0.27)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.96\"/><path transform=\"translate(17.06 16.18) scale(0.27)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"2.96\"/></g><path transform=\"translate(29.00 7.50) scale(0.75)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"2.27\"/><path transform=\"translate(38.15 7.50) scale(0.75)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.27\"/><path transform=\"translate(47.30 7.50) scale(0.75)\" d=\"M0 12V0L4 7L8 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(57.20 7.50) scale(0.75)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.27\"/><path transform=\"translate(70.62 7.50) scale(0.75)\" d=\"M0 0V12H3C5.2 12 7 9.3 7 6S5.2 0 3 0H0Z\" stroke-width=\"2.27\"/><path transform=\"translate(79.78 7.50) scale(0.75)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.27\"/><path transform=\"translate(88.18 7.50) scale(0.75)\" d=\"M0 12V0H3.5C5.2 0 6.5 1.4 6.5 3.25S5.2 6.5 3.5 6.5H0\" stroke-width=\"2.27\"/><path transform=\"translate(96.95 7.50) scale(0.75)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.27\"/><path transform=\"translate(106.10 7.50) scale(0.75)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"2.27\"/>"],"RichTech":[92.62,"<rect x=\"1.5\" y=\"1.5\" width=\"21\" height=\"21\" rx=\"6\"/><g transform=\"translate(12 12) scale(.62) translate(-12 -12)\" stroke-width=\"3.2\"><circle cx=\"7\" cy=\"12\" r=\"3.2\" fill=\"#0F1720\"/><circle cx=\"17.3\" cy=\"5.5\" r=\"2.5\"/><circle cx=\"17.3\" cy=\"18.5\" r=\"2.5\"/><path d=\"M9.8 10.4l5.3-3.4\"/><path d=\"M9.8 13.6l5.3 3.4\"/></g><path transform=\"translate(29.00 7.50) scale(0.75)\" d=\"M0 12V0H3.5C5.2 0 6.5 1.4 6.5 3.25S5.2 6.5 3.5 6.5H0M3.5 6.5L6.8 12\" stroke-width=\"2.27\"/><path transform=\"translate(37.77 7.50) scale(0.75)\" d=\"M0 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(41.67 7.50) scale(0.75)\" d=\"M6.8 2.4C6 0.9 4.9 0 3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12C4.9 12 6 11.1 6.8 9.6\" stroke-width=\"2.27\"/><path transform=\"translate(50.67 7.50) scale(0.75)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"2.27\"/><path transform=\"translate(59.82 7.50) scale(0.75)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(68.97 7.50) scale(0.75)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.27\"/><path transform=\"translate(77.38 7.50) scale(0.75)\" d=\"M6.8 2.4C6 0.9 4.9 0 3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12C4.9 12 6 11.1 6.8 9.6\" stroke-width=\"2.27\"/><path transform=\"translate(86.38 7.50) scale(0.75)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"2.27\"/>"]};
+  var st = document.createElement('style'); st.textContent = '.drawer-brand-ico { flex: none; display: block; }'; document.head.appendChild(st);
+  function svg(k) { var W = P[k][0], w = (W * 20 / 24).toFixed(1);
+    return '<svg class="drawer-brand-ico" width="' + w + '" height="20" viewBox="0 0 ' + W + ' 24" aria-hidden="true"><g fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + P[k][1] + '</g></svg>'; }
+  function run() {
+    var dr = document.getElementById('drawer'); if (!dr) return false;
+    dr.querySelectorAll('[data-drawer-supplier], [data-drawer-labels]').forEach(function (b) {
+      var k = b.getAttribute('data-drawer-supplier') || b.getAttribute('data-drawer-labels'); if (!P[k]) return;
+      var old = b.querySelector(':scope > img, :scope > .drawer-brand-tile, :scope > svg.drawer-brand-ico');
+      if (old && !old.hasAttribute('data-v113')) { old.insertAdjacentHTML('beforebegin', svg(k)); old.previousSibling.setAttribute('data-v113', '1'); old.remove(); }
+    });
+    return true;
+  }
+  var n = 0; (function go() { run(); if (++n < 30) setTimeout(go, 300); })();
+  var dr0 = setInterval(function () { var dr = document.getElementById('drawer'); if (!dr) return; clearInterval(dr0); new MutationObserver(function () { run(); }).observe(dr, { childList: true, subtree: true }); }, 400);
+})();
+
+/* v110 (Hark, 2026-11-08): STORM logo centered in the pull-out drawer header (the X stays on the right) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '.drawer-head { position: relative; justify-content: center; min-height: 60px; box-sizing: border-box; }'
+    + ' .drawer-head img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); flex: none !important; max-width: calc(100% - 120px) !important; object-position: center !important; }'
+    + ' .drawer-head .drawer-close { margin-left: auto; position: relative; z-index: 1; }';
+  document.head.appendChild(st);
+})();
+
+/* v114 (Hark): store logos = option 7 (app-icon square + name; Home Depot uses its diagonal THE HOME DEPOT box). Restored v96 photo centering below after a stale overwrite. */
 /* v96 (Hark, 2026-11-08): Item details photo auto-centering. Some product photos have blank space baked in on one side,
    so the product sat left or right of center. On open, trim the blank margins and re-pad evenly so the product is centered.
    Works for photos whose host allows it (Drive/Google); any other photo is left exactly as it was. */
@@ -892,6 +1061,32 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   try { new MutationObserver(function () { try { scan(); } catch (e) {} }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
 })();
 
+/* v116 (Hark, 2026-11-08): drawer store rows: 20px app-icon square in the icon column, brand name (line lettering) in the name column so it lines up with the text on the rows above. Overrides the v113/v114 combined icon. */
+(function () {
+  var I = {"Hilti":"<rect x=\"1.5\" y=\"1.5\" width=\"21\" height=\"21\" rx=\"6\"/><g transform=\"translate(12 12) scale(.62) translate(-12 -12)\" stroke-width=\"3.2\"><rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path d=\"M9 9.5v5M15 9.5v5M9 12h6\"/></g>","AutoZone":"<rect x=\"1.5\" y=\"1.5\" width=\"21\" height=\"21\" rx=\"6\"/><g transform=\"translate(12 12) scale(.62) translate(-12 -12)\" stroke-width=\"3.2\"><path d=\"M2.5 17L6 7\"/><path d=\"M6.5 17L10 7\"/><path d=\"M12 7h9l-8.5 10H21\"/></g>","Home Depot":"<rect x=\"1.5\" y=\"1.5\" width=\"21\" height=\"21\" rx=\"6\"/><g transform=\"rotate(-45 12 12)\"><path transform=\"translate(8.38 4.70) scale(0.25)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"3.00\"/><path transform=\"translate(11.25 4.70) scale(0.25)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"3.00\"/><path transform=\"translate(14.12 4.70) scale(0.25)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"3.00\"/><path transform=\"translate(3.47 9.48) scale(0.42)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"2.26\"/><path transform=\"translate(8.18 9.48) scale(0.42)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.26\"/><path transform=\"translate(12.88 9.48) scale(0.42)\" d=\"M0 12V0L4 7L8 0V12\" stroke-width=\"2.26\"/><path transform=\"translate(18.01 9.48) scale(0.42)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.26\"/><path transform=\"translate(5.05 16.18) scale(0.27)\" d=\"M0 0V12H3C5.2 12 7 9.3 7 6S5.2 0 3 0H0Z\" stroke-width=\"2.96\"/><path transform=\"translate(8.15 16.18) scale(0.27)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.96\"/><path transform=\"translate(10.99 16.18) scale(0.27)\" d=\"M0 12V0H3.5C5.2 0 6.5 1.4 6.5 3.25S5.2 6.5 3.5 6.5H0\" stroke-width=\"2.96\"/><path transform=\"translate(13.96 16.18) scale(0.27)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.96\"/><path transform=\"translate(17.06 16.18) scale(0.27)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"2.96\"/></g>","RichTech":"<rect x=\"1.5\" y=\"1.5\" width=\"21\" height=\"21\" rx=\"6\"/><g transform=\"translate(12 12) scale(.62) translate(-12 -12)\" stroke-width=\"3.2\"><circle cx=\"7\" cy=\"12\" r=\"3.2\" fill=\"#0F1720\"/><circle cx=\"17.3\" cy=\"5.5\" r=\"2.5\"/><circle cx=\"17.3\" cy=\"18.5\" r=\"2.5\"/><path d=\"M9.8 10.4l5.3-3.4\"/><path d=\"M9.8 13.6l5.3 3.4\"/></g>"}, N = {"Hilti":[32.6,"<path transform=\"translate(1.00 7.50) scale(0.75)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"2.27\"/><path transform=\"translate(10.15 7.50) scale(0.75)\" d=\"M0 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(14.05 7.50) scale(0.75)\" d=\"M0 0V12H6\" stroke-width=\"2.27\"/><path transform=\"translate(22.45 7.50) scale(0.75)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(31.60 7.50) scale(0.75)\" d=\"M0 0V12\" stroke-width=\"2.27\"/>"],"AutoZone":[70.55,"<path transform=\"translate(1.00 7.50) scale(0.75)\" d=\"M0 12L3.5 0L7 12M1.3 8H5.7\" stroke-width=\"2.27\"/><path transform=\"translate(10.15 7.50) scale(0.75)\" d=\"M0 0V8C0 10.2 1.5 12 3.5 12S7 10.2 7 8V0\" stroke-width=\"2.27\"/><path transform=\"translate(19.30 7.50) scale(0.75)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(28.45 7.50) scale(0.75)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.27\"/><path transform=\"translate(37.60 7.50) scale(0.75)\" d=\"M0 0H7L0 12H7\" stroke-width=\"2.27\"/><path transform=\"translate(46.75 7.50) scale(0.75)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.27\"/><path transform=\"translate(55.90 7.50) scale(0.75)\" d=\"M0 12V0L7 12V0\" stroke-width=\"2.27\"/><path transform=\"translate(65.05 7.50) scale(0.75)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.27\"/>"],"Home Depot":[84.35,"<path transform=\"translate(1.00 7.50) scale(0.75)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"2.27\"/><path transform=\"translate(10.15 7.50) scale(0.75)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.27\"/><path transform=\"translate(19.30 7.50) scale(0.75)\" d=\"M0 12V0L4 7L8 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(29.20 7.50) scale(0.75)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.27\"/><path transform=\"translate(42.62 7.50) scale(0.75)\" d=\"M0 0V12H3C5.2 12 7 9.3 7 6S5.2 0 3 0H0Z\" stroke-width=\"2.27\"/><path transform=\"translate(51.77 7.50) scale(0.75)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.27\"/><path transform=\"translate(60.17 7.50) scale(0.75)\" d=\"M0 12V0H3.5C5.2 0 6.5 1.4 6.5 3.25S5.2 6.5 3.5 6.5H0\" stroke-width=\"2.27\"/><path transform=\"translate(68.95 7.50) scale(0.75)\" d=\"M3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12S7 9.3 7 6S5.5 0 3.5 0Z\" stroke-width=\"2.27\"/><path transform=\"translate(78.10 7.50) scale(0.75)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"2.27\"/>"],"RichTech":[64.62,"<path transform=\"translate(1.00 7.50) scale(0.75)\" d=\"M0 12V0H3.5C5.2 0 6.5 1.4 6.5 3.25S5.2 6.5 3.5 6.5H0M3.5 6.5L6.8 12\" stroke-width=\"2.27\"/><path transform=\"translate(9.77 7.50) scale(0.75)\" d=\"M0 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(13.67 7.50) scale(0.75)\" d=\"M6.8 2.4C6 0.9 4.9 0 3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12C4.9 12 6 11.1 6.8 9.6\" stroke-width=\"2.27\"/><path transform=\"translate(22.67 7.50) scale(0.75)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"2.27\"/><path transform=\"translate(31.82 7.50) scale(0.75)\" d=\"M0 0H7M3.5 0V12\" stroke-width=\"2.27\"/><path transform=\"translate(40.97 7.50) scale(0.75)\" d=\"M6 0H0V12H6M0 6H5\" stroke-width=\"2.27\"/><path transform=\"translate(49.37 7.50) scale(0.75)\" d=\"M6.8 2.4C6 0.9 4.9 0 3.5 0C1.5 0 0 2.7 0 6S1.5 12 3.5 12C4.9 12 6 11.1 6.8 9.6\" stroke-width=\"2.27\"/><path transform=\"translate(58.37 7.50) scale(0.75)\" d=\"M0 0V12M7 0V12M0 6H7\" stroke-width=\"2.27\"/>"]};
+  var G = '<g fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+  var st = document.createElement('style');
+  st.textContent = '.drawer-item .v116-ico { width: 20px; height: 20px; flex: none; display: block; } .drawer-item .drawer-item-name.v116-name { font-size: 16px !important; color: inherit !important; display: flex; align-items: center; } .v116-name svg { display: block; flex: none; }';
+  document.head.appendChild(st);
+  function run() {
+    var dr = document.getElementById('drawer'); if (!dr) return;
+    dr.querySelectorAll('[data-drawer-supplier], [data-drawer-labels]').forEach(function (b) {
+      var k = b.getAttribute('data-drawer-supplier') || b.getAttribute('data-drawer-labels'); if (!I[k] || b.getAttribute('data-v116')) return;
+      var old = b.querySelector(':scope > img, :scope > .drawer-brand-tile, :scope > svg.drawer-brand-ico'); var nm = b.querySelector(':scope > .drawer-item-name');
+      if (!old || !nm) return;
+      old.insertAdjacentHTML('beforebegin', '<svg class="v116-ico" viewBox="0 0 24 24" aria-hidden="true">' + G + I[k] + '</g></svg>');
+      old.remove();
+      var W = N[k][0];
+      nm.classList.add('v116-name'); nm.setAttribute('aria-label', k);
+      nm.innerHTML = '<svg width="' + (W * 20 / 24).toFixed(1) + '" height="20" viewBox="0 0 ' + W + ' 24" aria-hidden="true">' + G + N[k][1] + '</g></svg>';
+      b.setAttribute('data-v116', '1');
+    });
+  }
+  var n = 0; (function go() { try { run(); } catch (e) {} if (++n < 40) setTimeout(go, 250); })();
+  try { new MutationObserver(function () { try { run(); } catch (e) {} }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+})();
+
+/* v117 (Hark): restored v92-v116 after a stale overwrite; kept the other session's v97/v98 hi-res photos. */
 /* v97 (Hark, 2026-11-08): item photos load at full original size (Drive thumbnails were capped at 400 px wide), on the list and in Item details.
    v98: 130 items use 1000-1200 px supplier photos hosted in assets/items/ (keyed by the sheet's Drive photo id; sheet untouched). */
 (function () {
