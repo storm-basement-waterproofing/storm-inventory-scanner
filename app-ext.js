@@ -1106,3 +1106,19 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   try { up(document); new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes && m.addedNodes.forEach(function (n) { if (n.nodeType === 1) { if (n.tagName === 'IMG') up(n.parentNode || document); else up(n); } }); if (m.type === 'attributes' && m.target.tagName === 'IMG') { var h = hi(m.target.getAttribute('src')); if (h) m.target.src = h; } }); }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] }); } catch (e) {}
 })();
+
+/* v118 (Hark, 2026-11-09): checklist "Print" button opens the print options (through the app wrapper). Outside the wrapper it still opens the PDF. */
+(function () {
+  var wrap = false;
+  window.addEventListener('message', function (e) { if (e.data && e.data.storm === 'pong') wrap = true; });
+  try { if (window.top !== window) window.top.postMessage({ storm: 'ping' }, '*'); } catch (e) {}
+  function relabel() { document.querySelectorAll('#chk-view a.chk-open').forEach(function (a) { if (a.textContent !== 'Print') a.textContent = 'Print'; }); }
+  try { new MutationObserver(relabel).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('#chk-view a.chk-open') : null; if (!a || !wrap) return;
+    var pages = Array.prototype.map.call(document.querySelectorAll('#chk-view img.chk-page'), function (im) { return im.getAttribute('data-chk-zoom') || im.src; });
+    if (!pages.length) return;
+    e.preventDefault(); e.stopPropagation();
+    try { window.top.postMessage({ storm: 'print', pages: pages }, '*'); } catch (x) { window.open(a.href, '_blank'); }
+  }, true);
+})();
