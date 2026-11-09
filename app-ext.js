@@ -1095,7 +1095,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function hi(u) {
     var m = /^https:\/\/drive\.google\.com\/thumbnail\?id=([\w-]+)/.exec(u || '');
     if (!m) return null;
-    if (HR[m[1]]) return 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/items/' + HR[m[1]] + '.jpg?v=1';
+    /* v124 (Hark, 2026-11-09): Dave's own photos are back (the v98 supplier swaps showed different pictures). */
+    if (HR[m[1]] && window.__v124keepSwap) return 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/items/' + HR[m[1]] + '.jpg?v=1';
     return 'https://lh3.googleusercontent.com/d/' + m[1] + '=s0';
   }
   function up(root) {
