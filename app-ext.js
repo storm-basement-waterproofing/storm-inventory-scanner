@@ -424,7 +424,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     z.innerHTML = '<button class="cz-x" type="button" aria-label="Close">&times;</button><img alt="" draggable="false"><div class="cz-tip">Pinch to zoom &middot; drag to move &middot; double-tap</div>';
     document.body.appendChild(z);
     var im = z.querySelector('img'), s = 1, x = 0, y = 0, fit = 1, W = 0, H = 0, pts = {}, start = null, lastTap = 0, moved = false;
-    function clamp() { var vw = z.clientWidth, vh = z.clientHeight, iw = W * s, ih = H * s;
+    function size() { if (!W && im.naturalWidth) { W = im.naturalWidth; H = im.naturalHeight; im.style.width = W + 'px'; im.style.height = H + 'px'; fit = Math.min(z.clientWidth / W, z.clientHeight / H); s = fit; } }
+    function clamp() { size(); var vw = z.clientWidth, vh = z.clientHeight, iw = W * s, ih = H * s;
       x = iw <= vw ? (vw - iw) / 2 : Math.min(0, Math.max(vw - iw, x)); y = ih <= vh ? (vh - ih) / 2 : Math.min(0, Math.max(vh - ih, y)); }
     function draw(anim) { clamp(); im.style.transition = anim ? 'transform .25s ease' : 'none'; im.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + s + ')'; }
     function zoomAt(ns, cx, cy, anim) { ns = Math.max(fit, Math.min(fit * 6, ns)); x = cx - (cx - x) * ns / s; y = cy - (cy - y) * ns / s; s = ns; draw(anim); }
@@ -445,11 +446,11 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     function up(ev) {
       if (!pts[ev.pointerId]) return; delete pts[ev.pointerId];
       if (!list().length) { if (s < fit) { s = fit; draw(true); }
-        if (!moved && ev.pointerType !== 'mouse') { var now = Date.now(); if (now - lastTap < 320) { var r = z.getBoundingClientRect(); toggleAt(ev.clientX - r.left, ev.clientY - r.top); lastTap = 0; } else lastTap = now; } }
+        if (!moved) { var now = Date.now(); if (now - lastTap < 400) { var r = z.getBoundingClientRect(); toggleAt(ev.clientX - r.left, ev.clientY - r.top); lastTap = 0; } else lastTap = now; } }
       snap();
     }
     z.addEventListener('pointerup', up); z.addEventListener('pointercancel', up);
-    z.addEventListener('dblclick', function (ev) { if (ev.target.closest('.cz-x')) return; ev.preventDefault(); var r = z.getBoundingClientRect(); toggleAt(ev.clientX - r.left, ev.clientY - r.top); });
+    z.addEventListener('dblclick', function (ev) { ev.preventDefault(); });
     z.addEventListener('click', function (ev) { ev.stopPropagation(); }, false);
     z.addEventListener('wheel', function (ev) { ev.preventDefault(); var r = z.getBoundingClientRect(); zoomAt(s * (ev.deltaY < 0 ? 1.15 : 1 / 1.15), ev.clientX - r.left, ev.clientY - r.top, false); }, { passive: false });
     z.querySelector('.cz-x').addEventListener('click', function (ev) { ev.stopPropagation(); closeZoom(); });
