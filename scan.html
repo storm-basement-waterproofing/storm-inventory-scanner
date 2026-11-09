@@ -101,6 +101,31 @@ video { image-rendering: auto; }
 /* v100 (Hark, 2026-11-09): QR outline traces in the same white neon line as the STORM logo / edge loader */
 #trace polygon { fill: none !important; stroke: #fff !important; stroke-width: 3 !important; stroke-linecap: round; stroke-linejoin: round !important; filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px rgba(255,255,255,.9)) drop-shadow(0 0 14px rgba(255,255,255,.6)) !important; }
 #trace.on polygon { animation: traceDraw .45s cubic-bezier(.4,0,.2,1) forwards !important; }
+
+/* v130 (Hark, 2026-11-09): lens picker. One chip per back lens the phone shares with the browser, plus zoom steps when the lens supports zoom. Tap a chip to switch; the choice is remembered. */
+#lens-bar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 11; display: none; gap: 6px; padding: 5px; border-radius: 999px; background: rgba(15,23,32,.42); -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4); border: 1px solid rgba(255,255,255,.28); }
+#lens-bar.on { display: flex; }
+#lens-bar button { min-width: 42px; height: 34px; padding: 0 10px; border-radius: 999px; border: 0; background: transparent; color: #fff; font: 700 13px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+#lens-bar button.sel { background: #fff; color: #0F1720; }
+#lens-bar button:active { transform: scale(.94); }
+@media (max-width: 420px) { #lens-bar { left: 12px; transform: none; } }
+
+/* v130 (Hark, 2026-11-09): in-camera cart matches the main-screen cart (same font, sizes and stepper), on see-through frosted white instead of dark blue */
+#sheet { background: rgba(255,255,255,.72) !important; -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); border: 1px solid rgba(255,255,255,.85) !important; color: #111827; box-shadow: 0 12px 40px rgba(0,0,0,.35) !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+#sheet-head { padding: 14px 12px 8px 16px; border-bottom: 1px solid rgba(17,24,39,.12); }
+#sheet-head h2 { font-size: 19px; font-weight: 700; color: #111827; }
+#sheet-head button { border: 0; background: none; color: #0F1720; font-size: 30px; width: 40px; }
+#sheet-list { padding: 0 16px; }
+.line { gap: 10px; padding: 12px 0; border-bottom: 0; border-top: 1px solid rgba(17,24,39,.12); }
+.line:first-child { border-top: 0; }
+.line .nm { font-size: 16px; font-weight: 700; line-height: 1.3; color: #111827; }
+.line .pr { font-size: 13px; color: #6B7280; margin-top: 2px; }
+.line img { background: #F3F4F6; }
+.qty { border: 1px solid #D1D5DB; border-radius: 10px; background: #fff; }
+.qty button { width: 44px; height: 44px; font-size: 24px; font-weight: 700; background: #F3F4F6; color: #0F1720; }
+.qty span { min-width: 44px; font-size: 18px; color: #111827; }
+#sheet-foot { border-top: 1px solid rgba(17,24,39,.12); color: #111827; font-size: 19px; font-weight: 800; }
+#sheet .empty { color: #6B7280; }
 </style>
 </head>
 <body>
@@ -131,6 +156,7 @@ var popName = document.getElementById('pop-name');
 var popSub = document.getElementById('pop-sub');
 var doneBtn = document.getElementById('done');
 var stream = null;
+window.__stormSwapStream = function (s2) { stream = s2; };
 var done = false;
 var stillTimer = null;
 var popTimer = null;
@@ -422,6 +448,11 @@ function focusAt(clientX, clientY) {
     if (caps.focusMode && caps.focusMode.indexOf('single-shot') !== -1) { adv.focusMode = 'single-shot'; ok = true; }
     if (caps.pointsOfInterest) { adv.pointsOfInterest = [{ x: x, y: y }]; ok = true; }
     if (!ok) { adv.pointsOfInterest = [{ x: x, y: y }]; adv.focusMode = 'single-shot'; }
+    /* v130: Android Chrome has no 'focus here' point, so a tap forces a fresh autofocus pass: lock, then straight back to continuous (the lens re-hunts on what is in front of it). */
+    if (!caps.pointsOfInterest && caps.focusMode && caps.focusMode.indexOf('single-shot') === -1 && caps.focusMode.indexOf('manual') !== -1 && caps.focusMode.indexOf('continuous') !== -1) {
+      track.applyConstraints({ advanced: [{ focusMode: 'manual' }] }).then(function () { setTimeout(function () { track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {}); }, 90); }).catch(function () {});
+      return;
+    }
     backToContinuous(); track.applyConstraints({ advanced: [adv] }).catch(function () {
       track.applyConstraints({ advanced: [{ focusPoint: { x: x, y: y } }] }).catch(function () {});
     });
@@ -442,6 +473,9 @@ function camTune(s) {
   } catch (e) {}
 }
 function getSharpStream() {
+  /* v130 (Hark, 2026-11-09): open the lens the user picked last time, if it is still there */
+  var saved = null; try { saved = localStorage.getItem('stormLens'); } catch (e) {}
+  if (saved && saved !== 'auto') return camOpen({ deviceId: { exact: saved }, facingMode: undefined }).then(function (s) { camTune(s); return s; }, function () { try { localStorage.removeItem('stormLens'); } catch (e) {} return getSharpStream(); });
   return camOpen().then(function (s) {
     var t = s.getVideoTracks()[0], label = (t && t.label) || '';
     // Android Chrome labels lenses "camera2 N, facing back"; camera2 0 is the main lens. Switch if we got another one.
@@ -853,5 +887,48 @@ var ITEMS = [
 /* v105 (Hark, 2026-11-09): a bit brighter (75% white, 1.3) so the inside lines are easy to see while scanning */
 #qr-in path { stroke: rgba(255,255,255,.75) !important; stroke-width: 1.3 !important; }
 </style>
+
+<script>
+/* v130 (Hark, 2026-11-09): lens picker for the scanner (Dave's Pixel 8 Pro has 3 back lenses). */
+(function () {
+  var v = document.getElementById('video'), view = document.getElementById('view'); if (!v || !view || !navigator.mediaDevices) return;
+  var bar = document.createElement('div'); bar.id = 'lens-bar'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Camera lens'); view.appendChild(bar);
+  bar.addEventListener('click', function (e) { e.stopPropagation(); });
+  function cur() { var s = v.srcObject; return s && s.getVideoTracks ? s.getVideoTracks()[0] : null; }
+  function name(d, i, n) {
+    var l = (d.label || '').toLowerCase();
+    if (/ultra ?wide/.test(l)) return '0.5×'; if (/tele/.test(l)) return 'Zoom'; if (/dual|triple/.test(l)) return 'Auto';
+    if (/camera2 0\b/.test(l) || /^back camera$/.test(l)) return '1×';
+    return n > 1 ? 'Lens ' + (i + 1) : '1×';
+  }
+  function render() {
+    navigator.mediaDevices.enumerateDevices().then(function (ds) {
+      var t = cur(); if (!t) return;
+      var backs = ds.filter(function (d) { return d.kind === 'videoinput' && !/front|user|facetime/i.test(d.label); });
+      var id = (t.getSettings && t.getSettings().deviceId) || '';
+      var caps = t.getCapabilities ? t.getCapabilities() : {}, zs = (t.getSettings && t.getSettings().zoom) || 1;
+      var html = '';
+      if (backs.length > 1) backs.forEach(function (d, i) { html += '<button type="button" data-dev="' + d.deviceId + '"' + (d.deviceId === id && !(zs > 1.05) ? ' class="sel"' : '') + '>' + name(d, i, backs.length) + '</button>'; });
+      if (caps.zoom && caps.zoom.max >= 2) [2, 5].forEach(function (z) { if (z <= caps.zoom.max) html += '<button type="button" data-zoom="' + z + '"' + (Math.abs(zs - z) < .1 ? ' class="sel"' : '') + '>' + z + '×</button>'; });
+      if (caps.zoom && caps.zoom.max >= 2 && backs.length <= 1) html = '<button type="button" data-zoom="1"' + (zs < 1.05 ? ' class="sel"' : '') + '>1×</button>' + html;
+      bar.innerHTML = html; bar.classList.toggle('on', bar.children.length > 1);
+    }).catch(function () {});
+  }
+  bar.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return; try { if (navigator.vibrate) navigator.vibrate(10); } catch (x) {}
+    var t = cur();
+    if (b.hasAttribute('data-zoom')) { if (t) t.applyConstraints({ advanced: [{ zoom: +b.getAttribute('data-zoom') }] }).then(render, render); return; }
+    var dev = b.getAttribute('data-dev'); if (!dev || (t && t.getSettings && t.getSettings().deviceId === dev && !((t.getSettings().zoom || 1) > 1.05))) { if (t && (t.getSettings().zoom || 1) > 1.05) t.applyConstraints({ advanced: [{ zoom: 1 }] }).then(render, render); return; }
+    var old = v.srcObject;
+    if (old) old.getTracks().forEach(function (x) { x.stop(); });
+    navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: dev }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }, audio: false }).then(function (s) {
+      try { localStorage.setItem('stormLens', dev); } catch (x) {}
+      try { var tr = s.getVideoTracks()[0], c = tr.getCapabilities ? tr.getCapabilities() : {}; if (c.focusMode && c.focusMode.indexOf('continuous') !== -1) tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {}); } catch (x) {}
+      v.srcObject = s; window.__stormSwapStream && window.__stormSwapStream(s); v.play().catch(function () {}); render();
+    }, function () { try { localStorage.removeItem('stormLens'); } catch (x) {} location.reload(); });
+  });
+  v.addEventListener('loadedmetadata', render);
+})();
+</script>
 </body>
 </html>
