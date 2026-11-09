@@ -1153,7 +1153,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var IDS = ['labels', 'chk-view', 'lbl-detail', 'res-list', 'res-view'];
   var st = document.createElement('style');
   st.textContent = '#drawer .drawer-item, #drawer .drawer-item .drawer-item-name, #drawer .drawer-item .drawer-item-name.v116-name { font-size: 17px !important; }'
-    + '.v121-ghost { position: fixed !important; inset: 0 !important; z-index: 150 !important; display: block !important; pointer-events: none !important; overflow: hidden !important; background: #fff; will-change: transform, opacity; }';
+    + '.v121-ghost { position: fixed !important; inset: 0 !important; z-index: 150 !important; display: block !important; pointer-events: none !important; overflow: hidden !important; background: #fff; will-change: transform, opacity; -webkit-transform: translate3d(0,0,0); }' /* v123 */;
   document.head.appendChild(st);
   function dr() { return document.getElementById('drawer'); }
   function isOpen(el) { return el && el.classList.contains('open') && !el.classList.contains('v121-ghost'); }
@@ -1178,19 +1178,24 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function snap(el) {
     if (!isOpen(el)) return;
     var c = el.cloneNode(true); c.removeAttribute('id'); c.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); });
+    /* v123: cloned pictures paint at once (lazy ones would show blank while sliding) */
+    c.querySelectorAll('img').forEach(function (im) { im.removeAttribute('loading'); im.decoding = 'sync'; });
     snaps[el.id] = { node: c, top: el.scrollTop, w: el.clientWidth };
   }
   function later(el, ms) { clearTimeout(timers[el.id]); timers[el.id] = setTimeout(function () { snap(el); }, ms); }
   function out(id) {
     var s = snaps[id]; delete snaps[id]; if (!s) return;
     var g = s.node; g.className = (g.className || '') + ' v121-ghost'; g.classList.remove('storm-slide-in', 'res-in', 'fx-in');
-    document.body.appendChild(g); g.scrollTop = s.top;
-    var inner = g.firstElementChild;
-    try {
-      var a = g.animate([{ transform: 'translateX(0)', opacity: 1 }, { transform: 'translateX(-102%)', opacity: 0 }], { duration: 300, easing: 'ease', fill: 'forwards' });
-      a.onfinish = function () { if (g.parentNode) g.remove(); };
-    } catch (x) { g.remove(); }
-    setTimeout(function () { if (g.parentNode) g.remove(); }, 800);
+    /* v123: GPU layer, laid out first, then the exact reverse of the slide-in (same .3s ease), started on the next frame so no frame is dropped */
+    g.style.transform = 'translate3d(0,0,0)'; g.style.opacity = '1'; g.style.backfaceVisibility = 'hidden'; g.style.contain = 'layout paint';
+    document.body.appendChild(g); g.scrollTop = s.top; void g.offsetWidth;
+    requestAnimationFrame(function () {
+      try {
+        var a = g.animate([{ transform: 'translate3d(0,0,0)', opacity: 1 }, { transform: 'translate3d(-102%,0,0)', opacity: 0 }], { duration: 300, easing: 'ease', fill: 'forwards' });
+        a.onfinish = function () { if (g.parentNode) g.remove(); };
+      } catch (x) { g.remove(); }
+    });
+    setTimeout(function () { if (g.parentNode) g.remove(); }, 900);
   }
   var watched = {};
   var mo = new MutationObserver(function (ms) {
