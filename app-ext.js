@@ -938,7 +938,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 /* v102 (Hark, 2026-11-08): Checklists live inside the Resource Center (the old Checklists section is hidden, its rows copied in) */
 (function () {
   var st = document.createElement('style');
-  st.textContent = '#drawer-checklists { display: none !important; }';
+  st.textContent = '#drawer-checklists { display: none !important; } #drawer-resources img.chk-ico-img { width: 24px; height: 24px; max-width: none; object-fit: contain; flex: none; }';
   document.head.appendChild(st);
   var tries = 0;
   function move() {
@@ -948,6 +948,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (box.querySelector('[data-drawer-checklist]')) return;
     chk.querySelectorAll('[data-drawer-checklist]').forEach(function (b) {
       var c = b.cloneNode(true);
+      /* v103: own icons (Hilti TE-3000 for tools, box truck for the pre check) */
+      var ic = { 'tools': 'icon-te3000.png', 'box-truck': 'icon-boxtruck.png' }[c.getAttribute('data-drawer-checklist')], old = c.querySelector('svg');
+      if (ic && old) { var im = document.createElement('img'); im.src = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/' + ic; im.alt = ''; im.className = 'res-ico chk-ico-img'; old.replaceWith(im); }
       if (!c.querySelector('.drawer-chevron')) c.insertAdjacentHTML('beforeend', '<span class="drawer-chevron">&#9662;</span>');
       box.appendChild(c);
     });
