@@ -828,5 +828,9 @@ var ITEMS = [
   (window.__scanHit = window.__scanHit || []).push(function (t) { var L = window.__lastTrace; if (!L) return; lastPts = L.pts; lastW = L.w; lastH = L.h; lastText = t; window.__lastTrace = null; try { draw(); } catch (e) {} });
 })();
 </script>
+<style>/* v102 (Hark, 2026-11-09): the lines traced inside the QR code have no glow, just a clean crisp white line (the outer outline keeps its neon glow) */
+#qr-in { filter: none !important; }
+#qr-in path { stroke-width: 1.4 !important; shape-rendering: geometricPrecision; }
+</style>
 </body>
 </html>
