@@ -135,7 +135,7 @@
     var w = document.createElement('div'); w.id = 'camwrap';
     var fr = document.createElement('iframe'); fr.title = 'Scan a bin label';
     fr.setAttribute('allow', 'camera; microphone; autoplay; clipboard-read; clipboard-write');
-    fr.src = 'scan.html' + q + (q.indexOf('?') >= 0 ? '&' : '?') + 'layer=1';
+    fr.src = 'scan.html' + q + (q.indexOf('?') >= 0 ? '&' : '?') + 'layer=1&cb=' + Math.floor(Date.now() / 60000); /* v104: always the newest camera page (no 10-minute stale copy) */
     w.appendChild(fr); document.body.appendChild(w);
     requestAnimationFrame(function () { w.classList.add('on'); });
     try { history.pushState({ stormCam: 1 }, ''); } catch (e) {}
