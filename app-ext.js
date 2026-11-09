@@ -988,3 +988,12 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var n = 0; (function go() { run(); if (++n < 30) setTimeout(go, 300); })();
   var dr0 = setInterval(function () { var dr = document.getElementById('drawer'); if (!dr) return; clearInterval(dr0); new MutationObserver(function () { run(); }).observe(dr, { childList: true, subtree: true }); }, 400);
 })();
+
+/* v110 (Hark, 2026-11-08): STORM logo centered in the pull-out drawer header (the X stays on the right) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '.drawer-head { position: relative; justify-content: center; min-height: 60px; box-sizing: border-box; }'
+    + ' .drawer-head img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); flex: none !important; max-width: calc(100% - 120px) !important; object-position: center !important; }'
+    + ' .drawer-head .drawer-close { margin-left: auto; position: relative; z-index: 1; }';
+  document.head.appendChild(st);
+})();
