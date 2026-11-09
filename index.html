@@ -158,6 +158,27 @@
       setTimeout(function () { if (f.parentNode) f.parentNode.removeChild(f); }, 120000);
       return;
     }
+    /* v118 (Hark, 2026-11-09): checklist Print opens the phone's print options here at the top level (the app frame can't print) */
+    if (m.storm === 'ping') { try { e.source.postMessage({ storm: 'pong' }, '*'); } catch (x) {} return; }
+    if (m.storm === 'print' && m.pages && m.pages.length) {
+      var base = location.origin + '/storm-inventory-scanner/checklists/';
+      var pages = Array.prototype.filter.call(m.pages, function (u) { return typeof u === 'string' && u.indexOf(base) === 0; });
+      if (!pages.length) return;
+      var old = document.getElementById('print-root'); if (old) old.remove();
+      var pr = document.createElement('div'); pr.id = 'print-root';
+      if (!document.getElementById('print-css')) {
+        var ps = document.createElement('style'); ps.id = 'print-css';
+        ps.textContent = '#print-root { display: none; } @media print { @page { size: letter portrait; margin: 0; } html, body { background: #fff !important; height: auto !important; overflow: visible !important; } body > *:not(#print-root) { display: none !important; } #print-root { display: block !important; } #print-root img { display: block; width: 8.5in; height: 11in; object-fit: contain; break-after: page; page-break-after: always; } #print-root img:last-child { break-after: auto; page-break-after: auto; } }';
+        document.head.appendChild(ps);
+      }
+      var left = pages.length, fired = false;
+      function go() { if (fired) return; fired = true; setTimeout(function () { try { window.focus(); window.print(); } catch (x) {} }, 60); }
+      pages.forEach(function (u) { var im = new Image(); im.onload = im.onerror = function () { if (--left === 0) go(); }; im.src = u; pr.appendChild(im); });
+      document.body.appendChild(pr);
+      setTimeout(go, 4000);
+      window.addEventListener('afterprint', function () { var r = document.getElementById('print-root'); if (r) r.remove(); }, { once: true });
+      return;
+    }
     if (m.storm === 'scanDone' && e.origin === location.origin) {
       try { if (camApp) camApp.postMessage({ storm: 'scanResult', cart: m.cart, ct: m.ct, scans: m.scans }, '*'); } catch (x) {}
       closeCam(false);
