@@ -644,7 +644,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var t = 0; (function go() { hook(); if (t++ < 40) setTimeout(go, 300); })();
 })();
 
-/* v90 (Hark, 2026-11-08): Resource Center in the drawer. Logos opens like the store groups; tap a logo to see it full size and download the print-quality PNG. */
+/* v91 (Hark, 2026-11-08): Resource Center in the drawer, with two pages.
+   Logos opens its own page of logos; tap one for its details, Download, and Open full size.
+   Media opens its own page: Photo Series (each SmugMug folder, newest first) and Videos (each video's own SmugMug link, newest first). Nothing is hosted in the app. */
 (function () {
   var BASE = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/logos/';
   var LOGOS = [
@@ -663,49 +665,100 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function h(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function toast(m, err) { try { showToast(m, err); } catch (x) {} }
 
-  var st = document.createElement('style'); st.id = 'storm-v90-css';
+  var SM = 'https://optimuminfluencemedia.smugmug.com/Commercial/STORM-Basement-Waterproofing-Master-Folder/';
+  var PHOTOS = [["October 2026 photo series", "October-2026-photo-series"], ["September Photo Series 2026", "Sept-2026-photo-series-"], ["August Photo Series 2026", "August-Photo-Series-2026"], ["July Photo Series 2026", "July-Photo-series-2026"], ["June 2026", "June-2026"], ["May Photo Series 2026", "May-Photo-Series-2026"], ["April 2026 photo series", "April-2026-photo-series"], ["March Photo series 2026", "March-Photo-series-2026"], ["Feb 2026 photo series", "Feb-2026-photo-series"], ["Jan 26 Photo Series", "Jan-26-Photo-Series"], ["STORM -Dec 25 Photo Series", "STORM-Nov-25-Photo-Series"], ["STORM - November 2025 Photo Series", "Storm-Nov-25"], ["Storm Oct 25 Photo Series", "Storm-Oct-25-Photo-Series"], ["STORM - September 2025", "Storm-September-2025"], ["Storm - August 2025 Photo Series", "Storm-August-Photo-Series-2025"], ["STORM - July Photo Series 2025", "STORM-July-Photo-Series-2025"], ["Storm Basement June Photo Series", "Storm-Basement-June-Photo-Series-"], ["May 2025 Photo series", "May-2025-Photo-series"], ["Storm April 2025 Photo Series", "Storm-April-Photo-Series"], ["Storm - March Photo Series 2025", "Storm-March-Photo-Series-2025"], ["Storm February 2025", "Storm-February-2025"], ["Storm/FWC - December - 105 Allen Rd", "StormFWC-December-105-Allen-Rd"], ["Storm Basement - November - 4404 Shortsville", "Storm-Basement-November-4404-Shortsville"], ["Storm Basement - October Photo Series", "Storm-Basement-October-Photo-Series"], ["Storm/FWC 135 HighStone Cir", "StormFWC-135-HighStone-Cir"], ["Storm Basement 143 Country Pl Ln", "Storm-Basement-143-Country-Pl-Ln"], ["Storm Basement 1235 Holly Rd.", "Storm-Basement-1235-Holly-Rd"], ["Storm Basement 169 Blackwell Ln", "Storm-Basement-169-Blackwell-Ln"], ["Storm Basement 637 Bangs Rd", "Storm-637-Bangs-Rd"], ["Storm Basement 39 Sandeingham Rd.", "Storm-Basement-39-Sandeingham-Rd"], ["Strom March 24 Photo Series", "Strom-March-24-Photo-Series"], ["Storm Jan Photo Sereis", "Storm-Jan-Photo-Sereis"], ["Storm Photo Series Nov 2023", "Storm-Photo-Series-Nov-2023"], ["Storm - September 2023 Photo Series", "Storm-September-2023-Photo-Series-"], ["Storm Basement Waterproofing Broadcasting Rights", "Storm-Basement-Waterproofing-Broadcasting-Rights"], ["Storm basement waterproofing Photo - 333 Long", "Storm-basement-waterproofing-Photo-333-Long-"]];
+  var VIDEOS = [["Storm 3101 west ridge rd", "i-ZGs2C6H"], ["STORM - 121 walker lake", "i-s9hMxjH"], ["STORM video 3", "i-7R7KV3q"], ["STORM video 4", "i-9VjHsVJ"], ["STORM video 5", "i-cKCDRDj"], ["STORM video 6", "i-x9Fmtsk"], ["Storm-315 South Pearl", "i-XqhJthj"], ["Storm 5978 Marrowback Video", "i-k6dNDWs"], ["STORM video 9", "i-sWQQBqc"], ["STORM video 10", "i-jkWKC3f"], ["Storm 587 Plank Rd", "i-jdnmv4g"], ["Storm - 105 Stonehedge", "i-WfF5m92"], ["Storm - 4969 Walnut v3", "i-wkGppQ8"], ["Storm - 199 North Main", "i-vSJxmr9"], ["STORM - 25 Highwood RD F", "i-8F9CPBJ"], ["4 Dahlia Drive FULL", "i-ZRz7px3"], ["STORM video 17", "i-bZT2Tjv"], ["STORM video 18", "i-sC99pN7"], ["Storm - 37 Cliffordale par", "i-fCXjSLp"], ["STORM - 49 Browns AVE FU", "i-hz7zDFr"], ["STORM video 21", "i-FjMQ2SL"], ["STORM - 127 Canadaguia Ave", "i-nXcXFZG"], ["Storm - Client Testimonial", "i-LBKM7xP"], ["Storm Service Highlight FULL", "i-x5kdpW8"], ["STORM video 25", "i-LRBGMJq"], ["770 Monroe.v2", "i-3mQr4Q2"], ["STORM video 27", "i-8GVH29r"], ["Storm 3308_2", "i-JXw6k8t"], ["STORM video 29", "i-9CcqDzQ"], ["STORM - 282 Euler FULL", "i-ZWQZvvs"], ["Storm - 34 Georgetown Lane", "i-ptjXNBL"], ["STORM Testimonial - 4103 R", "i-X35xtwR"], ["Storm FWC_3", "i-RwgndSt"], ["STORM video 34", "i-NRjLvKv"], ["Storm 4403 Shortsville", "i-6bp2Q6J"], ["STORM video 36", "i-NGFvdkF"], ["Storm FWC-135 High stone", "i-sK2gj5q"], ["STORM - 143 Country Pl L", "i-BwBhD2m"], ["STORM video 39", "i-p6G3qV8"], ["Storm Demo Day", "i-Fkq5n9R"], ["STORM 169 Blackwell Ln", "i-HN9Jn8f"], ["STORM FULL v2", "i-N65n8D7"], ["Informational 1", "i-bDScxbN"], ["Informational 3", "i-466d3dH"], ["Informational 2", "i-xdDwwF6"], ["STORM video 46", "i-WvczVsV"], ["STORM video 47", "i-PPxCjmX"], ["STORM video 48", "i-24jTLcg"], ["STORM video 49", "i-tj7dstN"], ["STORM video 50", "i-r4CsLdX"], ["STORM video 51", "i-htQvG4t"], ["STORM video 52", "i-HsqJdkv"], ["STORM video 53", "i-TcdBZSD"], ["STORM video 54", "i-rNQpjQf"], ["STORM video 55", "i-dkMdTJ8"], ["STORM video 56", "i-p7Tm4JQ"], ["STORM video 57", "i-B2R59Hv"], ["Who is dave crawford", "i-sjZrf83"], ["STORM video 59", "i-cvMzK8N"], ["STORM video 60", "i-Ks7bLFR"], ["STORM video 61", "i-3QHJdFw"], ["STORM video 62", "i-BhccVWr"], ["STORM video 63", "i-NDvsFng"], ["STORM video 64", "i-7ZS6xsT"], ["STORM video 65", "i-hfKtjH5"], ["Storm Blooper", "i-vVkw74B"], ["Storm OIM Testimonial", "i-6SCfNLn"], ["STORM video 68", "i-gcPRz6c"], ["Storm May 25 2023", "i-dTtNHRM"], ["STORM APRIL 18", "i-gJKw9st"], ["Storm April 3 23", "i-rb48N5B"], ["Storm March 22", "i-rC9Lw5j"], ["Storm March 8", "i-QxXcgdm"], ["Storm Feb 16", "i-pstpNcZ"], ["STORM Reel", "i-zW6j8qx"], ["Storm Testimonial", "i-MPsCGjW"], ["Storm Jan 5", "i-JRKRmHN"], ["Storm Hiring", "i-wzK8Cdb"], ["Storm Basements", "i-gXZLq5q"], ["Storm I-Basement", "i-ggpVxF5"], ["Storm Nov 4", "i-QxD9j3M"], ["Storm Oct 20", "i-m8KHqsj"], ["Storm Oct 7", "i-Qm97TCj"], ["Storm Client Testimonial", "i-6mCBTN9"], ["Storm Sep 6", "i-tpBNG5N"], ["Storm", "i-mDRV6jL"]];
+
+  var st = document.createElement('style'); st.id = 'storm-v91-css';
   st.textContent = '.res-ico { width: 20px; height: 20px; flex: none; }'
-    + '#drawer-resources .drawer-cat .res-thumb { flex: none; width: 84px; height: 30px; border-radius: 5px; border: 1px solid #E5E7EB; display: flex; align-items: center; justify-content: center; overflow: hidden; }'
-    + '#drawer-resources .drawer-cat .res-thumb img { display: block; max-width: 92%; max-height: 80%; object-fit: contain; }'
-    + '#drawer-resources .drawer-cat .drawer-item-name { font-size: 15px; color: #111827; }'
-    + '#res-view { z-index: 120; background: #F3F4F6; }'
+    + '#drawer-resources .drawer-item .drawer-chevron { transform: rotate(-90deg); margin-left: auto; }'
+    + '#drawer-resources .drawer-item .drawer-count + .drawer-chevron { margin-left: 8px; }'
+    + '#drawer-resources .drawer-item .drawer-count { margin-left: auto; }'
+    + '#res-list { z-index: 110; background: #F3F4F6; } #res-view { z-index: 120; background: #F3F4F6; }'
+    + '.res-title { font-weight: 700; font-size: 17px; }'
+    + '.res-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }'
+    + '@media (min-width: 560px) { .res-grid { grid-template-columns: 1fr 1fr; } }'
+    + '.res-card { display: block; width: 100%; padding: 0; border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; overflow: hidden; text-align: left; }'
+    + '.res-card .res-prev { height: 96px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid #E5E7EB; }'
+    + '.res-card .res-prev img { display: block; max-width: 82%; max-height: 64%; object-fit: contain; }'
+    + '.res-card .res-cap { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; font-size: 16px; font-weight: 600; color: #111827; }'
+    + '.res-card .res-cap span { color: #9CA3AF; font-size: 20px; line-height: 1; }'
     + '.res-stage { border-radius: 12px; border: 1px solid #E5E7EB; padding: 22px 16px; display: flex; align-items: center; justify-content: center; }'
     + '.res-stage img { display: block; width: 100%; height: auto; }'
     + '.res-note { font-size: 15px; color: #6B7280; margin: 12px 2px 0; }'
     + '.res-dl { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 54px; margin-top: 16px; border: 0; border-radius: 10px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 700; }'
     + '.res-dl svg { width: 22px; height: 22px; }'
     + '.res-open { display: block; text-align: center; margin-top: 14px; font-size: 15px; font-weight: 600; color: var(--dark); }'
+    + '.res-tabs { display: flex; gap: 6px; padding: 4px; background: #E5E7EB; border-radius: 10px; margin-bottom: 14px; }'
+    + '.res-tab { flex: 1; min-height: 40px; border: 0; border-radius: 8px; background: transparent; font-size: 15px; font-weight: 600; color: #4B5563; }'
+    + '.res-tab.on { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,.12); }'
+    + '.res-sub { font-size: 13px; color: #6B7280; margin: 0 2px 10px; }'
+    + '.res-links { background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; }'
+    + '.res-link { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-top: 1px solid #F0F1F3; color: #111827; text-decoration: none; font-size: 15px; }'
+    + '.res-link:first-child { border-top: 0; } .res-link:active { background: #F3F4F6; }'
+    + '.res-link .res-ln { flex: 1; min-width: 0; } .res-link .res-go { flex: none; width: 18px; height: 18px; }'
     + '@keyframes resSlideL { from { transform: translateX(-102%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }'
-    + '#res-view.res-in { animation: resSlideL .3s ease both; }';
+    + '.res-pg.res-in { animation: resSlideL .3s ease both; }';
   document.head.appendChild(st);
 
   var IMG_ICO = '<svg class="res-ico" viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>';
+  var MEDIA_ICO = '<svg class="res-ico" viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="M17 10l5-3v10l-5-3"/></svg>';
+  var FOLDER_ICO = '<svg class="res-ico" viewBox="0 0 24 24" fill="none" stroke="#1F9BD7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+  var PLAY_ICO = '<svg class="res-ico" viewBox="0 0 24 24" fill="none" stroke="#1F9BD7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z" fill="#1F9BD7"/></svg>';
+  var GO_ICO = '<svg class="res-go" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>';
   var DL_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>';
 
   function addSection() {
     var dr = e$('drawer'); if (!dr) return false; if (e$('drawer-resources')) return true;
     var sec = document.createElement('div'); sec.className = 'drawer-section'; sec.id = 'drawer-resources';
-    var hh = '<button class="drawer-section-head" type="button">Resource Center <span class="drawer-chevron">&#9662;</span></button><div class="drawer-items">'
-      + '<div class="drawer-supplier" id="group-logos"><button class="drawer-item" type="button" data-res-group="logos">' + IMG_ICO + '<span class="drawer-item-name">Logos</span><span class="drawer-count">' + LOGOS.length + '</span><span class="drawer-chevron">&#9662;</span></button><div class="drawer-cats">';
-    LOGOS.forEach(function (l) { hh += '<button class="drawer-cat" type="button" data-res-logo="' + l.id + '"><span class="res-thumb" style="' + bgCss(l.bg) + '"><img src="' + thumb(l) + '" alt="" loading="lazy"></span><span class="drawer-item-name">' + h(l.name) + '</span></button>'; });
-    sec.innerHTML = hh + '</div></div></div>';
+    sec.innerHTML = '<button class="drawer-section-head" type="button">Resource Center <span class="drawer-chevron">&#9662;</span></button><div class="drawer-items">'
+      + '<button class="drawer-item" type="button" data-res-page="logos">' + IMG_ICO + '<span class="drawer-item-name">Logos</span><span class="drawer-count">' + LOGOS.length + '</span><span class="drawer-chevron">&#9662;</span></button>'
+      + '<button class="drawer-item" type="button" data-res-page="media">' + MEDIA_ICO + '<span class="drawer-item-name">Media</span><span class="drawer-chevron">&#9662;</span></button>'
+      + '</div>';
     var after = e$('drawer-checklists') || e$('drawer-labels'), foot = dr.querySelector('.drawer-foot');
     if (after && after.parentNode === dr) dr.insertBefore(sec, after.nextSibling); else if (foot) dr.insertBefore(sec, foot); else dr.appendChild(sec);
     return true;
   }
 
+  function page(id, z) {
+    var v = e$(id); if (!v) { v = document.createElement('div'); v.id = id; v.className = 'detail-overlay res-pg'; document.body.appendChild(v); }
+    return v;
+  }
+  function show(v, kind) {
+    v.classList.add('open'); v.scrollTop = 0; v.classList.remove('res-in'); void v.offsetWidth; v.classList.add('res-in');
+    try { history.pushState({ overlay: kind }, ''); } catch (x) {}
+  }
+  function bar(title) { return '<div class="detail-bar"><button class="detail-close" type="button" data-res-close aria-label="Close">&times;</button><div class="res-title">' + h(title) + '</div></div>'; }
+
+  function openLogos() {
+    var v = page('res-list'), hh = bar('Logos') + '<div class="detail-body"><div class="res-grid">';
+    LOGOS.forEach(function (l) { hh += '<button class="res-card" type="button" data-res-logo="' + l.id + '"><div class="res-prev" style="' + bgCss(l.bg) + '"><img src="' + thumb(l) + '" alt="" loading="lazy"></div><div class="res-cap">' + h(l.name) + '<span>&rsaquo;</span></div></button>'; });
+    v.innerHTML = hh + '</div></div>'; show(v, 'res-list');
+  }
+  function mediaBody(tab) {
+    var list = tab === 'videos' ? VIDEOS : PHOTOS, hh = '<div class="res-tabs"><button type="button" class="res-tab' + (tab === 'photos' ? ' on' : '') + '" data-res-tab="photos">Photo Series (' + PHOTOS.length + ')</button><button type="button" class="res-tab' + (tab === 'videos' ? ' on' : '') + '" data-res-tab="videos">Videos (' + VIDEOS.length + ')</button></div>'
+      + '<p class="res-sub">Newest first. Opens in SmugMug.</p><div class="res-links">';
+    list.forEach(function (it) {
+      var url = tab === 'videos' ? SM + 'Storm-Basement-Waterproofing/' + it[1] : SM + it[1];
+      hh += '<a class="res-link" href="' + url + '" target="_blank" rel="noopener">' + (tab === 'videos' ? PLAY_ICO : FOLDER_ICO) + '<span class="res-ln">' + h(it[0]) + '</span>' + GO_ICO + '</a>';
+    });
+    return hh + '</div>';
+  }
+  function openMedia() {
+    var v = page('res-list'); v.innerHTML = bar('Media') + '<div class="detail-body" id="res-media">' + mediaBody('photos') + '</div>'; show(v, 'res-list');
+  }
   function openLogo(id) {
     var l = LOGOS.filter(function (x) { return x.id === id; })[0]; if (!l) return;
-    var v = e$('res-view'); if (!v) { v = document.createElement('div'); v.id = 'res-view'; v.className = 'detail-overlay'; document.body.appendChild(v); }
-    v.innerHTML = '<div class="detail-bar"><button class="detail-close" type="button" data-res-close aria-label="Close">&times;</button><div style="font-weight:700;font-size:17px">STORM Logo</div></div><div class="detail-body">'
+    var v = page('res-view');
+    v.innerHTML = bar('STORM Logo') + '<div class="detail-body">'
       + '<div class="res-stage" style="' + bgCss(l.bg) + '"><img src="' + full(l) + '" alt="STORM logo, ' + h(l.name) + '"></div>'
       + '<div class="detail-name">' + h(l.name) + '</div><p class="res-note">' + h(l.note) + ' PNG, 6400 &times; 1648, 300 dpi.</p>'
       + '<button type="button" class="res-dl" data-res-dl="' + l.id + '">' + DL_ICO + 'Download</button>'
       + '<a class="res-open" href="' + full(l) + '" target="_blank" rel="noopener">Open full size</a></div>';
-    v.classList.add('open'); v.scrollTop = 0; v.classList.remove('res-in'); void v.offsetWidth; v.classList.add('res-in');
-    try { history.pushState({ overlay: 'res' }, ''); } catch (x) {}
+    show(v, 'res-view');
   }
-  function closeLogo(fromPop) { var v = e$('res-view'); if (!v || !v.classList.contains('open')) return; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
+  function top() { var a = e$('res-view'), b = e$('res-list'); if (a && a.classList.contains('open')) return a; if (b && b.classList.contains('open')) return b; return null; }
+  function closeTop(fromPop) { var v = top(); if (!v) return; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
 
   function download(id) {
     var l = LOGOS.filter(function (x) { return x.id === id; })[0]; if (!l) return;
@@ -721,16 +774,23 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   window.addEventListener('click', function (e) {
     var t = e.target; if (!t || !t.closest) return;
     var rh = t.closest('#drawer-resources > .drawer-section-head');
-    if (rh) { e.stopImmediatePropagation(); e.preventDefault(); rh.parentElement.classList.toggle('expanded'); return; } /* v90.1: one toggle only (the app also binds section heads on load) */
-    var g = t.closest('[data-res-group]');
-    if (g) { e.stopImmediatePropagation(); e.preventDefault(); var grp = g.closest('.drawer-supplier'); if (grp) grp.classList.toggle('open'); return; }
+    if (rh) { e.stopImmediatePropagation(); e.preventDefault(); rh.parentElement.classList.toggle('expanded'); return; } /* one toggle only (the app also binds section heads on load) */
+    var pg = t.closest('[data-res-page]');
+    if (pg) { e.stopImmediatePropagation(); e.preventDefault(); if (pg.getAttribute('data-res-page') === 'logos') openLogos(); else openMedia(); return; }
+    var tb = t.closest('[data-res-tab]');
+    if (tb) { e.stopImmediatePropagation(); e.preventDefault(); var mb = e$('res-media'); if (mb) { mb.innerHTML = mediaBody(tb.getAttribute('data-res-tab')); var lv = e$('res-list'); if (lv) lv.scrollTop = 0; } return; }
     var lg = t.closest('[data-res-logo]');
     if (lg) { e.stopImmediatePropagation(); e.preventDefault(); openLogo(lg.getAttribute('data-res-logo')); return; }
     var dl = t.closest('[data-res-dl]');
     if (dl) { e.stopImmediatePropagation(); e.preventDefault(); download(dl.getAttribute('data-res-dl')); return; }
-    if (t.closest('[data-res-close]')) { e.stopImmediatePropagation(); closeLogo(false); return; }
+    if (t.closest('[data-res-close]')) { e.stopImmediatePropagation(); closeTop(false); return; }
   }, true);
-  window.addEventListener('popstate', function () { if (!(history.state && history.state.overlay === 'res')) closeLogo(true); });
+  window.addEventListener('popstate', function () {
+    var s = history.state && history.state.overlay;
+    var a = e$('res-view'), b = e$('res-list');
+    if (a && a.classList.contains('open') && s !== 'res-view') { a.classList.remove('open'); a.innerHTML = ''; }
+    if (b && b.classList.contains('open') && s !== 'res-list' && s !== 'res-view') { b.classList.remove('open'); b.innerHTML = ''; }
+  });
 
   var n = 0; (function go() { if (!addSection() && n++ < 40) setTimeout(go, 150); })();
 })();
