@@ -969,3 +969,20 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', move); else move();
   setTimeout(move, 1800);
 })();
+
+/* v106 (Hark, 2026-11-08): store logos in the drawer become line icons in the Resource Center style (AutoZone, Home Depot Pro Xtra, RichTech, Hilti) */
+(function () {
+  var P = {"AutoZone": "<path d=\"M2 17L5.5 7\"/><path d=\"M5.8 17l3.5-10\"/><path d=\"M12.5 7H22l-9 10h9\"/>", "Home Depot": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M6.5 12.5l6-6\"/><path d=\"M7 17L17 7\"/><path d=\"M11.5 17.5l6-6\"/>", "RichTech": "<circle cx=\"7\" cy=\"12\" r=\"3.2\" fill=\"#0F1720\"/><circle cx=\"17.3\" cy=\"5.5\" r=\"2.5\"/><circle cx=\"17.3\" cy=\"18.5\" r=\"2.5\"/><path d=\"M9.8 10.4l5.3-3.4\"/><path d=\"M9.8 13.6l5.3 3.4\"/>", "Hilti": "<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"1.5\"/><path d=\"M9 9.5v5\"/><path d=\"M15 9.5v5\"/><path d=\"M9 12h6\"/>"};
+  var st = document.createElement('style'); st.textContent = '.drawer-brand-ico { width: 22px; height: 22px; flex: none; }'; document.head.appendChild(st);
+  function svg(k) { return '<svg class="drawer-brand-ico" viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + P[k] + '</svg>'; }
+  function run() {
+    var dr = document.getElementById('drawer'); if (!dr) return false;
+    dr.querySelectorAll('[data-drawer-supplier] > img, [data-drawer-labels] > img').forEach(function (im) {
+      var b = im.parentNode, k = b.getAttribute('data-drawer-supplier') || b.getAttribute('data-drawer-labels');
+      if (P[k]) { im.insertAdjacentHTML('beforebegin', svg(k)); im.remove(); }
+    });
+    return true;
+  }
+  var n = 0; (function go() { run(); if (++n < 30) setTimeout(go, 300); })();
+  var dr0 = setInterval(function () { var dr = document.getElementById('drawer'); if (!dr) return; clearInterval(dr0); new MutationObserver(function () { run(); }).observe(dr, { childList: true, subtree: true }); }, 400);
+})();
