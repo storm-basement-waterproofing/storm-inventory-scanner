@@ -887,3 +887,24 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', lab); else lab();
   setTimeout(lab, 1500);
 })();
+
+/* v99 (Hark, 2026-11-08): "Par" reads "Keep on hand" for the crew (display only; the sheet's Par column is unchanged) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = 'button.par { white-space: nowrap; }';
+  document.head.appendChild(st);
+  var busy = false;
+  function fix() {
+    busy = false;
+    document.querySelectorAll('button.par').forEach(function (b) {
+      var t = b.textContent;
+      if (t === 'Set par') b.textContent = 'Set keep on hand';
+      else if (/^Par: /.test(t)) b.textContent = 'Keep on hand: ' + t.slice(5);
+    });
+    document.querySelectorAll('span').forEach(function (s) { if (s.childNodes.length === 1 && s.textContent === 'Par') s.textContent = 'Keep on hand'; });
+    document.querySelectorAll('input.par-input').forEach(function (i) { if (i.placeholder === 'Par') i.placeholder = 'Keep'; });
+  }
+  function soon() { if (!busy) { busy = true; requestAnimationFrame(fix); } }
+  function start() { fix(); try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true, characterData: true }); } catch (x) {} }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
