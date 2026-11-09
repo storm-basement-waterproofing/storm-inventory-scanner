@@ -644,7 +644,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var t = 0; (function go() { hook(); if (t++ < 40) setTimeout(go, 300); })();
 })();
 
-/* v91 (Hark, 2026-11-08): Resource Center in the drawer, with two pages.
+/* v92 (Hark, 2026-11-08): logos are now true vector files (PDF, SVG, EPS) plus a 6400 px PNG, each labeled on the logo page.
+   v91 (Hark, 2026-11-08): Resource Center in the drawer, with two pages.
    Logos opens its own page of logos; tap one for its details, Download, and Open full size.
    Media opens its own page: Photo Series (each SmugMug folder, newest first) and Videos (each video's own SmugMug link, newest first). Nothing is hosted in the app. */
 (function () {
@@ -658,8 +659,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     { id: 'all-black-on-white', name: 'All black \u00b7 on white', note: 'One color on a white background.', bg: '#fff' }
   ];
   function full(l) { return BASE + 'STORM-logo-' + l.id + '.png'; }
-  function thumb(l) { return BASE + 'thumb-' + l.id + '.png'; }
-  function fname(l) { return 'STORM-logo-' + l.id + '.png'; }
+  function thumb(l) { return BASE + 'thumb-' + l.id + '.png?v=91'; }
+  function fname(l, ext) { return 'STORM-logo-' + l.id + '.' + (ext || 'png'); }
+  function fileUrl(l, ext) { return BASE + fname(l, ext) + '?v=91'; }
+  var FORMATS = [['pdf', 'PDF', 'Vector. Best for printing and print shops.'], ['svg', 'SVG', 'Vector. Websites and design apps.'], ['eps', 'EPS', 'Vector. Sign, vinyl, and embroidery shops.'], ['png', 'PNG', '6400 \u00d7 1648 image. Social posts, docs, email.']];
   function bgCss(b) { return b === 'chk' ? 'background-color:#fff;background-image:linear-gradient(45deg,#E5E7EB 25%,transparent 25%,transparent 75%,#E5E7EB 75%),linear-gradient(45deg,#E5E7EB 25%,transparent 25%,transparent 75%,#E5E7EB 75%);background-size:14px 14px;background-position:0 0,7px 7px' : 'background:' + b; }
   function e$(s) { return document.getElementById(s); }
   function h(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -687,7 +690,12 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '.res-stage img { display: block; width: 100%; height: auto; }'
     + '.res-note { font-size: 15px; color: #6B7280; margin: 12px 2px 0; }'
     + '.res-dl { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 54px; margin-top: 16px; border: 0; border-radius: 10px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 700; }'
-    + '.res-dl svg { width: 22px; height: 22px; }'
+    + '.res-dl svg { width: 22px; height: 22px; flex: none; }'
+    + '.res-dlt { display: flex; flex-direction: column; align-items: flex-start; text-align: left; line-height: 1.2; }'
+    + '.res-dlt small { font-size: 12px; font-weight: 500; opacity: .85; margin-top: 2px; }'
+    + '.res-dl { justify-content: flex-start; padding: 8px 18px; }'
+    + '.res-dl2 { margin-top: 10px; background: #fff; color: var(--dark); border: 1px solid #D1D5DB; }'
+    + '.res-dl2 svg { stroke: var(--dark); }'
     + '.res-open { display: block; text-align: center; margin-top: 14px; font-size: 15px; font-weight: 600; color: var(--dark); }'
     + '.res-tabs { display: flex; gap: 6px; padding: 4px; background: #E5E7EB; border-radius: 10px; margin-bottom: 14px; }'
     + '.res-tab { flex: 1; min-height: 40px; border: 0; border-radius: 8px; background: transparent; font-size: 15px; font-weight: 600; color: #4B5563; }'
@@ -751,24 +759,24 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var l = LOGOS.filter(function (x) { return x.id === id; })[0]; if (!l) return;
     var v = page('res-view');
     v.innerHTML = bar('STORM Logo') + '<div class="detail-body">'
-      + '<div class="res-stage" style="' + bgCss(l.bg) + '"><img src="' + full(l) + '" alt="STORM logo, ' + h(l.name) + '"></div>'
-      + '<div class="detail-name">' + h(l.name) + '</div><p class="res-note">' + h(l.note) + ' PNG, 6400 &times; 1648, 300 dpi.</p>'
-      + '<button type="button" class="res-dl" data-res-dl="' + l.id + '">' + DL_ICO + 'Download</button>'
-      + '<a class="res-open" href="' + full(l) + '" target="_blank" rel="noopener">Open full size</a></div>';
+      + '<div class="res-stage" style="' + bgCss(l.bg) + '"><img src="' + fileUrl(l, 'svg') + '" alt="STORM logo, ' + h(l.name) + '"></div>'
+      + '<div class="detail-name">' + h(l.name) + '</div><p class="res-note">' + h(l.note) + ' Vector files scale to any size, from a business card to a truck wrap.</p>'
+      + FORMATS.map(function (f, i) { return '<button type="button" class="res-dl' + (i ? ' res-dl2' : '') + '" data-res-dl="' + l.id + '" data-res-fmt="' + f[0] + '">' + DL_ICO + '<span class="res-dlt">Download ' + f[1] + '<small>' + f[2] + '</small></span></button>'; }).join('')
+      + '<a class="res-open" href="' + fileUrl(l, 'svg') + '" target="_blank" rel="noopener">Open full size</a></div>';
     show(v, 'res-view');
   }
   function top() { var a = e$('res-view'), b = e$('res-list'); if (a && a.classList.contains('open')) return a; if (b && b.classList.contains('open')) return b; return null; }
   function closeTop(fromPop) { var v = top(); if (!v) return; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
 
-  function download(id) {
+  function download(id, ext) {
     var l = LOGOS.filter(function (x) { return x.id === id; })[0]; if (!l) return;
-    var url = full(l), name = fname(l);
+    ext = ext || 'pdf'; var url = fileUrl(l, ext), name = fname(l, ext);
     toast('Downloading ' + name);
     fetch(url, { mode: 'cors' }).then(function (r) { if (!r.ok) throw 0; return r.blob(); }).then(function (b) {
       var u = URL.createObjectURL(b), a = document.createElement('a');
       a.href = u; a.download = name; a.rel = 'noopener'; a.style.display = 'none'; document.body.appendChild(a); a.click();
       setTimeout(function () { URL.revokeObjectURL(u); if (a.parentNode) a.parentNode.removeChild(a); }, 8000);
-    }).catch(function () { try { window.open(url, '_blank'); } catch (x) {} toast('Opened full size. Press and hold the logo to save it.'); });
+    }).catch(function () { try { window.open(url, '_blank'); } catch (x) {} toast('Opened the file. Use your browser\'s share or save to keep it.'); });
   }
 
   window.addEventListener('click', function (e) {
@@ -782,7 +790,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var lg = t.closest('[data-res-logo]');
     if (lg) { e.stopImmediatePropagation(); e.preventDefault(); openLogo(lg.getAttribute('data-res-logo')); return; }
     var dl = t.closest('[data-res-dl]');
-    if (dl) { e.stopImmediatePropagation(); e.preventDefault(); download(dl.getAttribute('data-res-dl')); return; }
+    if (dl) { e.stopImmediatePropagation(); e.preventDefault(); download(dl.getAttribute('data-res-dl'), dl.getAttribute('data-res-fmt')); return; }
     if (t.closest('[data-res-close]')) { e.stopImmediatePropagation(); closeTop(false); return; }
   }, true);
   window.addEventListener('popstate', function () {
