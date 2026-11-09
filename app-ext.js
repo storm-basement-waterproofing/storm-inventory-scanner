@@ -374,7 +374,12 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#chk-view { z-index: 101; background: #F3F4F6; }'
     + '.chk-page { display: block; width: 100%; height: auto; margin: 0 0 12px; background: #fff; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }'
     + '.chk-open { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 54px; margin: 0 0 14px; border-radius: 10px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 700; text-decoration: none; }'
-    + '.drawer-chk-ico { width: 20px; height: 20px; flex: none; }';
+    + '.drawer-chk-ico { width: 20px; height: 20px; flex: none; }'
+    + '.chk-page { cursor: zoom-in; } .chk-hint { text-align: center; color: #6B7280; font-size: 13px; margin: 2px 0 18px; }'
+    + '#chk-zoom { position: fixed; inset: 0; z-index: 200; background: #0B0F14; touch-action: none; overflow: hidden; opacity: 0; transition: opacity .2s ease; }'
+    + '#chk-zoom.open { opacity: 1; } #chk-zoom img { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; max-width: none; max-height: none; }'
+    + '#chk-zoom .cz-x { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 2; width: 44px; height: 44px; border: 0; border-radius: 22px; background: rgba(255,255,255,.16); color: #fff; font-size: 28px; line-height: 44px; }'
+    + '#chk-zoom .cz-tip { position: absolute; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); text-align: center; color: rgba(255,255,255,.7); font-size: 13px; pointer-events: none; transition: opacity .6s ease; }';
   var st = document.createElement('style'); st.id = 'storm-v75-css'; st.textContent = css; document.head.appendChild(st);
 
   function slideIn(el) { if (!el) return; el.classList.remove('storm-slide-in'); void el.offsetWidth; el.classList.add('storm-slide-in'); setTimeout(function () { el.classList.remove('storm-slide-in'); }, 420); }
@@ -386,8 +391,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
   /* ---- Checklists drawer section ---- */
   var CHECKLISTS = [
-    { id: 'box-truck', name: 'Box Truck Pre Check', pdf: BASE + 'checklists/box-truck-pre-check.pdf', pages: [BASE + 'checklists/box-truck-pre-check-1.jpg'] },
-    { id: 'tools', name: 'Tool Checklist', pdf: BASE + 'checklists/tool-checklist.pdf', pages: [BASE + 'checklists/tool-checklist-1.jpg', BASE + 'checklists/tool-checklist-2.jpg'] }
+    { id: 'box-truck', name: 'Box Truck Pre Check', pdf: BASE + 'checklists/box-truck-pre-check.pdf', pages: [BASE + 'checklists/box-truck-pre-check-hd-1.jpg'] },
+    { id: 'tools', name: 'Tool Checklist', pdf: BASE + 'checklists/tool-checklist.pdf', pages: [BASE + 'checklists/tool-checklist-hd-1.jpg', BASE + 'checklists/tool-checklist-hd-2.jpg'] }
   ];
   var ICO = '<svg class="drawer-chk-ico" viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3.5h6v2H9z"/><path d="M8.5 11l2 2 4-4"/><path d="M8.5 17h7"/></svg>';
   function addChecklistSection() {
@@ -406,12 +411,52 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var v = overlayEl('chk-view');
     var hh = '<div class="detail-bar"><button class="detail-close" type="button" data-chk-close aria-label="Close">&times;</button><div style="font-weight:700;font-size:17px">' + h(c.name) + '</div></div><div class="detail-body">'
       + '<a class="chk-open" href="' + c.pdf + '" target="_blank" rel="noopener">Open PDF to print</a>';
-    c.pages.forEach(function (p, i) { hh += '<img class="chk-page" src="' + p + '" alt="' + h(c.name) + ' page ' + (i + 1) + '">'; });
+    c.pages.forEach(function (p, i) { hh += '<img class="chk-page" data-chk-zoom="' + p + '" src="' + p + '" alt="' + h(c.name) + ' page ' + (i + 1) + '">'; });
+    hh += '<div class="chk-hint">Tap a page to zoom</div>';
     v.innerHTML = hh + '</div>';
     v.classList.add('open'); v.scrollTop = 0; slideIn(v);
     pushOverlay('chk');
   }
-  function closeChecklist(fromPop) { var v = e$('chk-view'); if (!v || !v.classList.contains('open')) return; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
+  /* v92 (Hark, 2026-11-08): tap a checklist page to open it full screen in high res; pinch to zoom, drag to move around, double-tap to zoom in/out */
+  function openZoom(src) {
+    if (document.getElementById('chk-zoom')) return;
+    var z = document.createElement('div'); z.id = 'chk-zoom';
+    z.innerHTML = '<button class="cz-x" type="button" aria-label="Close">&times;</button><img alt="" draggable="false"><div class="cz-tip">Pinch to zoom &middot; drag to move &middot; double-tap</div>';
+    document.body.appendChild(z);
+    var im = z.querySelector('img'), s = 1, x = 0, y = 0, fit = 1, W = 0, H = 0, pts = {}, start = null, lastTap = 0, moved = false;
+    function clamp() { var vw = z.clientWidth, vh = z.clientHeight, iw = W * s, ih = H * s;
+      x = iw <= vw ? (vw - iw) / 2 : Math.min(0, Math.max(vw - iw, x)); y = ih <= vh ? (vh - ih) / 2 : Math.min(0, Math.max(vh - ih, y)); }
+    function draw(anim) { clamp(); im.style.transition = anim ? 'transform .25s ease' : 'none'; im.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + s + ')'; }
+    function zoomAt(ns, cx, cy, anim) { ns = Math.max(fit, Math.min(fit * 6, ns)); x = cx - (cx - x) * ns / s; y = cy - (cy - y) * ns / s; s = ns; draw(anim); }
+    function toggleAt(cx, cy) { zoomAt(s > fit * 1.3 ? fit : fit * 2.6, cx, cy, true); }
+    im.onload = function () { W = im.naturalWidth; H = im.naturalHeight; im.style.width = W + 'px'; im.style.height = H + 'px'; fit = Math.min(z.clientWidth / W, z.clientHeight / H); s = fit; x = 0; y = 0; draw(false); };
+    im.src = src;
+    requestAnimationFrame(function () { z.classList.add('open'); });
+    setTimeout(function () { var t = z.querySelector('.cz-tip'); if (t) t.style.opacity = '0'; }, 2600);
+    function list() { return Object.keys(pts).map(function (k) { return pts[k]; }); }
+    function snap() { var p = list(); if (p.length >= 2) { var a = p[0], b = p[1]; start = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, s: s, x: x, y: y }; } else if (p.length === 1) { start = { px: p[0].x, py: p[0].y, x: x, y: y }; } else start = null; }
+    z.addEventListener('pointerdown', function (ev) { if (ev.target.closest('.cz-x')) return; ev.preventDefault(); try { z.setPointerCapture(ev.pointerId); } catch (q) {} pts[ev.pointerId] = { x: ev.clientX, y: ev.clientY }; moved = false; snap(); });
+    z.addEventListener('pointermove', function (ev) {
+      if (!pts[ev.pointerId] || !start) return; pts[ev.pointerId] = { x: ev.clientX, y: ev.clientY }; var p = list(), r = z.getBoundingClientRect();
+      if (p.length >= 2 && start.d) { var a = p[0], b = p[1], d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2 - r.left, cy = (a.y + b.y) / 2 - r.top, scx = start.cx - r.left, scy = start.cy - r.top;
+        var ns = Math.max(fit * .85, Math.min(fit * 6, start.s * d / start.d)); x = cx - (scx - start.x) * ns / start.s; y = cy - (scy - start.y) * ns / start.s; s = ns; moved = true; draw(false); }
+      else if (p.length === 1 && start.px != null) { var dx = p[0].x - start.px, dy = p[0].y - start.py; if (Math.abs(dx) + Math.abs(dy) > 6) moved = true; x = start.x + dx; y = start.y + dy; draw(false); }
+    });
+    function up(ev) {
+      if (!pts[ev.pointerId]) return; delete pts[ev.pointerId];
+      if (!list().length) { if (s < fit) { s = fit; draw(true); }
+        if (!moved && ev.pointerType !== 'mouse') { var now = Date.now(); if (now - lastTap < 320) { var r = z.getBoundingClientRect(); toggleAt(ev.clientX - r.left, ev.clientY - r.top); lastTap = 0; } else lastTap = now; } }
+      snap();
+    }
+    z.addEventListener('pointerup', up); z.addEventListener('pointercancel', up);
+    z.addEventListener('dblclick', function (ev) { if (ev.target.closest('.cz-x')) return; ev.preventDefault(); var r = z.getBoundingClientRect(); toggleAt(ev.clientX - r.left, ev.clientY - r.top); });
+    z.addEventListener('click', function (ev) { ev.stopPropagation(); }, false);
+    z.addEventListener('wheel', function (ev) { ev.preventDefault(); var r = z.getBoundingClientRect(); zoomAt(s * (ev.deltaY < 0 ? 1.15 : 1 / 1.15), ev.clientX - r.left, ev.clientY - r.top, false); }, { passive: false });
+    z.querySelector('.cz-x').addEventListener('click', function (ev) { ev.stopPropagation(); closeZoom(); });
+    window.addEventListener('resize', function () { if (!W) return; fit = Math.min(z.clientWidth / W, z.clientHeight / H); if (s < fit) s = fit; draw(false); });
+  }
+  function closeZoom() { var z = document.getElementById('chk-zoom'); if (!z) return false; z.id = 'chk-zoom-closing'; z.classList.remove('open'); setTimeout(function () { z.remove(); }, 200); return true; }
+  function closeChecklist(fromPop) { closeZoom(); var v = e$('chk-view'); if (!v || !v.classList.contains('open')) return; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
 
   /* ---- Bin Labels grid ---- */
   var blStore = null;
@@ -471,6 +516,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var ck = t.closest('[data-drawer-checklist]');
     if (ck) { e.stopImmediatePropagation(); e.preventDefault(); var id = ck.getAttribute('data-drawer-checklist'); try { closeDrawer(); } catch (x) {} setTimeout(function () { openChecklist(id); }, 170); return; }
     if (t.closest('[data-chk-close]')) { e.stopImmediatePropagation(); closeChecklist(false); return; }
+    var zm = t.closest('[data-chk-zoom]'); if (zm) { e.stopImmediatePropagation(); openZoom(zm.getAttribute('data-chk-zoom')); return; }
     if (t.closest('[data-bld-close]')) { e.stopImmediatePropagation(); closeLabelDetail(false); return; }
     var ba = t.closest('[data-bld-add]');
     if (ba) { e.stopImmediatePropagation(); try { lblToggle(ba.getAttribute('data-bld-add')); } catch (x) {} refreshGrid(); return; }
