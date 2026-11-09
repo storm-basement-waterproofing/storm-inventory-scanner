@@ -90,7 +90,7 @@
   try { var c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && c.vw === window.innerWidth && c.vh === window.innerHeight && placeLogo(c)) q0 = 0; } catch (e) {}
   function setEdge() { var on = ((p || 0) * ELEN).toFixed(1); for (var k = 0; k < eps.length; k++) eps[k].style.strokeDasharray = on + ' ' + (ELEN + 10).toFixed(1); }
   function ez(u) { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); }
-  function drawLogo(q) { for (var k = 0; k < lpaths.length; k++) { var u = Math.max(0, Math.min(1, (q * TT - (DELAYS[k] || 0)) / DUR)); /* v95: linear, so the drop is visibly drawing from the first frame, like the edge */ var L = LL[k] || 900; lpaths[k].style.strokeDasharray = (u * L).toFixed(1) + ' ' + (L + 10).toFixed(1); } /* v96: real lengths; iPad Safari ignores pathLength on dashes */ }
+  function drawLogo(q) { for (var k = 0; k < lpaths.length; k++) { var u = Math.max(0, Math.min(1, (q * TT - (DELAYS[k] || 0)) / DUR)); /* v95: linear, so the drop is visibly drawing from the first frame, like the edge */ var L = LL[k] || 900; lpaths[k].style.strokeDasharray = (u * L).toFixed(1) + ' ' + (L + 10).toFixed(1); lpaths[k].style.opacity = u > 0 ? '1' : '0'; } /* v96: real lengths; iPad Safari ignores pathLength on dashes */ }
   function markReady(s2, m) {
     if (m && m.w > 20) {
       try { localStorage.setItem(KEY, JSON.stringify({ x: m.x, y: m.y, w: m.w, h: m.h, vw: window.innerWidth, vh: window.innerHeight })); } catch (e) {}
