@@ -691,7 +691,6 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     sec.innerHTML = hh + '</div></div></div>';
     var after = e$('drawer-checklists') || e$('drawer-labels'), foot = dr.querySelector('.drawer-foot');
     if (after && after.parentNode === dr) dr.insertBefore(sec, after.nextSibling); else if (foot) dr.insertBefore(sec, foot); else dr.appendChild(sec);
-    sec.querySelector('.drawer-section-head').addEventListener('click', function () { sec.classList.toggle('expanded'); });
     return true;
   }
 
@@ -721,6 +720,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
   window.addEventListener('click', function (e) {
     var t = e.target; if (!t || !t.closest) return;
+    var rh = t.closest('#drawer-resources > .drawer-section-head');
+    if (rh) { e.stopImmediatePropagation(); e.preventDefault(); rh.parentElement.classList.toggle('expanded'); return; } /* v90.1: one toggle only (the app also binds section heads on load) */
     var g = t.closest('[data-res-group]');
     if (g) { e.stopImmediatePropagation(); e.preventDefault(); var grp = g.closest('.drawer-supplier'); if (grp) grp.classList.toggle('open'); return; }
     var lg = t.closest('[data-res-logo]');
