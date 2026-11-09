@@ -643,3 +643,93 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   var t = 0; (function go() { hook(); if (t++ < 40) setTimeout(go, 300); })();
 })();
+
+/* v90 (Hark, 2026-11-08): Resource Center in the drawer. Logos opens like the store groups; tap a logo to see it full size and download the print-quality PNG. */
+(function () {
+  var BASE = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/logos/';
+  var LOGOS = [
+    { id: 'color-transparent', name: 'Color \u00b7 transparent', note: 'White STORM text. For dark backgrounds.', bg: '#0F1720' },
+    { id: 'color-on-black', name: 'Color \u00b7 on black', note: 'Full color on a black background.', bg: '#000' },
+    { id: 'black-text-transparent', name: 'Black text \u00b7 transparent', note: 'Black STORM text. For white or light backgrounds.', bg: 'chk' },
+    { id: 'black-text-on-white', name: 'Black text \u00b7 on white', note: 'Black STORM text on a white background.', bg: '#fff' },
+    { id: 'all-black-transparent', name: 'All black \u00b7 transparent', note: 'One color. For black and white printing.', bg: 'chk' },
+    { id: 'all-black-on-white', name: 'All black \u00b7 on white', note: 'One color on a white background.', bg: '#fff' }
+  ];
+  function full(l) { return BASE + 'STORM-logo-' + l.id + '.png'; }
+  function thumb(l) { return BASE + 'thumb-' + l.id + '.png'; }
+  function fname(l) { return 'STORM-logo-' + l.id + '.png'; }
+  function bgCss(b) { return b === 'chk' ? 'background-color:#fff;background-image:linear-gradient(45deg,#E5E7EB 25%,transparent 25%,transparent 75%,#E5E7EB 75%),linear-gradient(45deg,#E5E7EB 25%,transparent 25%,transparent 75%,#E5E7EB 75%);background-size:14px 14px;background-position:0 0,7px 7px' : 'background:' + b; }
+  function e$(s) { return document.getElementById(s); }
+  function h(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function toast(m, err) { try { showToast(m, err); } catch (x) {} }
+
+  var st = document.createElement('style'); st.id = 'storm-v90-css';
+  st.textContent = '.res-ico { width: 20px; height: 20px; flex: none; }'
+    + '#drawer-resources .drawer-cat .res-thumb { flex: none; width: 84px; height: 30px; border-radius: 5px; border: 1px solid #E5E7EB; display: flex; align-items: center; justify-content: center; overflow: hidden; }'
+    + '#drawer-resources .drawer-cat .res-thumb img { display: block; max-width: 92%; max-height: 80%; object-fit: contain; }'
+    + '#drawer-resources .drawer-cat .drawer-item-name { font-size: 15px; color: #111827; }'
+    + '#res-view { z-index: 120; background: #F3F4F6; }'
+    + '.res-stage { border-radius: 12px; border: 1px solid #E5E7EB; padding: 22px 16px; display: flex; align-items: center; justify-content: center; }'
+    + '.res-stage img { display: block; width: 100%; height: auto; }'
+    + '.res-note { font-size: 15px; color: #6B7280; margin: 12px 2px 0; }'
+    + '.res-dl { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 54px; margin-top: 16px; border: 0; border-radius: 10px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 700; }'
+    + '.res-dl svg { width: 22px; height: 22px; }'
+    + '.res-open { display: block; text-align: center; margin-top: 14px; font-size: 15px; font-weight: 600; color: var(--dark); }'
+    + '@keyframes resSlideL { from { transform: translateX(-102%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }'
+    + '#res-view.res-in { animation: resSlideL .3s ease both; }';
+  document.head.appendChild(st);
+
+  var IMG_ICO = '<svg class="res-ico" viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>';
+  var DL_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>';
+
+  function addSection() {
+    var dr = e$('drawer'); if (!dr) return false; if (e$('drawer-resources')) return true;
+    var sec = document.createElement('div'); sec.className = 'drawer-section'; sec.id = 'drawer-resources';
+    var hh = '<button class="drawer-section-head" type="button">Resource Center <span class="drawer-chevron">&#9662;</span></button><div class="drawer-items">'
+      + '<div class="drawer-supplier" id="group-logos"><button class="drawer-item" type="button" data-res-group="logos">' + IMG_ICO + '<span class="drawer-item-name">Logos</span><span class="drawer-count">' + LOGOS.length + '</span><span class="drawer-chevron">&#9662;</span></button><div class="drawer-cats">';
+    LOGOS.forEach(function (l) { hh += '<button class="drawer-cat" type="button" data-res-logo="' + l.id + '"><span class="res-thumb" style="' + bgCss(l.bg) + '"><img src="' + thumb(l) + '" alt="" loading="lazy"></span><span class="drawer-item-name">' + h(l.name) + '</span></button>'; });
+    sec.innerHTML = hh + '</div></div></div>';
+    var after = e$('drawer-checklists') || e$('drawer-labels'), foot = dr.querySelector('.drawer-foot');
+    if (after && after.parentNode === dr) dr.insertBefore(sec, after.nextSibling); else if (foot) dr.insertBefore(sec, foot); else dr.appendChild(sec);
+    sec.querySelector('.drawer-section-head').addEventListener('click', function () { sec.classList.toggle('expanded'); });
+    return true;
+  }
+
+  function openLogo(id) {
+    var l = LOGOS.filter(function (x) { return x.id === id; })[0]; if (!l) return;
+    var v = e$('res-view'); if (!v) { v = document.createElement('div'); v.id = 'res-view'; v.className = 'detail-overlay'; document.body.appendChild(v); }
+    v.innerHTML = '<div class="detail-bar"><button class="detail-close" type="button" data-res-close aria-label="Close">&times;</button><div style="font-weight:700;font-size:17px">STORM Logo</div></div><div class="detail-body">'
+      + '<div class="res-stage" style="' + bgCss(l.bg) + '"><img src="' + full(l) + '" alt="STORM logo, ' + h(l.name) + '"></div>'
+      + '<div class="detail-name">' + h(l.name) + '</div><p class="res-note">' + h(l.note) + ' PNG, 6400 &times; 1648, 300 dpi.</p>'
+      + '<button type="button" class="res-dl" data-res-dl="' + l.id + '">' + DL_ICO + 'Download</button>'
+      + '<a class="res-open" href="' + full(l) + '" target="_blank" rel="noopener">Open full size</a></div>';
+    v.classList.add('open'); v.scrollTop = 0; v.classList.remove('res-in'); void v.offsetWidth; v.classList.add('res-in');
+    try { history.pushState({ overlay: 'res' }, ''); } catch (x) {}
+  }
+  function closeLogo(fromPop) { var v = e$('res-view'); if (!v || !v.classList.contains('open')) return; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
+
+  function download(id) {
+    var l = LOGOS.filter(function (x) { return x.id === id; })[0]; if (!l) return;
+    var url = full(l), name = fname(l);
+    toast('Downloading ' + name);
+    fetch(url, { mode: 'cors' }).then(function (r) { if (!r.ok) throw 0; return r.blob(); }).then(function (b) {
+      var u = URL.createObjectURL(b), a = document.createElement('a');
+      a.href = u; a.download = name; a.rel = 'noopener'; a.style.display = 'none'; document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(u); if (a.parentNode) a.parentNode.removeChild(a); }, 8000);
+    }).catch(function () { try { window.open(url, '_blank'); } catch (x) {} toast('Opened full size. Press and hold the logo to save it.'); });
+  }
+
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var g = t.closest('[data-res-group]');
+    if (g) { e.stopImmediatePropagation(); e.preventDefault(); var grp = g.closest('.drawer-supplier'); if (grp) grp.classList.toggle('open'); return; }
+    var lg = t.closest('[data-res-logo]');
+    if (lg) { e.stopImmediatePropagation(); e.preventDefault(); openLogo(lg.getAttribute('data-res-logo')); return; }
+    var dl = t.closest('[data-res-dl]');
+    if (dl) { e.stopImmediatePropagation(); e.preventDefault(); download(dl.getAttribute('data-res-dl')); return; }
+    if (t.closest('[data-res-close]')) { e.stopImmediatePropagation(); closeLogo(false); return; }
+  }, true);
+  window.addEventListener('popstate', function () { if (!(history.state && history.state.overlay === 'res')) closeLogo(true); });
+
+  var n = 0; (function go() { if (!addSection() && n++ < 40) setTimeout(go, 150); })();
+})();
