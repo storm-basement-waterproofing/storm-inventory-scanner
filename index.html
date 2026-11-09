@@ -51,7 +51,12 @@
   #boot.done #ltrace { animation: ltOut .35s ease .12s both; }
   @keyframes ltOut { to { opacity: 0; } }
   /* v128 (Hard Work, 2026-11-09): the mode-tap flash — the same edge + logo lines, shown instantly (no trace), then a soft fade out. */
-  #boot.flash #edge { animation: edgeFlash 1.8s ease-out both; }
+  /* v129 (Hard Work, 2026-11-09): the tap flash uses its own keyframes name — the same animation value as the load flash never restarts, so the edge line never re-appeared. */
+  #boot.flash #edge { animation: edgeFlashTap 1.8s ease-out both; }
+  @keyframes edgeFlashTap {
+    0% { opacity: 1; filter: brightness(1) drop-shadow(0 0 2px rgba(90,195,255,.95)) drop-shadow(0 0 7px rgba(60,170,255,.6)); }
+    18% { opacity: 1; filter: brightness(1.6) drop-shadow(0 0 2px #fff) drop-shadow(0 0 7px rgba(200,235,255,.95)) drop-shadow(0 0 20px rgba(70,180,255,.75)); }
+    100% { opacity: 0; filter: brightness(1) drop-shadow(0 0 2px rgba(90,195,255,.4)) drop-shadow(0 0 4px rgba(60,170,255,.15)); } }
   #boot.flash #ltrace { animation: ltOut 1.2s ease .3s both; }
   #camwrap { position: fixed; inset: 0; z-index: 5; background: #000; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; opacity: 0; transition: opacity .18s ease; }
   #camwrap.on { opacity: 1; }
