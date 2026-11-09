@@ -848,6 +848,8 @@ var ITEMS = [
 <style>/* v102 (Hark, 2026-11-09): the lines traced inside the QR code have no glow, just a clean crisp white line (the outer outline keeps its neon glow) */
 #qr-in { filter: none !important; }
 #qr-in path { stroke-width: 1.4 !important; shape-rendering: geometricPrecision; }
+/* v104 (Hark, 2026-11-09): inside lines dimmer (55% white) so the box outline stands out */
+#qr-in path { stroke: rgba(255,255,255,.55) !important; stroke-width: 1.2 !important; }
 </style>
 </body>
 </html>
