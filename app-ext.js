@@ -1146,3 +1146,70 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var n = 0; (function go() { try { run(); } catch (e) {} if (++n < 40) setTimeout(go, 250); })();
   try { new MutationObserver(function () { try { run(); } catch (e) {} }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
 })();
+
+/* v121 (Hark, 2026-11-09): drawer pages slide back out the way they slid in, and the drawer comes back open right where it was.
+   Covers Resource Center (Logos, Media, logo files, Checklists) and Bin Labels. Also a slightly larger drawer font. */
+(function () {
+  var IDS = ['labels', 'chk-view', 'lbl-detail', 'res-list', 'res-view'];
+  var st = document.createElement('style');
+  st.textContent = '#drawer .drawer-item, #drawer .drawer-item .drawer-item-name, #drawer .drawer-item .drawer-item-name.v116-name { font-size: 17px !important; }'
+    + '.v121-ghost { position: fixed !important; inset: 0 !important; z-index: 150 !important; display: block !important; pointer-events: none !important; overflow: hidden !important; background: #fff; will-change: transform, opacity; }';
+  document.head.appendChild(st);
+  function dr() { return document.getElementById('drawer'); }
+  function isOpen(el) { return el && el.classList.contains('open') && !el.classList.contains('v121-ghost'); }
+  function anyOpen() { return IDS.some(function (id) { return isOpen(document.getElementById(id)); }); }
+  /* ---- remember the drawer when one of its pages opens ---- */
+  var saved = null;
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest || !t.closest('#drawer')) return;
+    if (t.closest('[data-res-page], [data-drawer-labels], [data-drawer-checklist]')) { var d = dr(); saved = { top: d ? d.scrollTop : 0 }; }
+  }, true);
+  window.addEventListener('popstate', function () {
+    if (!saved) return;
+    setTimeout(function () {
+      if (!saved || anyOpen()) return; var d = dr(); if (!d) return;
+      var s = saved; saved = null;
+      if (!d.classList.contains('open')) { try { openDrawer(); } catch (x) { return; } }
+      d.scrollTop = s.top; requestAnimationFrame(function () { d.scrollTop = s.top; });
+    }, 130);
+  });
+  /* ---- keep a picture of each open page so it can slide out after it closes ---- */
+  var snaps = {}, timers = {};
+  function snap(el) {
+    if (!isOpen(el)) return;
+    var c = el.cloneNode(true); c.removeAttribute('id'); c.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); });
+    snaps[el.id] = { node: c, top: el.scrollTop, w: el.clientWidth };
+  }
+  function later(el, ms) { clearTimeout(timers[el.id]); timers[el.id] = setTimeout(function () { snap(el); }, ms); }
+  function out(id) {
+    var s = snaps[id]; delete snaps[id]; if (!s) return;
+    var g = s.node; g.className = (g.className || '') + ' v121-ghost'; g.classList.remove('storm-slide-in', 'res-in', 'fx-in');
+    document.body.appendChild(g); g.scrollTop = s.top;
+    var inner = g.firstElementChild;
+    try {
+      var a = g.animate([{ transform: 'translateX(0)', opacity: 1 }, { transform: 'translateX(-102%)', opacity: 0 }], { duration: 300, easing: 'ease', fill: 'forwards' });
+      a.onfinish = function () { if (g.parentNode) g.remove(); };
+    } catch (x) { g.remove(); }
+    setTimeout(function () { if (g.parentNode) g.remove(); }, 800);
+  }
+  var watched = {};
+  var mo = new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      var el = m.target; if (!el.id || IDS.indexOf(el.id) < 0) return;
+      var was = (m.oldValue || '').split(/\s+/).indexOf('open') >= 0, now = el.classList.contains('open');
+      if (now && !was) { later(el, 60); setTimeout(function () { snap(el); }, 700); }
+      else if (!now && was) out(el.id);
+    });
+  });
+  function hook() {
+    IDS.forEach(function (id) {
+      var el = document.getElementById(id); if (!el || watched[id] === el) return; watched[id] = el;
+      mo.observe(el, { attributes: true, attributeFilter: ['class'], attributeOldValue: true });
+      el.addEventListener('scroll', function () { later(el, 200); }, { passive: true });
+      el.addEventListener('click', function () { later(el, 250); });
+      if (isOpen(el)) later(el, 60);
+    });
+  }
+  hook();
+  try { new MutationObserver(hook).observe(document.body, { childList: true }); } catch (x) {}
+})();
