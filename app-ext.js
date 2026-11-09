@@ -908,3 +908,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function start() { fix(); try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true, characterData: true }); } catch (x) {} }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
+
+/* v100 (Hark, 2026-11-08): menu drawer shows no item counts (cleaner look) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '#drawer .drawer-count, .drawer .drawer-count { display: none !important; }';
+  document.head.appendChild(st);
+})();
