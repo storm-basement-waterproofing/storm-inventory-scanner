@@ -365,6 +365,7 @@ var traceSvg = document.getElementById('trace');
 var tracePoly = document.getElementById('trace-poly');
 var traceHideTimer = null, traceShownAt = 0;
 function showTrace(pts, srcW, srcH) {
+  window.__lastTrace = { pts: pts, w: srcW, h: srcH };
   if (!pts || pts.length < 4 || !srcW || !srcH) return;
   var vw = view.clientWidth, vh = view.clientHeight;
   var sc = Math.max(vw / srcW, vh / srcH), ox = (vw - srcW * sc) / 2, oy = (vh - srcH * sc) / 2;
@@ -388,6 +389,7 @@ function onDecoded(text) {
     var qty = cartAdd(it.i);
     if (!hasCartApi) { qty = 0; for (var k = 0; k < scans.length; k++) { if (scans[k] === it.i) qty++; } }
     edgeHit(); beep(); haptic();
+    try { (window.__scanHit || []).forEach(function (f) { f(text); }); } catch (eH) {}
     renderPill(false);
     if (sheet.classList.contains('open')) renderSheet();
     showPopup(it, qty);
@@ -757,7 +759,73 @@ var ITEMS = [
   setTimeout(function () { if (!done && left <= 1) swap(); }, 2500);
   w.addEventListener('click', function (e) { e.stopPropagation(); flash(); });
   /* v99 (Hark, 2026-11-09): every successful QR scan replays this line trace + glow, in step with the beep */
-  try { var _eh = window.edgeHit; if (typeof _eh === 'function') { window.edgeHit = function () { var r = _eh.apply(this, arguments); try { if (!w.parentNode) swap(); flash(); } catch (e) {} return r; }; } } catch (e) {}
+  (window.__scanHit = window.__scanHit || []).push(function () { try { if (!w.parentNode) swap(); flash(); } catch (e) {} });
+})();
+</script>
+<script src="https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/qrgen.js"></script>
+<script>
+/* v101 (Hark, 2026-11-09): on a successful scan, white neon lines trace around the black squares inside the QR code
+   (same draw-on line as the STORM logo). The pattern is rebuilt from the scanned text (ECC M, like our labels) and
+   mapped onto the code's four corners. */
+(function () {
+  var svg = document.getElementById('trace'); if (!svg || typeof qrcode !== 'function') return;
+  var st = document.createElement('style');
+  st.textContent = '#qr-in { pointer-events: none; filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 5px rgba(255,255,255,.8)); transition: opacity .35s ease; }'
+    + '#qr-in.out { opacity: 0; }'
+    + '#qr-in path { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: qrIn .55s cubic-bezier(.4,0,.2,1) forwards; }'
+    + '@keyframes qrIn { to { stroke-dashoffset: 0; } }';
+  document.head.appendChild(st);
+  var lastPts = null, lastW = 0, lastH = 0, lastText = '', hideT = null;
+  function loops(m, n) {
+    function dark(r, c) { return r >= 0 && c >= 0 && r < n && c < n && m(r, c); }
+    var E = {};
+    function add(a, b, c, d) { var k = a + ',' + b; (E[k] = E[k] || []).push([c, d]); }
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+      if (!dark(r, c)) continue;
+      if (!dark(r - 1, c)) add(c, r, c + 1, r);
+      if (!dark(r, c + 1)) add(c + 1, r, c + 1, r + 1);
+      if (!dark(r + 1, c)) add(c + 1, r + 1, c, r + 1);
+      if (!dark(r, c - 1)) add(c, r + 1, c, r);
+    }
+    var out = [];
+    Object.keys(E).forEach(function (k0) {
+      while (E[k0] && E[k0].length) {
+        var p = k0.split(',').map(Number), pts = [p], k = k0, guard = 0;
+        while (E[k] && E[k].length && guard++ < 4 * n * n) { var q = E[k].pop(); pts.push(q); k = q[0] + ',' + q[1]; if (k === k0) break; }
+        var s = [pts[0]];
+        for (var i = 1; i < pts.length - 1; i++) { var a = s[s.length - 1], b = pts[i], c2 = pts[i + 1]; if ((a[0] === b[0] && b[0] === c2[0]) || (a[1] === b[1] && b[1] === c2[1])) continue; s.push(b); }
+        s.push(pts[pts.length - 1]); out.push(s);
+      }
+    });
+    return out;
+  }
+  function homo(n, P) {
+    var x0 = P[0][0], y0 = P[0][1], x1 = P[1][0], y1 = P[1][1], x2 = P[2][0], y2 = P[2][1], x3 = P[3][0], y3 = P[3][1];
+    var dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2, sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
+    var den = dx1 * dy2 - dx2 * dy1, g = (sx * dy2 - dx2 * sy) / den, h = (dx1 * sy - sx * dy1) / den;
+    var a = x1 - x0 + g * x1, b = x3 - x0 + h * x3, d = y1 - y0 + g * y1, e = y3 - y0 + h * y3;
+    return function (u, v) { u /= n; v /= n; var w = g * u + h * v + 1; return [(a * u + b * v + x0) / w, (d * u + e * v + y0) / w]; };
+  }
+  function draw() {
+    if (!lastPts || !lastText || lastPts.length < 4) return;
+    var q; try { q = qrcode(0, 'M'); q.addData(lastText, 'Byte'); q.make(); } catch (e) { return; }
+    var n = q.getModuleCount(), view = svg.parentNode, vw = view.clientWidth, vh = view.clientHeight;
+    var sc = Math.max(vw / lastW, vh / lastH), ox = (vw - lastW * sc) / 2, oy = (vh - lastH * sc) / 2;
+    var P = lastPts.map(function (p) { return [ox + p.x * sc, oy + p.y * sc]; });
+    var H = homo(n, P), L = loops(function (r, c) { return q.isDark(r, c); }, n);
+    var old = document.getElementById('qr-in'); if (old) old.remove();
+    var g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.id = 'qr-in';
+    var html = '';
+    L.forEach(function (s) {
+      var d = s.map(function (p, i) { var t = H(p[0], p[1]); return (i ? 'L' : 'M') + t[0].toFixed(1) + ' ' + t[1].toFixed(1); }).join('') + 'Z';
+      var delay = ((s[0][0] + s[0][1]) / (2 * n)) * 0.45;
+      html += '<path pathLength="1" d="' + d + '" style="animation-delay:' + delay.toFixed(3) + 's"/>';
+    });
+    g.innerHTML = html; svg.appendChild(g);
+    if (hideT) clearTimeout(hideT);
+    hideT = setTimeout(function () { g.classList.add('out'); hideT = setTimeout(function () { if (g.parentNode) g.remove(); }, 400); }, 1400);
+  }
+  (window.__scanHit = window.__scanHit || []).push(function (t) { var L = window.__lastTrace; if (!L) return; lastPts = L.pts; lastW = L.w; lastH = L.h; lastText = t; window.__lastTrace = null; try { draw(); } catch (e) {} });
 })();
 </script>
 </body>
