@@ -85,6 +85,19 @@ header { position: relative; padding-right: 60px; }
 .hap { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
 #glow, #edge { display: none !important; }
 video { image-rendering: auto; }
+/* v98 (Hark, 2026-11-08): landscape phones. The camera fills the left side; logo, X, status and Cancel/Done move into a side column on the right */
+@media (orientation: landscape) and (max-height: 600px) {
+  body { display: grid; grid-template-columns: minmax(0, 1fr) calc(232px + env(safe-area-inset-right)); grid-template-rows: auto minmax(0, 1fr) auto; }
+  #view { grid-column: 1; grid-row: 1 / span 3; height: 100%; }
+  header { grid-column: 2; grid-row: 1; min-height: 0; padding: calc(10px + env(safe-area-inset-top)) calc(60px + env(safe-area-inset-right)) 10px 14px; text-align: left; }
+  header .hdr-logo, header .storm-logo-lit { margin: 7px 0 0 0 !important; }
+  #cam-close { right: calc(10px + env(safe-area-inset-right)); }
+  #msg { grid-column: 2; grid-row: 2; align-self: center; padding: 8px calc(14px + env(safe-area-inset-right)) 8px 14px; font-size: 15px; min-height: 0; }
+  #foot { grid-column: 2; grid-row: 3; flex-direction: column; gap: 10px; padding: 0 calc(14px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) 14px; }
+  #foot button { flex: none; width: 100%; padding: 11px; }
+  #sheet { top: 10px; bottom: 10px; left: calc(10px + env(safe-area-inset-left)); right: calc(242px + env(safe-area-inset-right)); }
+  #pop { left: calc(12px + env(safe-area-inset-left)); right: calc(244px + env(safe-area-inset-right)); }
+}
 </style>
 </head>
 <body>
