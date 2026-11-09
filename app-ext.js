@@ -1130,3 +1130,19 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#drawer .drawer-item .v116-name svg { height: 24px !important; width: auto !important; }';
   document.head.appendChild(st);
 })();
+
+/* v120 (Hark, 2026-11-09): store names in the drawer use the same regular font as every other row (icons stay) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '#drawer .drawer-item .drawer-item-name.v116-name { font-size: 16px !important; font-weight: 400 !important; color: #111827 !important; font-family: inherit !important; display: block; }';
+  document.head.appendChild(st);
+  function run() {
+    document.querySelectorAll('#drawer .drawer-item .v116-name').forEach(function (nm) {
+      if (nm.getAttribute('data-v120')) return;
+      var k = nm.getAttribute('aria-label') || ''; if (!k) return;
+      nm.textContent = k; nm.removeAttribute('aria-label'); nm.setAttribute('data-v120', '1');
+    });
+  }
+  var n = 0; (function go() { try { run(); } catch (e) {} if (++n < 40) setTimeout(go, 250); })();
+  try { new MutationObserver(function () { try { run(); } catch (e) {} }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+})();
