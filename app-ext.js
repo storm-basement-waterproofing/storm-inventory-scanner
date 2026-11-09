@@ -948,9 +948,11 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (box.querySelector('[data-drawer-checklist]')) return;
     chk.querySelectorAll('[data-drawer-checklist]').forEach(function (b) {
       var c = b.cloneNode(true);
-      /* v103: own icons (Hilti TE-3000 for tools, box truck for the pre check) */
-      var ic = { 'tools': 'icon-te3000.png', 'box-truck': 'icon-boxtruck.png' }[c.getAttribute('data-drawer-checklist')], old = c.querySelector('svg');
-      if (ic && old) { var im = document.createElement('img'); im.src = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/' + ic; im.alt = ''; im.className = 'res-ico chk-ico-img'; old.replaceWith(im); }
+      /* v104: line icons in the same style as the camera and cart (Hilti TE-3000 jackhammer for tools, box truck for the pre check) */
+      var SV = '<svg class="drawer-chk-ico" viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+      var ic = { 'tools': SV + '<path d="M3 5h4M17 5h4"/><path d="M7 3.5h10v3l-1.2 8.5H8.2L7 6.5z"/><path d="M10 15h4v2.5h-4z"/><path d="M11 17.5v3l1 2 1-2v-3"/><path d="M7.5 9C4.5 10 3.5 13 4.5 17"/></svg>',
+                 'box-truck': SV + '<path d="M2 5h12v11H2z"/><path d="M14 9h4.2l3.3 4v3H14"/><circle cx="6" cy="18" r="2"/><circle cx="17.5" cy="18" r="2"/><path d="M8 16h7.5"/></svg>' }[c.getAttribute('data-drawer-checklist')], old = c.querySelector('svg');
+      if (ic && old) { old.insertAdjacentHTML('beforebegin', ic); old.remove(); }
       if (!c.querySelector('.drawer-chevron')) c.insertAdjacentHTML('beforeend', '<span class="drawer-chevron">&#9662;</span>');
       box.appendChild(c);
     });
