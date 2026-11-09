@@ -24,6 +24,7 @@
   @keyframes bootIn { from { opacity: 0; } to { opacity: 1; } }
   #boot { z-index: 2; }
   #cover { position: absolute; inset: 0; background: #000; will-change: opacity; }
+  #boot.done #cover { transition: opacity .3s ease-out; }
   #boot.fly { pointer-events: none; background: transparent; }
   #app { transition: opacity .5s ease; }
   #boot.gone { opacity: 0; pointer-events: none; transition: opacity .22s cubic-bezier(.4,0,.2,1); }
@@ -88,7 +89,7 @@
   try { var c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && c.vw === window.innerWidth && c.vh === window.innerHeight && placeLogo(c)) q0 = 0; } catch (e) {}
   function setEdge() { var on = ((p || 0) * ELEN).toFixed(1); for (var k = 0; k < eps.length; k++) eps[k].style.strokeDasharray = on + ' ' + (ELEN + 10).toFixed(1); }
   function ez(u) { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); }
-  function drawLogo(q) { for (var k = 0; k < lpaths.length; k++) { var u = ez((q * TT - (DELAYS[k] || 0)) / DUR); lpaths[k].style.strokeDashoffset = (1 - u).toFixed(4); } }
+  function drawLogo(q) { for (var k = 0; k < lpaths.length; k++) { var u = Math.max(0, Math.min(1, (q * TT - (DELAYS[k] || 0)) / DUR)); /* v95: linear, so the drop is visibly drawing from the first frame, like the edge */ lpaths[k].style.strokeDashoffset = (1 - u).toFixed(4); } }
   function markReady(s2, m) {
     if (m && m.w > 20) {
       try { localStorage.setItem(KEY, JSON.stringify({ x: m.x, y: m.y, w: m.w, h: m.h, vw: window.innerWidth, vh: window.innerHeight })); } catch (e) {}
@@ -108,7 +109,7 @@
     p = Math.min(1, p + v * dt);
     if (q0 >= 0) drawLogo(q0 >= 1 ? 1 : Math.min(1, (p - q0) / (1 - q0)));
     setEdge();
-    if (ready) cover.style.opacity = Math.max(0, Math.min(1, (1 - p) / .12)).toFixed(3); /* the page shows through over the last stretch */
+    /* v95: the screen stays dark until the loop closes; the app opens on that frame, with the flash */
     if (p >= 1) return finish();
     requestAnimationFrame(tick);
   }
