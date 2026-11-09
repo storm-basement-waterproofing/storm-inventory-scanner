@@ -915,3 +915,22 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   st.textContent = '#drawer .drawer-count, .drawer .drawer-count { display: none !important; }';
   document.head.appendChild(st);
 })();
+
+/* v101 (Hark, 2026-11-08): video Download no longer opens a blank tab that hangs. The wrapper page starts the download; the app stays put */
+(function () {
+  function note(msg) {
+    var d = document.createElement('div');
+    d.textContent = msg;
+    d.style.cssText = 'position:fixed;left:16px;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:300;padding:12px 14px;border-radius:12px;background:#0F1720;color:#fff;font:600 15px -apple-system,Roboto,sans-serif;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:opacity .25s ease';
+    document.body.appendChild(d); requestAnimationFrame(function () { d.style.opacity = '1'; });
+    setTimeout(function () { d.style.opacity = '0'; setTimeout(function () { d.remove(); }, 300); }, 4200);
+  }
+  window.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest && e.target.closest('a.res-mdl'); if (!a) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    var url = a.href, ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (window.top !== window) { try { window.top.postMessage({ storm: 'download', url: url }, '*'); } catch (x) { location.href = url; } }
+    else location.href = url;
+    note(ios ? 'Starting download. Tap Download if asked; it saves to Files > Downloads.' : 'Downloading video. It shows in your notifications and Downloads.');
+  }, true);
+})();
