@@ -1207,9 +1207,39 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       mo.observe(el, { attributes: true, attributeFilter: ['class'], attributeOldValue: true });
       el.addEventListener('scroll', function () { later(el, 200); }, { passive: true });
       el.addEventListener('click', function () { later(el, 250); });
+      /* v122: fresh picture the instant a finger touches the page, so the slide-out always shows what was on screen */
+      el.addEventListener('pointerdown', function () { clearTimeout(timers[el.id]); snap(el); }, true);
       if (isOpen(el)) later(el, 60);
     });
   }
   hook();
   try { new MutationObserver(hook).observe(document.body, { childList: true }); } catch (x) {}
+})();
+
+/* v122 (Hark, 2026-11-09): Bin Labels and Checklists open over the drawer the same way Resource Center pages do.
+   The drawer stays open underneath, so closing a page (X or the phone's back) slides it out and shows the drawer exactly where it was. */
+(function () {
+  function e$(id) { return document.getElementById(id); }
+  var PAGES = ['labels', 'lbl-detail', 'chk-view', 'res-list', 'res-view'];
+  function pageOpen() { return PAGES.some(function (id) { var v = e$(id); return v && v.classList.contains('open') && !v.classList.contains('v121-ghost'); }); }
+  function drawerOpen() { var d = e$('drawer'); return !!(d && d.classList.contains('open')); }
+  /* keep the drawer open when a Bin Labels or Checklist row is tapped */
+  var _cd = window.closeDrawer;
+  if (typeof _cd === 'function') {
+    window.closeDrawer = function () {
+      var ev = window.event, t = ev && ev.type === 'click' && ev.target;
+      if (t && t.closest && t.closest('#drawer') && t.closest('[data-drawer-labels], [data-drawer-checklist]')) return;
+      return _cd.apply(this, arguments);
+    };
+  }
+  /* phone back from Bin Labels lands on the drawer: close the page (the app only did this when the drawer was already shut) */
+  window.addEventListener('popstate', function () {
+    var s = history.state && history.state.overlay, v = e$('labels');
+    if (v && v.classList.contains('open') && s !== 'labels' && s !== 'lbldetail') {
+      v.classList.remove('open'); v.innerHTML = '';
+      try { if (overlayOpen === 'labels') overlayOpen = null; } catch (x) {}
+    }
+    /* once every page is closed and the drawer is showing, the next back (or X) closes the drawer as usual */
+    setTimeout(function () { if (drawerOpen() && !pageOpen()) { try { overlayOpen = 'drawer'; } catch (x) {} } }, 0);
+  });
 })();
