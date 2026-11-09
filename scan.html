@@ -775,7 +775,22 @@ var ITEMS = [
     + '#qr-in path { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: qrIn .55s cubic-bezier(.4,0,.2,1) forwards; }'
     + '@keyframes qrIn { to { stroke-dashoffset: 0; } }';
   document.head.appendChild(st);
-  var lastPts = null, lastW = 0, lastH = 0, lastText = '', hideT = null;
+  var lastPts = null, lastW = 0, lastH = 0, lastText = '', hideT = null, cur = null;
+  /* v103 (Hark, 2026-11-09): the inside lines are anchored to the floating box. Every time the box moves, they move with it, exactly centered in it. */
+  function place(P) {
+    if (!cur || !cur.g.parentNode) { cur = null; return; }
+    var H = homo(cur.n, P);
+    cur.L.forEach(function (s, k) { var el = cur.paths[k]; if (!el) return;
+      el.setAttribute('d', s.map(function (p, i) { var t = H(p[0], p[1]); return (i ? 'L' : 'M') + t[0].toFixed(1) + ' ' + t[1].toFixed(1); }).join('') + 'Z'); });
+  }
+  var poly = document.getElementById('trace-poly'), pend = 0;
+  if (poly) new MutationObserver(function () {
+    if (!cur || pend) return;
+    pend = requestAnimationFrame(function () { pend = 0;
+      var P = (poly.getAttribute('points') || '').trim().split(/\s+/).map(function (xy) { var v = xy.split(','); return [parseFloat(v[0]), parseFloat(v[1])]; });
+      if (P.length >= 4 && P.every(function (v) { return isFinite(v[0]) && isFinite(v[1]); })) place(P.slice(0, 4));
+    });
+  }).observe(poly, { attributes: true, attributeFilter: ['points'] });
   function loops(m, n) {
     function dark(r, c) { return r >= 0 && c >= 0 && r < n && c < n && m(r, c); }
     var E = {};
@@ -822,6 +837,8 @@ var ITEMS = [
       html += '<path pathLength="1" d="' + d + '" style="animation-delay:' + delay.toFixed(3) + 's"/>';
     });
     g.innerHTML = html; svg.appendChild(g);
+    /* v103: keep the unit pattern so the lines can follow the floating box */
+    cur = { g: g, L: L, n: n, paths: g.querySelectorAll('path') };
     if (hideT) clearTimeout(hideT);
     hideT = setTimeout(function () { g.classList.add('out'); hideT = setTimeout(function () { if (g.parentNode) g.remove(); }, 400); }, 1400);
   }
