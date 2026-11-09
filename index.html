@@ -67,6 +67,15 @@
   /* v106: starts at 0:00 and fills the screen right up to the edge line (same 3px inset and rounded corners as the line) */
   #bootvid { left: 3px !important; top: 3px !important; right: 3px; bottom: 3px; width: calc(100% - 6px) !important; height: calc(100% - 6px) !important; aspect-ratio: auto !important; transform: none !important; border-radius: min(44px, 6vmin) !important; }
   #boot.done #bootvid { opacity: 0 !important; transition: opacity .3s ease-out; }
+  /* v130 (Hark, 2026-11-09): one pulse of the frame + logo outline on black, peaking at ~0.52 s, then fading as the page comes in */
+  #boot.pulse1 #edge { animation: pulseEdge 1.05s ease-in-out both; }
+  #boot.pulse1 #ltrace { animation: pulseEdge 1.05s ease-in-out both; }
+  @keyframes pulseEdge {
+    0% { opacity: 0; filter: brightness(.8) drop-shadow(0 0 1px rgba(90,195,255,.6)); }
+    50% { opacity: 1; filter: brightness(1.8) drop-shadow(0 0 3px #fff) drop-shadow(0 0 9px rgba(200,235,255,.95)) drop-shadow(0 0 24px rgba(70,180,255,.8)); }
+    100% { opacity: 0; filter: brightness(1) drop-shadow(0 0 2px rgba(90,195,255,.3)); } }
+  /* v130: loading video fills the whole screen without cropping (letterboxed on black) on every device */
+  #bootvid { left: 0 !important; top: 0 !important; right: 0; bottom: 0; width: 100% !important; height: 100% !important; object-fit: contain !important; border-radius: 0 !important; background: #000 !important; }
 </style>
 <!-- v110: loader fade at end --></head>
 <body style="background:#000">
@@ -170,17 +179,23 @@
   window.addEventListener('popstate', function () { if (document.getElementById('camwrap')) closeCam(false, true); });
   window.addEventListener('message', function (e) {
     var m = e.data; if (!m) return;
-    if (m.storm === 'modePicked') { /* v128: first mode pick — the edge + logo outlines appear instantly (fully drawn, no trace) over a black fade-in, with the camera flash, then a soft fade out. */
+    if (m.storm === 'modePicked') { /* v130 (Hark, 2026-11-09, Dave's spec): tap -> the screen fades to full black -> on black, the STORM logo outline and the screen-frame line appear together, fully drawn (no running), and pulse once to a bright flash -> at the peak the main page fades in. */
       try { edgePath(); } catch (eE) {}
-      p = 1; setEdge(); /* full perimeter line, instantly */
+      p = 1; setEdge();
       var lr = (m.logo && m.logo.w > 20) ? m.logo : null;
       if (!lr) { try { lr = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (eC) {} }
-      if (lr && placeLogo(lr)) { drawLogo(1); lt.style.opacity = '1'; }
-      boot.style.transition = 'none'; boot.style.opacity = '1'; boot.classList.remove('gone');
-      cover.style.transition = 'opacity .12s ease'; cover.style.opacity = '1';
-      boot.classList.remove('flash'); void boot.offsetWidth; boot.classList.add('flash');
-      setTimeout(function () { cover.style.transition = 'opacity .9s ease'; cover.style.opacity = '0'; }, 150);
-      setTimeout(function () { boot.classList.remove('flash'); boot.style.transition = ''; boot.style.opacity = ''; boot.classList.add('gone'); p = 0; setEdge(); if (lt) { drawLogo(0); lt.style.opacity = '0'; } }, 2100);
+      var hasLogo = !!(lr && placeLogo(lr)); if (hasLogo) drawLogo(1);
+      boot.classList.remove('flash', 'pulse1', 'gone', 'done'); boot.style.transition = 'none'; boot.style.opacity = '1';
+      edge.style.opacity = '0'; if (lt) lt.style.opacity = '0';
+      cover.style.transition = 'opacity .45s ease-in'; cover.style.opacity = '0'; void cover.offsetWidth; cover.style.opacity = '1';
+      setTimeout(function () { /* full black: lines in, one pulse */
+        edge.style.opacity = ''; if (lt && hasLogo) lt.style.opacity = '';
+        void boot.offsetWidth; boot.classList.add('pulse1');
+      }, 470);
+      setTimeout(function () { /* peak: the page fades in under the fading lines */
+        cover.style.transition = 'opacity .7s ease'; cover.style.opacity = '0';
+      }, 470 + 520);
+      setTimeout(function () { boot.classList.remove('pulse1'); boot.style.transition = ''; boot.style.opacity = ''; boot.classList.add('gone'); p = 0; setEdge(); if (lt) { drawLogo(0); lt.style.opacity = '0'; } edge.style.opacity = ''; }, 470 + 1500);
       return;
     }
     if (m.storm === 'scan' && typeof m.q === 'string') { openCam(m.q, e.source); return; }
@@ -211,6 +226,23 @@
       document.body.appendChild(pr);
       setTimeout(go, 4000);
       window.addEventListener('afterprint', function () { var r = document.getElementById('print-root'); if (r) r.remove(); }, { once: true });
+      return;
+    }
+    /* v130 (Hark, 2026-11-09): Pull List print. The app frame can't print, so it hands the finished page here. */
+    if (m.storm === 'printPull' && typeof m.body === 'string' && (/\.googleusercontent\.com$/.test(e.origin) || /script\.google\.com$/.test(e.origin) || e.origin === location.origin)) {
+      var oldP = document.getElementById('pull-print'); if (oldP) oldP.remove();
+      var pp = document.createElement('div'); pp.id = 'pull-print';
+      var clean = m.body.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '');
+      pp.innerHTML = clean;
+      var st = document.getElementById('pull-print-css'); if (st) st.remove();
+      st = document.createElement('style'); st.id = 'pull-print-css';
+      st.textContent = '#pull-print { display: none; } @media print { html, body { background: #fff !important; height: auto !important; overflow: visible !important; } body > *:not(#pull-print) { display: none !important; } #pull-print { display: block !important; } ' + String(m.css || '').replace(/<\/?style/gi, '').replace(/body\{/g, '#pull-print{') + ' }';
+      document.head.appendChild(st); document.body.appendChild(pp);
+      var ims = pp.querySelectorAll('img'), leftP = ims.length, firedP = false;
+      function goP() { if (firedP) return; firedP = true; setTimeout(function () { try { window.focus(); window.print(); } catch (x) {} }, 80); }
+      if (!leftP) goP(); Array.prototype.forEach.call(ims, function (im) { if (im.complete) { if (--leftP === 0) goP(); } else { im.onload = im.onerror = function () { if (--leftP === 0) goP(); }; } });
+      setTimeout(goP, 4000);
+      window.addEventListener('afterprint', function () { var r = document.getElementById('pull-print'); if (r) r.remove(); }, { once: true });
       return;
     }
     if (m.storm === 'scanDone' && e.origin === location.origin) {
