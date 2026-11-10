@@ -241,7 +241,29 @@
       setTimeout(function () { boot.classList.remove('pulse1'); boot.style.transition = ''; boot.style.opacity = ''; boot.classList.add('gone'); p = 0; setEdge(); if (lt) { drawLogo(0); lt.style.opacity = '0'; } edge.style.opacity = ''; }, 470 + 1500);
       return;
     }
-    if (m.storm === 'scan' && typeof m.q === 'string') { openCam(m.q, e.source); return; }
+    if (m.storm === 'scan' && typeof m.q === 'string') { /* v135 (Hark, 2026-11-09, Dave): going into the camera uses the same opener effect as picking Job / Inventory: fade to black, the STORM logo outline and screen frame pulse once, and the camera fades in under the fading lines */
+      var camQ = m.q, camSrc = e.source;
+      if (document.getElementById('camwrap') || window.__stormCamFx) { openCam(camQ, camSrc); return; }
+      window.__stormCamFx = true;
+      try { edgePath(); } catch (eE2) {}
+      p = 1; setEdge();
+      var lr2 = (m.logo && m.logo.w > 20) ? m.logo : null;
+      if (!lr2) { try { lr2 = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (eC2) {} }
+      var hasLogo2 = !!(lr2 && placeLogo(lr2)); if (hasLogo2) drawLogo(1);
+      boot.classList.remove('flash', 'pulse1', 'gone', 'done'); boot.style.zIndex = '6'; boot.style.transition = 'none'; boot.style.opacity = '1';
+      var wp = document.getElementById('wpick'); if (wp) wp.style.visibility = 'hidden';
+      var bvv = document.getElementById('bootvid'); if (bvv) bvv.style.visibility = 'hidden';
+      edge.style.opacity = '0'; if (lt) lt.style.opacity = '0';
+      cover.style.transition = 'opacity .45s ease-in'; cover.style.opacity = '0'; void cover.offsetWidth; cover.style.opacity = '1';
+      setTimeout(function () { /* full black: camera starts loading behind it, lines in, one pulse */
+        openCam(camQ, camSrc);
+        edge.style.opacity = ''; if (lt && hasLogo2) lt.style.opacity = '';
+        void boot.offsetWidth; boot.classList.add('pulse1');
+      }, 470);
+      setTimeout(function () { cover.style.transition = 'opacity .7s ease'; cover.style.opacity = '0'; }, 470 + 520);
+      setTimeout(function () { boot.classList.remove('pulse1'); boot.style.transition = ''; boot.style.opacity = ''; boot.classList.add('gone'); boot.style.zIndex = ''; p = 0; setEdge(); if (lt) { drawLogo(0); lt.style.opacity = '0'; } edge.style.opacity = ''; if (wp) wp.style.visibility = ''; if (bvv) bvv.style.visibility = ''; window.__stormCamFx = false; }, 470 + 1500);
+      return;
+    }
     /* v97 (Hark, 2026-11-08): video downloads start here at the top level, so the app never opens a blank tab and hangs */
     if (m.storm === 'download' && typeof m.url === 'string' && /^https:\/\/[a-z0-9.-]+\.smugmug\.com\//i.test(m.url)) {
       var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
