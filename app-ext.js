@@ -596,7 +596,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   openScanner = function () {
     var q = '';
     try { q = '?return=' + encodeURIComponent(WRAP) + (typeof scanCartParams === 'function' ? scanCartParams() : ''); } catch (e) { return _os.apply(this, arguments); }
-    try { window.top.postMessage({ storm: 'scan', q: q }, '*'); } catch (e) { return _os.apply(this, arguments); }
+    try { var hb = 0; try { var hh = document.querySelector('header') || document.getElementById('topbar'); if (hh) { var r = hh.getBoundingClientRect(); if (r.bottom > 20) hb = Math.round(r.bottom); } } catch (e) {} window.top.postMessage({ storm: 'scan', q: q, hb: hb }, '*'); /* v146: tells the wrapper where the banner ends so the camera island starts right under it */ } catch (e) { return _os.apply(this, arguments); }
   };
   window.addEventListener('message', function (ev) {
     var m = ev.data; if (!m || m.storm !== 'scanResult' || !/github\.io$/.test(ev.origin)) return;
@@ -1450,7 +1450,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 /* v145 (Hark, 2026-11-10, Dave): landing order. The page and logo fade in first; the Job/Inventory toggle and menu come in with the page (no bounce);
    the buttons at the bottom stay hidden, then bounce in 2 seconds later. */
 (function () {
-  var st = document.createElement('style'); st.id = 'storm-v145-css';
+  var st = document.createElement('style'); st.id = 'storm-v146-css';
   st.textContent = 'body.st-bounce #hamburger, body.st-bounce #mode-switch .mode-pill { animation: none !important; }'
     + 'body.st-pre #fab-dock > * { opacity: 0 !important; pointer-events: none; }'
     + 'body.st-bounce2 #fab-dock > * { animation: stBounce .62s cubic-bezier(.3,.7,.4,1) backwards; }'
