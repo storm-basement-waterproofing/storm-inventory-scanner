@@ -1463,3 +1463,14 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   if (window.parent === window) { if (document.readyState === 'complete') show(); else window.addEventListener('load', show); }
   setTimeout(function () { if (!go) document.body.classList.remove('st-pre'); }, 45000); /* safety: never leave the buttons hidden */
 })();
+
+/* v147 (Hark, 2026-11-10, Dave): side menu. No Jobber logo on the Quote Templates heading, and the Jobber logo in the menu footer
+   uses a cut-out copy with no white box behind it. */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v147-css';
+  st.textContent = '#drawer .drawer-qt-logo { display: none !important; } #drawer .drawer-jobber[data-jobber] img { background: transparent !important; }';
+  document.head.appendChild(st);
+  var CLEAR = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/jobber-logo-clear.png';
+  function swap() { var i = document.querySelector('.drawer-jobber[data-jobber] img'); if (i && i.src !== CLEAR) i.src = CLEAR; }
+  swap(); document.addEventListener('DOMContentLoaded', swap); setTimeout(swap, 1500);
+})();
