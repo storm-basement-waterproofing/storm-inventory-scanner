@@ -235,7 +235,7 @@
     if (finished) return; finished = true; settled = true;
     try { (src || f.contentWindow).postMessage({ storm: 'landed', present: present }, '*'); } catch (e) {}  /* header STORM trace starts right as the loop closes */
     cover.style.opacity = '0'; boot.classList.add('done');
-    var bv = document.getElementById('bootvid'); if (bv) setTimeout(function () { try { bv.pause(); } catch (e) {} bv.removeAttribute('src'); try { bv.load(); } catch (e) {} }, 400);
+    var bv = document.getElementById('bootvid'); if (bv) setTimeout(function () { try { bv.pause(); } catch (e) {} bv.removeAttribute('poster'); bv.style.visibility = 'hidden'; bv.removeAttribute('src'); try { bv.load(); } catch (e) {} }, 400);
     setTimeout(function () { boot.classList.add('gone'); }, 1900);
   }
   /* v131 (Hark, 2026-11-09): the loading video IS the picker video — it keeps playing from where it is (no jump back to the start), STORM video 10 then the 3101 West Ridge Rd video, looping, like the old picker. The question fades in right away and fades out on the tap. */
@@ -244,7 +244,7 @@
   var wp = document.getElementById('wpick');
   if (!WPICK && wp) wp.parentNode.removeChild(wp);
   (function () { var bv = document.getElementById('bootvid'); if (!bv) return;
-    function nextVid() { if (finished) return; vi = (vi + 1) % VIDS.length; bv.src = VIDS[vi]; try { var pr2 = bv.play(); if (pr2 && pr2.catch) pr2.catch(function () {}); } catch (e) {} }
+    function nextVid() { if (finished) return; bv.removeAttribute('poster'); /* v150: poster is only for the very first frame; never show the box truck again between clips or on exit */ vi = (vi + 1) % VIDS.length; bv.src = VIDS[vi]; try { var pr2 = bv.play(); if (pr2 && pr2.catch) pr2.catch(function () {}); } catch (e) {} }
     bv.addEventListener('ended', nextVid); bv.addEventListener('error', function () { if (finished) return; vErr++; if (vErr >= VIDS.length) { VIDS = ['assets/boot-montage.mp4?v=2']; vi = -1; vErr = -99; } nextVid(); }); bv.addEventListener('playing', function () { if (vErr > 0) vErr = 0; });
     if (wp) { setTimeout(function () { if (!picked) wp.classList.add('in'); }, 250);
       wp.addEventListener('click', function (e) { var b = e.target.closest ? e.target.closest('[data-wm]') : null; if (!b || picked) return; picked = b.getAttribute('data-wm');
@@ -269,7 +269,7 @@
     setTimeout(function () { void boot.offsetWidth; boot.classList.add('noedge', 'pulse1'); }, 120);
     setTimeout(function () { try { (src || f.contentWindow).postMessage({ storm: 'landed', present: present }, '*'); } catch (e) {} cover.style.transition = 'opacity .7s ease'; cover.style.opacity = '0'; }, 120 + 520);
     setTimeout(function () { finished = true; settled = true; boot.classList.remove('pulse1', 'leaving', 'noedge'); boot.classList.add('gone'); p = 0; setEdge(); if (lt) { drawLogo(0); lt.style.opacity = '0'; }
-      var bv = document.getElementById('bootvid'); if (bv) { try { bv.pause(); } catch (e) {} bv.removeAttribute('src'); try { bv.load(); } catch (e) {} }
+      var bv = document.getElementById('bootvid'); if (bv) { try { bv.pause(); } catch (e) {} bv.removeAttribute('poster'); bv.style.visibility = 'hidden'; bv.removeAttribute('src'); try { bv.load(); } catch (e) {} }
       var w = document.getElementById('wpick'); if (w && w.parentNode) w.parentNode.removeChild(w); }, 120 + 1500);
   }
   function plainFade() { markReady(null); }
