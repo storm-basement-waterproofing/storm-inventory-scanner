@@ -1474,3 +1474,16 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function swap() { var i = document.querySelector('.drawer-jobber[data-jobber] img'); if (i && i.src !== CLEAR) i.src = CLEAR; }
   swap(); document.addEventListener('DOMContentLoaded', swap); setTimeout(swap, 1500);
 })();
+
+/* v148 (Hark, 2026-11-10, Dave): side-menu icons get the same look as the camera and cart buttons: white line icon on a dark glass tile
+   with a thin white border and soft shadow. */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v148-css';
+  var SEL = '#drawer .drawer-item > svg, #drawer .drawer-item > .v116-ico, #drawer .drawer-item > .drawer-chk-ico, #drawer .drawer-item > .res-ico, #drawer .drawer-item > .chk-ico-img';
+  st.textContent = SEL + ' { box-sizing: border-box !important; width: 34px !important; height: 34px !important; padding: 6px !important; border-radius: 10px !important;'
+    + ' background: rgba(15,23,32,.38) !important; border: 1px solid rgba(255,255,255,.5) !important; box-shadow: 0 2px 10px rgba(0,0,0,.2) !important; color: #fff !important; object-fit: contain; }'
+    + '#drawer .drawer-item > svg *, #drawer .drawer-item > .v116-ico *, #drawer .drawer-item > .drawer-chk-ico * { stroke: #fff !important; }'
+    + '#drawer .drawer-item > svg [fill]:not([fill="none"]), #drawer .drawer-item > .v116-ico [fill]:not([fill="none"]), #drawer .drawer-item > .drawer-chk-ico [fill]:not([fill="none"]) { fill: #fff !important; }'
+    + '#drawer .drawer-item > img.res-ico, #drawer .drawer-item > img.chk-ico-img, #drawer .drawer-item > .res-ico img, #drawer .drawer-item > .chk-ico-img img { filter: brightness(0) invert(1); }';
+  document.head.appendChild(st);
+})();
