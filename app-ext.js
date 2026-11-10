@@ -1529,3 +1529,13 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   if (typeof openDetail === 'function') { var _o = openDetail; openDetail = function (bin, isSwipe) { var r = _o.apply(this, arguments); if (!isSwipe) { try { hold(document.querySelector('#detail img.detail-photo')); } catch (e) {} } return r; }; }
 })();
+
+/* v152 (Hark, 2026-11-10, Dave): the outline trace on the mode tap lined up wrong in landscape and on iPad, because the wrapper reused a logo spot
+   measured at another screen size / before the main page laid out. The app now re-sends its banner logo's exact spot after the mode tap, on rotate, and when asked. */
+(function () {
+  function send() { try { var el = document.querySelector('header .storm-logo-lit') || document.querySelector('header img.logo'); var r = el && el.getBoundingClientRect(); if (r && r.width > 20) window.top.postMessage({ storm: 'logoPos', x: r.left, y: r.top, w: r.width, h: r.height }, '*'); } catch (e) {} }
+  function burst() { send(); [40, 110, 260, 480, 900].forEach(function (t) { setTimeout(send, t); }); }
+  window.addEventListener('message', function (e) { var d = e.data; if (!d) return; if (d.storm === 'wrapMode') { requestAnimationFrame(burst); } else if (d.storm === 'logoQ') { setTimeout(send, 80); setTimeout(send, 350); } });
+  window.addEventListener('resize', function () { setTimeout(send, 120); });
+  window.addEventListener('orientationchange', function () { setTimeout(send, 300); });
+})();
