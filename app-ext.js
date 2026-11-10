@@ -1668,3 +1668,29 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   st.textContent = '#list .card.sfx-bump, #list .cat-head.sfx-head, #list .cat-head.sfx-head::before, #list .cat-head.sfx-head > * { animation-duration: 1.05s !important; }';
   document.head.appendChild(st);
 })();
+
+/* v163 (Hark, 2026-11-10, Dave): every side-menu arrow shows like Products (Quote Templates and Bin Labels had lost theirs),
+   white so it reads on the dark glass; long names (Box Truck Pre Check) no longer push the arrow out.
+   Resource Center header pops back up after a tap like the other headers instead of staying pressed in. */
+(function () {
+  var CH = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-opacity='.85' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5l7 7-7 7'/></svg>";
+  var st = document.createElement('style'); st.id = 'storm-v163-css';
+  st.textContent = ''
+    + '#drawer #drawer-qt > .drawer-qt-head { display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 10px; }'
+    + '#drawer .drawer-section > .drawer-section-head > .drawer-chevron, #drawer .drawer-item > .drawer-chevron { display: inline-block !important; visibility: visible !important; opacity: 1 !important; flex: 0 0 18px !important; width: 18px !important; min-width: 18px !important; height: 18px !important; margin-left: auto !important; font-size: 0 !important; color: transparent !important; background: url("' + CH + '") center / 18px 18px no-repeat !important; grid-column: auto !important; grid-row: auto !important; }'
+    + '#drawer .drawer-item > .drawer-count + .drawer-chevron { margin-left: 8px !important; }'
+    + '#drawer .drawer-section > .drawer-section-head > .drawer-chevron { transform: rotate(0deg) !important; transition: transform .38s cubic-bezier(.3,.7,.2,1) !important; }'
+    + '#drawer .drawer-section.expanded > .drawer-section-head > .drawer-chevron, #drawer .drawer-supplier.open > .drawer-item > .drawer-chevron { transform: rotate(90deg) !important; }'
+    + '#drawer .drawer-item > .drawer-item-name, #drawer .drawer-section-head > span:not(.drawer-chevron) { flex: 1 1 auto; min-width: 0; }'
+    + '#drawer .drawer-section-head:focus, #drawer .drawer-section-head:focus-visible { outline: none !important; }'
+    + '#drawer-resources > .drawer-section-head:not(.pressed) { transform: none !important; filter: none !important; box-shadow: none !important; }'
+    + '@media (hover: none) { #drawer .drawer-section-head:hover:not(.pressed) { background: transparent !important; } }';
+  document.head.appendChild(st);
+  function release() {
+    setTimeout(function () {
+      document.querySelectorAll('#drawer-resources > .drawer-section-head.pressed').forEach(function (h) { h.classList.remove('pressed'); });
+      var a = document.activeElement; if (a && a.closest && a.closest('#drawer-resources > .drawer-section-head')) { try { a.blur(); } catch (e) {} }
+    }, 160);
+  }
+  ['pointerup', 'pointercancel', 'touchend', 'mouseup'].forEach(function (t) { document.addEventListener(t, release, true); });
+})();
