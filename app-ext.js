@@ -2039,3 +2039,150 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   if (typeof openDetail === 'function') { var _o = openDetail; openDetail = function () { var r = _o.apply(this, arguments); try { prime(); } catch (e) {} return r; }; }
 })();
+
+/* v167 (Hark, 2026-11-10, Dave): Pull List in the approved "Truck Check" look.
+   Dark sheet (#0E1621) with a blue-to-dark header: STORM logo + X, the customer's name big, the address (and Jobber # when the job
+   came from Jobber), and a "Loaded on truck  N of M" bar. Every line is a rounded card with a 30px check box on the left; tap the box
+   to mark the line loaded (blue box with a check, line dimmed with the name struck through). Tapping the rest of the line still opens
+   the photo peek. Checks are kept on this phone only (localStorage, per customer name + address); nothing about them goes to the
+   sheet or the server. The customer First / Last / Address fields, Find a Job and New Job stay right under the header, still required.
+   Footer: ghost Print and blue Save Job side by side, pinned to the bottom of the sheet. The printed Pull List is unchanged. */
+(function () {
+  var CK = 'stormTruckCheckV1', CUST = 'stormJobCustomerV1';
+  var LOGO = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/logos/STORM-logo-color-transparent.svg';
+  var S = 'html body #pull-sheet.tc';
+  var st = document.createElement('style'); st.id = 'storm-v167-css';
+  st.textContent = ''
+    + S + ' { background: #0E1621 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-top: 1px solid #1F3246 !important; border-radius: 22px 22px 0 0 !important; box-shadow: 0 -10px 34px rgba(0,0,0,.45) !important; color: #fff !important; height: 88vh; height: 88dvh; max-height: 88dvh; }'
+    + S + ' .tc-top { padding: 0 18px 12px; background: linear-gradient(180deg, #14324A 0%, #0E1621 100%); border-radius: 22px 22px 0 0; }'
+    + S + ' .tc-grab { width: 42px; height: 5px; border-radius: 3px; margin: 8px auto 0; background: rgba(159,179,200,.35); }'
+    + S + ' .pick-sheet-head { padding: 10px 0 0 !important; border: 0 !important; background: transparent !important; }'
+    + S + ' .pick-sheet-head h2 { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }'
+    + S + ' .tc-logo { display: block; height: 22px; width: auto; }'
+    + S + ' .pick-sheet-close { color: #9FB3C8 !important; font-size: 30px !important; padding: 2px 4px 2px 12px !important; background: transparent !important; border: 0 !important; }'
+    + S + ' .tc-name { margin-top: 14px; font-size: 24px; font-weight: 800; line-height: 1.2; color: #fff; overflow-wrap: anywhere; }'
+    + S + ' .tc-name.tc-none { color: #7E93A8; font-weight: 700; font-size: 20px; }'
+    + S + ' .tc-addr { margin-top: 4px; font-size: 13px; line-height: 1.35; color: #9FB3C8; overflow-wrap: anywhere; }'
+    + S + ' .tc-prog { margin-top: 14px; display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: #9FB3C8; }'
+    + S + ' .tc-prog b { color: #29ABE2; font-weight: 800; }'
+    + S + ' .tc-bar { height: 8px; margin-top: 6px; border-radius: 4px; background: #1E2C3B; overflow: hidden; }'
+    + S + ' .tc-bar i { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #29ABE2, #5FD3FF); transition: width .25s ease; }'
+    + S + ' .tc-sum { margin-top: 6px; font-size: 11.5px; color: #7E93A8; }'
+    + S + '.tc-empty .tc-prog, ' + S + '.tc-empty .tc-bar, ' + S + '.tc-empty .tc-sum { display: none; }'
+    /* customer fields */
+    + S + ' .jc-box { padding: 4px 14px 2px !important; gap: 8px !important; }'
+    + S + ' .jc-in { height: 44px !important; background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 12px !important; color: #fff !important; }'
+    + S + ' .jc-in::placeholder { color: #7E93A8 !important; }'
+    + S + ' .jc-in:focus { border-color: #29ABE2 !important; box-shadow: 0 0 0 3px rgba(41,171,226,.22) !important; }'
+    + S + ' .jc-in.st-need { border-color: #fca5a5 !important; box-shadow: 0 0 0 3px rgba(248,113,113,.3) !important; }'
+    + S + ' .jc-find, ' + S + ' .jc-clear { height: 40px !important; border-radius: 12px !important; background: transparent !important; border: 1.5px solid #3B536B !important; color: #fff !important; font-size: 14.5px !important; box-shadow: none !important; }'
+    /* lines */
+    + S + ' .pick-lines { padding: 2px 14px 10px !important; }'
+    + S + ' .pick-line { gap: 12px !important; padding: 12px !important; margin-top: 8px; border: 1px solid #1F3246 !important; border-radius: 14px !important; background: #152231 !important; transition: opacity .2s ease; }'
+    + S + ' .pick-line img { width: 46px !important; height: 46px !important; flex: 0 0 46px !important; border-radius: 10px !important; background: #fff !important; object-fit: cover; }'
+    + S + ' .pick-line-name { font-size: 15px !important; font-weight: 700 !important; line-height: 1.25 !important; color: #fff !important; overflow-wrap: anywhere; }'
+    + S + ' .pick-line-code { font-size: 12px !important; margin-top: 3px !important; color: #7E93A8 !important; }'
+    + S + ' .tc-ck { flex: 0 0 30px; width: 30px; height: 30px; margin: 0; padding: 0; border-radius: 9px; border: 2px solid #3B536B; background: transparent; color: #fff; font-size: 17px; font-weight: 900; line-height: 26px; text-align: center; font-family: inherit; -webkit-tap-highlight-color: transparent; position: relative; }'
+    + S + ' .tc-ck::after { content: ""; position: absolute; inset: -9px; }' /* bigger tap area */
+    + S + ' .pick-line.tc-done { opacity: .55; }'
+    + S + ' .pick-line.tc-done .tc-ck { background: #29ABE2; border-color: #29ABE2; }'
+    + S + ' .pick-line.tc-done .pick-line-name { text-decoration: line-through; text-decoration-thickness: 2px; }'
+    + S + ' .pull-qty { width: auto !important; min-width: 44px !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; align-items: flex-end !important; }'
+    + S + ' .pull-qty b { font-size: 22px !important; font-weight: 800 !important; line-height: 1.05 !important; color: #29ABE2 !important; }'
+    + S + ' .pull-qty span { margin-top: 2px; font-size: 10px !important; font-weight: 700 !important; letter-spacing: .04em; text-transform: uppercase; color: #7E93A8 !important; }'
+    + S + ' .pick-empty { color: #9FB3C8 !important; }'
+    /* footer */
+    + S + ' .pick-sheet-foot { position: sticky; bottom: 0; z-index: 2; margin-top: auto; display: flex !important; gap: 10px; padding: 12px 16px calc(18px + env(safe-area-inset-bottom)) !important; background: #0E1621 !important; border-top: 1px solid #1F3246 !important; }'
+    + S + ' .pick-sheet-foot > div { display: none !important; }'
+    + S + ' .pull-print, ' + S + ' .pull-save { flex: 1 1 0; display: block; width: auto !important; min-height: 54px !important; margin: 0 !important; border-radius: 14px !important; font-family: inherit; box-shadow: none !important; }'
+    + S + ' .pull-print { order: 1; background: transparent !important; border: 1.5px solid #3B536B !important; color: #fff !important; font-size: 15px !important; font-weight: 700 !important; }'
+    + S + ' .pull-save { order: 2; background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; border: 0 !important; color: #04121D !important; font-size: 16px !important; font-weight: 800 !important; }'
+    + S + ' button:disabled { opacity: .5 !important; }';
+  document.head.appendChild(st);
+
+  function norm(v) { return String(v || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function cust() { try { return JSON.parse(localStorage.getItem(CUST) || '{}') || {}; } catch (e) { return {}; } }
+  function jobKey() { var c = cust(); return 'c:' + norm(c.first) + '|' + norm(c.last) + '|' + norm(c.address); }
+  function allChecks() { try { return JSON.parse(localStorage.getItem(CK) || '{}') || {}; } catch (e) { return {}; } }
+  function checked() { var a = allChecks()[jobKey()]; return (a && Array.isArray(a.bins)) ? a.bins : []; }
+  function saveChecked(bins) {
+    var all = allChecks(), k = jobKey();
+    if (bins.length) all[k] = { bins: bins, t: Date.now() }; else delete all[k];
+    var keys = Object.keys(all).sort(function (a, b) { return (all[b].t || 0) - (all[a].t || 0); });
+    keys.slice(40).forEach(function (x) { delete all[x]; }); /* keep the 40 most recent jobs */
+    try { localStorage.setItem(CK, JSON.stringify(all)); } catch (e) {}
+  }
+  function sheet() { return document.getElementById('pull-sheet'); }
+
+  function paintHead(sh) {
+    var c = cust(), n = [String(c.first || '').trim(), String(c.last || '').trim()].filter(Boolean).join(' ');
+    var nm = sh.querySelector('.tc-name'), ad = sh.querySelector('.tc-addr'); if (!nm || !ad) return;
+    nm.textContent = n || 'New job'; nm.classList.toggle('tc-none', !n);
+    var a = String(c.address || '').trim(), bits = [];
+    if (a) bits.push(a); if (c.jobberJobNumber) bits.push('Jobber #' + c.jobberJobNumber);
+    ad.textContent = bits.length ? bits.join(' · ') : 'Add the customer below';
+  }
+  function paintChecks(sh) {
+    var on = checked(), lines = sh.querySelectorAll('.pick-line[data-pull-bin]'), done = 0;
+    lines.forEach(function (ln) {
+      var d = on.indexOf(ln.getAttribute('data-pull-bin')) >= 0; if (d) done++;
+      ln.classList.toggle('tc-done', d);
+      var b = ln.querySelector('.tc-ck'); if (b) { b.textContent = d ? '\u2713' : ''; b.setAttribute('aria-pressed', d ? 'true' : 'false'); }
+    });
+    var tot = lines.length, p = sh.querySelector('.tc-prog-n'), bar = sh.querySelector('.tc-bar i');
+    if (p) p.innerHTML = '<b>' + done + '</b> of ' + tot;
+    if (bar) bar.style.width = (tot ? Math.round(done / tot * 100) : 0) + '%';
+    sh.classList.toggle('tc-empty', !tot);
+  }
+  function fixLabels(sh) {
+    var sv = sh.querySelector('.pull-save'); if (sv && sv.textContent === 'Save Job to Sheet') sv.textContent = 'Save Job';
+    var pr = sh.querySelector('.pull-print'); if (pr && pr.textContent === 'Print Pull List') pr.textContent = 'Print';
+  }
+  function decorate() {
+    var sh = sheet(); if (!sh) return;
+    sh.classList.add('tc');
+    var head = sh.querySelector(':scope > .pick-sheet-head');
+    if (!head || sh.querySelector(':scope > .tc-top')) return;
+    var top = document.createElement('div'); top.className = 'tc-top';
+    sh.insertBefore(top, head);
+    var grab = document.createElement('div'); grab.className = 'tc-grab'; grab.setAttribute('aria-hidden', 'true'); top.appendChild(grab);
+    top.appendChild(head);
+    if (!head.querySelector('.tc-logo')) { var lg = document.createElement('img'); lg.className = 'tc-logo'; lg.alt = 'STORM'; lg.src = LOGO; head.insertBefore(lg, head.firstChild); }
+    var sumEl = sh.querySelector('.pick-sheet-foot > div'), sum = sumEl ? sumEl.textContent : '';
+    var x = document.createElement('div');
+    x.innerHTML = '<div class="tc-name"></div><div class="tc-addr"></div>'
+      + '<div class="tc-prog"><span>Loaded on truck</span><span class="tc-prog-n"></span></div><div class="tc-bar"><i></i></div>'
+      + '<div class="tc-sum">' + esc(sum) + '</div>';
+    while (x.firstChild) top.appendChild(x.firstChild);
+    sh.querySelectorAll('.pick-line[data-pull-bin]').forEach(function (ln) {
+      var code = ln.querySelector('.pick-line-code');
+      if (code) { var keep = code.textContent.split(' · ').filter(function (s) { return /^Bin /.test(s) || /^\d+ [a-z]+$/i.test(s); }); if (keep.length) code.textContent = keep.join(' · '); }
+      if (!ln.querySelector('.tc-ck')) { var b = document.createElement('button'); b.type = 'button'; b.className = 'tc-ck'; b.setAttribute('aria-label', 'Loaded on truck'); ln.insertBefore(b, ln.firstChild); }
+    });
+    fixLabels(sh); paintHead(sh); paintChecks(sh);
+    var sv = sh.querySelector('.pull-save');
+    if (sv && !sv.__tc) { sv.__tc = true; new MutationObserver(function () { fixLabels(sh); }).observe(sv, { childList: true, characterData: true, subtree: true }); }
+  }
+  function attach() {
+    var sh = sheet(); if (!sh || sh.__tc167) return !!sh;
+    sh.__tc167 = true;
+    new MutationObserver(function () { try { decorate(); } catch (e) {} }).observe(sh, { childList: true });
+    try { decorate(); } catch (e) {}
+    return true;
+  }
+  /* tap the box: toggle loaded (does not open the photo peek) */
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('#pull-sheet .tc-ck'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    var ln = b.closest('[data-pull-bin]'), sh = sheet(); if (!ln || !sh) return;
+    var bin = ln.getAttribute('data-pull-bin'), on = checked(), i = on.indexOf(bin);
+    if (i >= 0) on.splice(i, 1); else on.push(bin);
+    saveChecked(on); paintChecks(sh);
+  }, true);
+  /* name / address typed, New Job, or a job loaded: header and checks follow the customer */
+  function later() { setTimeout(function () { var sh = sheet(); if (sh && sh.querySelector('.tc-top')) { paintHead(sh); paintChecks(sh); } }, 0); }
+  document.addEventListener('input', function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute('data-jc')) later(); }, true);
+  document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('[data-jc-clear], #job-find')) later(); }, true);
+  if (!attach()) { var tries = 0; (function poll() { if (attach() || ++tries > 60) return; setTimeout(poll, 250); })(); }
+})();
