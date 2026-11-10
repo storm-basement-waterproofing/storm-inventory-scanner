@@ -297,7 +297,7 @@
       + '@keyframes islShrink { 0% { clip-path: ' + full + '; opacity: 1; } 66% { clip-path: ' + wide + '; } 92% { opacity: 1; } 100% { clip-path: ' + pill + '; opacity: 0; } }'
       + '#camisl.grow { animation: islGrow .66s cubic-bezier(.32,.72,0,1) both; } #camisl.shrink { animation: islShrink .5s cubic-bezier(.32,.72,0,1) both; } #camisl.full { animation: none; clip-path: none; opacity: 1; }';
   }
-  function headerBottom() { try { var h = f.contentDocument && f.contentDocument.querySelector('header'); if (h) { var r = h.getBoundingClientRect(), fr = f.getBoundingClientRect(); var b = Math.round(fr.top + r.bottom); if (b > 0 && b < window.innerHeight * .5) return b + 6; } } catch (e) {} return 12; }
+  var islHb = 0; function headerBottom() { if (islHb > 20 && islHb < window.innerHeight * .5) return islHb + 6; try { var h = f.contentDocument && f.contentDocument.querySelector('header'); if (h) { var r = h.getBoundingClientRect(), fr = f.getBoundingClientRect(); var b = Math.round(fr.top + r.bottom); if (b > 0 && b < window.innerHeight * .5) return b + 6; } } catch (e) {} return 62; } /* v146: the app is cross-origin, so its banner height comes in the scan message; 62px is the fallback */
   function islandOpen(q, src) {
     islTop = headerBottom(); islRule(islTop);
     var d = islandEl(); d.className = ''; void d.offsetWidth;
@@ -337,7 +337,7 @@
       return;
     }
     if (m.storm === 'scan' && typeof m.q === 'string') { /* v135 (Hark, 2026-11-09, Dave): going into the camera uses the same opener effect as picking Job / Inventory: fade to black, the STORM logo outline and screen frame pulse once, and the camera fades in under the fading lines */
-      var camQ = m.q, camSrc = e.source;
+      var camQ = m.q, camSrc = e.source; islHb = +m.hb || 0;
       if (!window.__stormCamFx) { islandOpen(camQ, camSrc); return; } /* v144: smooth island open (the old black pulse below is no longer used) */
       if (document.getElementById('camwrap') || window.__stormCamFx) { openCam(camQ, camSrc); return; }
       window.__stormCamFx = true;
