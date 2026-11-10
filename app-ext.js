@@ -1458,7 +1458,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   document.head.appendChild(st);
   var b = document.body || document.documentElement; b.classList.add('st-pre');
   var go = false;
-  function show() { if (go) return; go = true; setTimeout(function () { var bd = document.body; bd.classList.remove('st-pre'); bd.classList.add('st-bounce2'); setTimeout(function () { bd.classList.remove('st-bounce2'); }, 1300); }, 2000); }
+  function show() { if (go) return; go = true; setTimeout(function () { var bd = document.body; bd.classList.remove('st-pre'); bd.classList.add('st-bounce2'); setTimeout(function () { bd.classList.remove('st-bounce2'); }, 1300); }, 0); /* v149 (Dave): with the page and titles, not 2s later */ }
   window.addEventListener('message', function (ev) { if (ev.data && ev.data.storm === 'landed') show(); });
   if (window.parent === window) { if (document.readyState === 'complete') show(); else window.addEventListener('load', show); }
   setTimeout(function () { if (!go) document.body.classList.remove('st-pre'); }, 45000); /* safety: never leave the buttons hidden */
@@ -1485,5 +1485,13 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#drawer .drawer-item > svg *, #drawer .drawer-item > .v116-ico *, #drawer .drawer-item > .drawer-chk-ico * { stroke: #fff !important; }'
     + '#drawer .drawer-item > svg [fill]:not([fill="none"]), #drawer .drawer-item > .v116-ico [fill]:not([fill="none"]), #drawer .drawer-item > .drawer-chk-ico [fill]:not([fill="none"]) { fill: #fff !important; }'
     + '#drawer .drawer-item > img.res-ico, #drawer .drawer-item > img.chk-ico-img, #drawer .drawer-item > .res-ico img, #drawer .drawer-item > .chk-ico-img img { filter: brightness(0) invert(1); }';
+  document.head.appendChild(st);
+})();
+
+/* v149 (Hark, 2026-11-10, Dave): the bottom icons load at the same time as the titles, with a clean smooth fade (no bounce). */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v149-css';
+  st.textContent = '@keyframes stSmooth { 0% { opacity: 0; transform: translateY(8px) scale(.96); } 100% { opacity: 1; transform: none; } }'
+    + 'body.st-bounce #fab-dock > *, body.st-bounce2 #fab-dock > * { animation: stSmooth .55s cubic-bezier(.25,.8,.3,1) both !important; animation-delay: 0s !important; }';
   document.head.appendChild(st);
 })();
