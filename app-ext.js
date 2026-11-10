@@ -1615,3 +1615,19 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   document.addEventListener('visibilitychange', function () { if (!document.hidden && busy) setTimeout(back, 150); });
   window.addEventListener('pageshow', function () { if (busy) setTimeout(back, 150); });
 })();
+
+/* v157 (Hark, 2026-11-10, Dave): tapping the camera button sends the bottom-right icons (cart, camera, labels) away with the reverse of
+   their fade-in; closing the camera with the X brings them back with their fade-in. */
+(function () {
+  if (typeof openScanner !== 'function') return;
+  var st = document.createElement('style'); st.id = 'storm-v157-css';
+  st.textContent = '@keyframes stSmoothOut { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(8px) scale(.96); } }'
+    + 'body.st-camhide #fab-dock > * { animation: stSmoothOut .55s cubic-bezier(.7,0,.75,.2) both !important; animation-delay: 0s !important; pointer-events: none !important; }'
+    + 'body.st-camback #fab-dock > * { animation: stSmooth .55s cubic-bezier(.25,.8,.3,1) both !important; animation-delay: 0s !important; }';
+  document.head.appendChild(st);
+  var b = document.body, t = null, safety = null;
+  function show() { if (!b.classList.contains('st-camhide')) return; b.classList.remove('st-camhide'); b.classList.remove('st-camback'); void b.offsetWidth; b.classList.add('st-camback'); clearTimeout(t); t = setTimeout(function () { b.classList.remove('st-camback'); }, 650); }
+  var _os = openScanner;
+  openScanner = function () { b.classList.remove('st-camback'); b.classList.add('st-camhide'); return _os.apply(this, arguments); };
+  window.addEventListener('message', function (e) { var d = e.data; if (!d) return; if (d.storm === 'camClosed') show(); });
+})();
