@@ -1470,7 +1470,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var st = document.createElement('style'); st.id = 'storm-v147-css';
   st.textContent = '#drawer .drawer-qt-logo { display: none !important; } #drawer .drawer-jobber[data-jobber] img { background: transparent !important; }';
   document.head.appendChild(st);
-  var CLEAR = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/jobber-logo-clear.png';
+  var CLEAR = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/jobber-logo-white.png?v=1'; /* v150: white letters, hi-res */
   function swap() { var i = document.querySelector('.drawer-jobber[data-jobber] img'); if (i && i.src !== CLEAR) i.src = CLEAR; }
   swap(); document.addEventListener('DOMContentLoaded', swap); setTimeout(swap, 1500);
 })();
@@ -1494,4 +1494,17 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   st.textContent = '@keyframes stSmooth { 0% { opacity: 0; transform: translateY(8px) scale(.96); } 100% { opacity: 1; transform: none; } }'
     + 'body.st-bounce #fab-dock > *, body.st-bounce2 #fab-dock > * { animation: stSmooth .55s cubic-bezier(.25,.8,.3,1) both !important; animation-delay: 0s !important; }';
   document.head.appendChild(st);
+})();
+
+/* v150 (Hark, 2026-11-10, Dave): menu footer: CompanyCam wording in white (icon keeps its blue), and the Bin Labels heading icon
+   gets the same glass tile as the other menu icons. */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v150-css';
+  st.textContent = '#drawer .drawer-section-head > .lbl-ico { box-sizing: border-box !important; width: 34px !important; height: 34px !important; padding: 6px !important; border-radius: 10px !important;'
+    + ' background: rgba(15,23,32,.38) !important; border: 1px solid rgba(255,255,255,.5) !important; box-shadow: 0 2px 10px rgba(0,0,0,.2) !important; margin-right: 10px; }'
+    + '#drawer .drawer-section-head > .lbl-ico * { stroke: #fff !important; }';
+  document.head.appendChild(st);
+  var CC = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/companycam-white.png?v=1';
+  function swap() { var i = document.querySelector('.drawer-jobber[data-ccam] img'); if (i && i.src !== CC) i.src = CC; }
+  swap(); document.addEventListener('DOMContentLoaded', swap); setTimeout(swap, 1500);
 })();
