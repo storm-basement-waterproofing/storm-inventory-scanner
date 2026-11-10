@@ -1647,3 +1647,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#pick-sheet.fx-exit { animation: cartExit .3s cubic-bezier(.55,0,.8,.3) forwards !important; }';
   document.head.appendChild(st);
 })();
+
+/* v160 (Hark, 2026-11-10, Dave): in the cart, "Copy RichTech order" matches the "Open RichTech order page" button (dark glass, white border). */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v160-css';
+  st.textContent = '#pick-sheet .pick-copy[data-pick-copy] { background: rgba(15,23,32,.38) !important; color: #fff !important; border: 1px solid rgba(255,255,255,.5) !important; box-shadow: none !important; }';
+  document.head.appendChild(st);
+})();
