@@ -1925,3 +1925,117 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     } catch (e) {}
   }, true);
 })();
+
+/* v166 (Hark, 2026-11-10, Dave): Item details photo rides in WITH the panel instead of popping in after it.
+   Cause: the details photo is a fresh <img> whose picture has to come over the network again (the item's Drive-thumbnail address,
+   rewritten to the full-size copy; the browser does not reuse the list's copy because the centering step fetches the same address in
+   CORS mode and the host varies on Origin). Until it arrived, the v151/v164 code held the photo at opacity 0 and then faded it up over
+   .26 s, so on a phone the panel slid in blank and the photo (and its white box, which is the <img> itself) showed up after it landed.
+   The v164 cross-fade copy had the same problem (another fresh <img>, so a sharper swap could flash an empty white box), and the
+   in-between copies (uncentered, then centered, then sharp uncentered, then sharp centered) changed the product's size on screen.
+   Now: the photo and its box are fully visible from the first frame (no opacity hold or fade). The moment an item opens, the picture
+   the list card is already showing is painted into the photo's box (a canvas laid exactly over it), already framed the way the final
+   centered HD photo is framed (CROP below = the v96 centering crop of each assets/items-hd photo, measured once), so it moves with the
+   panel as one piece. The cover stays put while the copies swap underneath and only cross-fades (.2 s, in place) once the final framed
+   picture has loaded and decoded: same box, same size, no flash, no faint state. Any later swap is covered and cross-faded the same way. */
+(function () {
+  var CROP = {"az-01":[0.0657,0.4264,0.9293,0.1488,0.0556,0.0595,"255,255,255"],"az-02":[0.2798,0.0168,0.3051,0.9686,0.054,0.0579,"255,255,255"],"az-03":0,"az-04":0,"az-05":0,"az-06":0,"az-07":[0.0247,0.1872,0.9465,0.6878,0.0566,0.0606,"255,255,255"],"hd-01":[0.1273,0.1818,0.6929,0.618,0.0414,0.0444,"255,255,255"],"hd-02":0,"hd-03":0,"hd-04":0,"hd-05":[0.0652,0.2803,0.6586,0.4751,0.0394,0.0422,"255,255,255"],"hd-06":[0.1091,0.3074,0.5687,0.3918,0.0343,0.0368,"255,255,255"],"hd-07":0,"hd-08":0,"hd-09":0,"hd-10":0,"hd-100":[0.0475,0.1277,0.9051,0.8598,0.0545,0.0584,"255,255,255"],"hd-101":[0.3273,0.033,0.2808,0.9269,0.052,0.0557,"255,255,255"],"hd-102":[0.1328,0.2008,0.8121,0.7662,0.0485,0.0519,"255,255,255"],"hd-103":0,"hd-104":[0.1768,0.1169,0.7667,0.849,0.0475,0.0509,"255,255,255"],"hd-11":0,"hd-12":0,"hd-13":0,"hd-14":0,"hd-15":0,"hd-16":0,"hd-17":[0.2379,0.2765,0.4742,0.6466,0.0364,0.039,"255,255,255"],"hd-18":0,"hd-19":0,"hd-20":0,"hd-21":0,"hd-22":0,"hd-23":0,"hd-24":0,"hd-25":0,"hd-26":0,"hd-27":0,"hd-28":0,"hd-29":0,"hd-30":0,"hd-31":0,"hd-32":0,"hd-33":0,"hd-34":0,"hd-35":0,"hd-36":[0.1141,0.2397,0.7939,0.6131,0.0475,0.0509,"255,255,255"],"hd-37":[0.1172,0.2511,0.7652,0.5893,0.046,0.0492,"255,255,255"],"hd-38":[0.1293,0.2543,0.7551,0.5823,0.0455,0.0487,"255,255,255"],"hd-39":[0.1313,0.243,0.753,0.6066,0.0449,0.0482,"255,255,255"],"hd-40":0,"hd-41":0,"hd-42":0,"hd-43":0,"hd-44":0,"hd-45":0,"hd-46":0,"hd-47":0,"hd-49":0,"hd-50":0,"hd-51":0,"hd-52":0,"hd-53":0,"hd-54":0,"hd-55":0,"hd-56":0,"hd-57":0,"hd-58":0,"hd-59":0,"hd-60":[0.2798,0.04,0.3182,0.9389,0.0525,0.0563,"255,255,255"],"hd-61":0,"hd-62":0,"hd-63":0,"hd-64":[0.049,0.0152,0.8631,0.8047,0.052,0.0557,"255,255,255"],"hd-65":0,"hd-66":0,"hd-67":0,"hd-68":0,"hd-69":0,"hd-70":0,"hd-71":0,"hd-72":0,"hd-73":0,"hd-74":0,"hd-75":0,"hd-76":0,"hd-77":0,"hd-78":0,"hd-79":0,"hd-80":[0.148,0.0763,0.7086,0.9167,0.0515,0.0552,"255,255,255"],"hd-81":0,"hd-82":0,"hd-83":0,"hd-84":0,"hd-85":0,"hd-86":0,"hd-87":0,"hd-88":0,"hd-89":0,"hd-90":0,"hd-91":0,"hd-92":0,"hd-93":0,"hd-94":0,"hd-95":0,"hd-96":0,"hd-97":0,"hd-98":[0.1773,0.1163,0.7662,0.8496,0.0475,0.0509,"255,255,255"],"hd-99":0,"rt-02":[0.1394,0.1364,0.3758,0.7311,0.0409,0.0438,"255,255,255"],"rt-03":0,"rt-04":[0.0788,0.0823,0.5131,0.8274,0.0465,0.0498,"255,255,255"],"rt-06":[0.104,0.2267,0.7298,0.5087,0.0439,0.0471,"255,255,255"],"rt-07":0,"rt-08":[0.0949,0.105,0.748,0.6553,0.0449,0.0482,"255,255,255"],"rt-09":[0.1586,0.1347,0.4747,0.7684,0.0429,0.046,"255,255,255"],"rt-10":[0.149,0.085,0.3091,0.8258,0.0465,0.0498,"255,255,255"],"rt-11":0,"rt-12":[0.0434,0.2587,0.7763,0.4843,0.0465,0.0498,"255,255,255"],"rt-13":[0.1672,0.0698,0.2818,0.8615,0.0485,0.0519,"255,255,255"],"rt-14":0,"rt-16":[0.0439,0.3101,0.7838,0.3799,0.047,0.0503,"255,255,255"],"rt-17":[0.0566,0.1585,0.7455,0.6786,0.0449,0.0482,"255,255,255"],"rt-18":[0.0399,0.4389,0.7924,0.1169,0.0475,0.0509,"255,255,255"],"rt-19":[0.0641,0.1764,0.7288,0.6456,0.0439,0.0471,"255,255,255"],"rt-20":[0.1485,0.3425,0.3773,0.4957,0.0278,0.0298,"255,255,255"],"rt-21":0,"rt-22":[0.0414,0.1174,0.7879,0.7532,0.0475,0.0509,"255,255,255"],"rt-23":[0.0975,0.1201,0.7662,0.678,0.046,0.0492,"255,255,255"],"rt-24":[0.0444,0.1239,0.7712,0.7419,0.0465,0.0498,"255,255,255"],"rt-25":[0.0359,0.2208,0.796,0.5644,0.048,0.0514,"255,255,255"],"rt-26":[0.1076,0.1515,0.5227,0.724,0.0404,0.0433,"255,255,255"],"rt-29":[0.0505,0.2359,0.7808,0.5611,0.047,0.0503,"255,255,255"],"rt-30":[0.0944,0.0725,0.5889,0.8512,0.0475,0.0509,"255,255,255"],"rt-33":[0.1384,0.1039,0.6616,0.7256,0.0404,0.0433,"255,255,255"],"rt-34":[0.1571,0.1261,0.4348,0.7603,0.0424,0.0455,"255,255,255"],"rt-35":[0.0652,0.1753,0.7515,0.6358,0.0449,0.0482,"255,255,255"],"rt-36":[0.1359,0.0839,0.7404,0.6802,0.0444,0.0476,"255,255,255"],"rt-37":0,"rt-38":[0.2197,0.1061,0.5056,0.7976,0.0444,0.0476,"255,255,255"],"rt-39":[0.1859,0.5103,0.1737,0.2451,0.0136,0.0146,"255,255,255"],"rt-40":[0.0944,0.0725,0.5889,0.8512,0.0475,0.0509,"255,255,255"],"rt-41":[0.1197,0.125,0.4364,0.7619,0.0424,0.0455,"255,255,255"]};
+  var HDU = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/items-hd/';
+  var st = document.createElement('style'); st.id = 'storm-v166-css';
+  st.textContent = 'html body #detail img.detail-photo, html body #detail img.detail-photo.st-wait, html body #detail img.detail-photo.st164-pend, html body #detail img.detail-photo.st164-show { opacity: 1 !important; transition: none !important; animation: none !important; visibility: visible !important; }'
+    + '#detail canvas.st166-cover { position: absolute; z-index: 3; margin: 0 !important; pointer-events: none; opacity: 1; transition: opacity .2s ease-out; box-sizing: border-box; display: block; }'
+    + '#detail img.st164-ghost { display: none !important; }';
+  document.head.appendChild(st);
+  var BOX = ['borderTopWidth', 'borderTopStyle', 'borderTopColor', 'borderRightWidth', 'borderRightStyle', 'borderRightColor', 'borderBottomWidth', 'borderBottomStyle', 'borderBottomColor', 'borderLeftWidth', 'borderLeftStyle', 'borderLeftColor', 'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius', 'backgroundColor', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'];
+  function cropOf(bin) { if (!bin) return undefined; var k = [bin, String(bin).toLowerCase(), String(bin).toUpperCase()]; for (var i = 0; i < 3; i++) if (CROP.hasOwnProperty(k[i])) return CROP[k[i]]; return undefined; }
+  function shown(bin, raw) { /* the same item's picture already on screen (list card / cart line), loaded */
+    var best = null;
+    try {
+      var c = document.querySelectorAll('img');
+      for (var i = 0; i < c.length; i++) {
+        var im = c[i]; if (im.closest('#detail')) continue;
+        var s = im.getAttribute('src'); if (!s || !(im.complete && im.naturalWidth)) continue;
+        var mine = (bin && im.getAttribute('data-details') === bin) || (raw && (s === raw || im.getAttribute('data-lo') === raw));
+        if (mine && (!best || im.naturalWidth > best.naturalWidth)) best = im;
+      }
+    } catch (e) {}
+    return best;
+  }
+  /* canvas the size of the photo box with src drawn the way the <img> draws it (object-fit); crop = draw it as the v96-centered copy */
+  function paint(im, src, crop) {
+    var w = im.offsetWidth, h = im.offsetHeight; if (!w || !h || !src || !src.naturalWidth) return null;
+    var cs = getComputedStyle(im), cv = document.createElement('canvas');
+    cv.className = 'st166-cover'; cv.setAttribute('aria-hidden', 'true');
+    BOX.forEach(function (k) { cv.style[k] = cs[k]; });
+    cv.style.width = w + 'px'; cv.style.height = h + 'px';
+    function n(k) { return parseFloat(cs[k]) || 0; }
+    var cw = w - n('borderLeftWidth') - n('borderRightWidth') - n('paddingLeft') - n('paddingRight');
+    var ch = h - n('borderTopWidth') - n('borderBottomWidth') - n('paddingTop') - n('paddingBottom'); if (cw <= 0 || ch <= 0) return null;
+    var dpr = Math.min(3, window.devicePixelRatio || 1);
+    cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+    var nw = src.naturalWidth, nh = src.naturalHeight, sx = 0, sy = 0, sw = nw, sh = nh, px = 0, py = 0, vw = nw, vh = nh;
+    if (crop && crop.length === 7) { sx = crop[0] * nw; sy = crop[1] * nh; sw = crop[2] * nw; sh = crop[3] * nh; px = crop[4] * nw; py = crop[5] * nh; vw = sw + 2 * px; vh = sh + 2 * py; }
+    var fit = cs.objectFit, k;
+    if (fit === 'cover') k = Math.max(cw / vw, ch / vh); else if (fit === 'fill') k = 0; else { k = Math.min(cw / vw, ch / vh); if (fit === 'scale-down') k = Math.min(k, 1); }
+    var x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.scale(dpr, dpr);
+    var ox, oy, kx, ky;
+    if (k) { kx = ky = k; ox = (cw - vw * k) / 2; oy = (ch - vh * k) / 2; } else { kx = cw / vw; ky = ch / vh; ox = oy = 0; }
+    if (crop && crop.length === 7 && crop[6] !== 't') { x.fillStyle = 'rgb(' + crop[6] + ')'; x.fillRect(ox, oy, vw * kx, vh * ky); }
+    x.drawImage(src, sx, sy, sw, sh, ox + px * kx, oy + py * ky, sw * kx, sh * ky);
+    return cv;
+  }
+  function copy(cv) { var c = cv.cloneNode(false); c.width = cv.width; c.height = cv.height; c.getContext('2d').drawImage(cv, 0, 0); c.style.opacity = '1'; return c; }
+  function place(im, cv) {
+    cv.style.left = '0px'; cv.style.top = '0px';
+    im.parentNode.insertBefore(cv, im.nextSibling);
+    var a = cv.getBoundingClientRect(), b = im.getBoundingClientRect();
+    cv.style.left = (b.left - a.left) + 'px'; cv.style.top = (b.top - a.top) + 'px';
+  }
+  function prime() {
+    var bin = (typeof currentDetailBin !== 'undefined') && currentDetailBin; if (!bin) return;
+    var d = document.getElementById('detail'), im = d && d.querySelector('img.detail-photo'); if (!im || im.__st166 || !im.parentNode) return;
+    im.__st166 = true;
+    var it = (typeof findItem === 'function') && findItem(bin), raw = it && it.photoUrl, crop = cropOf(bin), t0 = Date.now();
+    var hd = HDU + encodeURIComponent(bin) + '.jpg';
+    var snap = null, cover = null, tries = 0, lastUrl = '';
+    function ready() { return im.complete && im.naturalWidth > 0; }
+    function framed(s) { /* is this copy framed like the final photo? (otherwise a lift would change the product's size) */
+      if (Date.now() - t0 > 5000 || crop === undefined) return true;
+      if (crop && crop.length === 7) return /^data:/.test(s);
+      return s.indexOf(hd) === 0; /* already centered: the sharp HD copy as is */
+    }
+    function lift() { /* the right picture is decoded underneath: fade the cover off it */
+      var c = cover; cover = null; if (!c) return;
+      requestAnimationFrame(function () { c.style.opacity = '0'; setTimeout(function () { if (c.parentNode) c.parentNode.removeChild(c); }, 260); });
+    }
+    function settle() {
+      if (!im.isConnected || !ready()) return;
+      var s0 = im.getAttribute('src') || '';
+      var ok = function () {
+        if (!im.isConnected || im.getAttribute('src') !== s0 || !ready()) return;
+        if (!framed(s0) && !(/^data:/.test(s0) && lastUrl.indexOf(hd) === 0)) return;
+        try { var p = paint(im, im, null); if (p) snap = p; } catch (e) {}
+        lift();
+      };
+      if (im.decode) im.decode().then(ok, ok); else ok();
+    }
+    function coverNow() { if (cover || !snap || !im.isConnected) return; try { cover = copy(snap); place(im, cover); } catch (e) { cover = null; } }
+    try { snap = paint(im, shown(bin, raw), crop); } catch (e) { snap = null; }
+    im.classList.remove('st164-pend', 'st-wait');
+    Promise.resolve().then(function () { im.classList.remove('st164-pend', 'st-wait'); });
+    if (snap) coverNow(); else settle();
+    new MutationObserver(function (ms) {
+      ms.forEach(function (m) {
+        if (m.attributeName !== 'src') return;
+        var s = im.getAttribute('src') || ''; if (!/^data:/.test(s)) lastUrl = s;
+        if (m.oldValue !== s) { im.classList.remove('st164-pend', 'st-wait'); if (!cover && snap && !(ready() && framed(s))) coverNow(); settle(); }
+      });
+    }).observe(im, { attributes: true, attributeFilter: ['src'], attributeOldValue: true });
+    lastUrl = im.getAttribute('src') || '';
+    new MutationObserver(function () { if (im.parentNode) im.parentNode.querySelectorAll(':scope > img.st164-ghost').forEach(function (g) { g.remove(); }); })
+      .observe(im.parentNode, { childList: true });
+    im.addEventListener('load', settle);
+    (function poll() { if (!im.isConnected || ++tries > 400) return; if (cover) settle(); setTimeout(poll, 60); })();
+  }
+  if (typeof openDetail === 'function') { var _o = openDetail; openDetail = function () { var r = _o.apply(this, arguments); try { prime(); } catch (e) {} return r; }; }
+})();
