@@ -1654,3 +1654,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   st.textContent = '#pick-sheet .pick-copy[data-pick-copy] { background: rgba(15,23,32,.38) !important; color: #fff !important; border: 1px solid rgba(255,255,255,.5) !important; box-shadow: none !important; }';
   document.head.appendChild(st);
 })();
+
+/* v161 (Hark, 2026-11-10, Dave): every Copy button in the cart (Home Depot, RichTech, Hilti, AutoZone) uses the same dark glass as Open RichTech. */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v161-css';
+  st.textContent = '#pick-sheet .pick-copy { background: rgba(15,23,32,.38) !important; color: #fff !important; border: 1px solid rgba(255,255,255,.5) !important; box-shadow: none !important; }';
+  document.head.appendChild(st);
+})();
