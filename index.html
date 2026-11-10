@@ -103,6 +103,16 @@
   #wpick.in button[data-wm="job"] { animation-delay: .28s; }
   @keyframes wpRise { 0% { opacity: 0; transform: translateY(46px); } 100% { opacity: 1; transform: none; } }
   #wpick { transition: opacity .9s ease; }
+  /* v139 (Hark, 2026-11-10, Dave): opener buttons pop in like his reference video: each grows from 85% to full size while fading in and sharpening from a soft blur, Stock first, then Order for Jobs; on a tap both play it backwards in the same order, then the app opens. Title keeps its rise. */
+  #wpick.in button { animation: wpPop .42s cubic-bezier(.22,.8,.3,1) backwards; transform-origin: 50% 50%; will-change: transform, opacity, filter; }
+  #wpick.in button[data-wm="stock"] { animation-delay: .32s; }
+  #wpick.in button[data-wm="job"] { animation-delay: .40s; }
+  @keyframes wpPop { 0% { opacity: 0; transform: scale(.85); filter: blur(6px); } 100% { opacity: 1; transform: none; filter: blur(0); } }
+  #wpick.exiting button, #wpick.exiting button.picked { animation: wpPopOut .34s cubic-bezier(.5,0,.75,.4) forwards; transition: none; }
+  #wpick.exiting button[data-wm="stock"] { animation-delay: 0s; }
+  #wpick.exiting button[data-wm="job"] { animation-delay: .08s; }
+  #wpick.exiting { pointer-events: none; }
+  @keyframes wpPopOut { 0% { opacity: 1; transform: none; filter: blur(0); } 100% { opacity: 0; transform: scale(.85); filter: blur(6px); } }
   #boot.leaving #bootvid { opacity: 0 !important; transition: opacity .45s ease-in !important; }
   /* v132 (Hark, 2026-11-09): the opening video fills the whole screen edge to edge on every phone and iPad (centred, trims only what does not fit) */
   #bootvid { object-fit: cover !important; }
@@ -186,10 +196,11 @@
     function nextVid() { if (finished) return; vi = (vi + 1) % VIDS.length; bv.src = VIDS[vi]; try { var pr2 = bv.play(); if (pr2 && pr2.catch) pr2.catch(function () {}); } catch (e) {} }
     bv.addEventListener('ended', nextVid); bv.addEventListener('error', function () { if (finished) return; vErr++; if (vErr >= VIDS.length) { VIDS = ['assets/boot-montage.mp4?v=2']; vi = -1; vErr = -99; } nextVid(); }); bv.addEventListener('playing', function () { if (vErr > 0) vErr = 0; });
     if (wp) { setTimeout(function () { if (!picked) wp.classList.add('in'); }, 250);
-      wp.addEventListener('click', function (e) { var b = e.target.closest ? e.target.closest('[data-wm]') : null; if (!b || picked) return; picked = b.getAttribute('data-wm'); b.classList.add('picked');
+      wp.addEventListener('click', function (e) { var b = e.target.closest ? e.target.closest('[data-wm]') : null; if (!b || picked) return; picked = b.getAttribute('data-wm');
         try { localStorage.setItem('stormWrapMode', picked); } catch (e2) {}
-        wp.classList.add('out'); boot.classList.add('leaving'); /* question and video fade out to full black */
-        setTimeout(function () { blackAt = Date.now(); }, 470); }); }
+        wp.classList.add('exiting'); /* v139: buttons pop out in reverse first */
+        setTimeout(function () { wp.classList.add('out'); boot.classList.add('leaving'); /* question and video fade out to full black */
+          setTimeout(function () { blackAt = Date.now(); }, 470); }, 400); }); }
     function on() { if (!finished) bv.classList.add('on'); }
     bv.addEventListener('playing', on); try { var pr = bv.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {} })();
   requestAnimationFrame(tick);
