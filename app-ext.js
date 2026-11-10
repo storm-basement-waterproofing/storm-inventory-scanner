@@ -1471,7 +1471,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var st = document.createElement('style'); st.id = 'storm-v147-css';
   st.textContent = '#drawer .drawer-qt-logo { display: none !important; } #drawer .drawer-jobber[data-jobber] img { background: transparent !important; }';
   document.head.appendChild(st);
-  var CLEAR = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/jobber-logo-white.png?v=1'; /* v150: white letters, hi-res */
+  var CLEAR = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/jobber-logo-white-open.png?v=1'; /* v150: white letters, hi-res. v164: same logo with a see-through center */
   function swap() { var i = document.querySelector('.drawer-jobber[data-jobber] img'); if (i && i.src !== CLEAR) i.src = CLEAR; }
   swap(); document.addEventListener('DOMContentLoaded', swap); setTimeout(swap, 1500);
 })();
@@ -1693,4 +1693,130 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     }, 160);
   }
   ['pointerup', 'pointercancel', 'touchend', 'mouseup'].forEach(function (t) { document.addEventListener(t, release, true); });
+})();
+
+/* v164 (Hark, 2026-11-10, Dave): 
+   1. Side menu opens in one smooth slide. The old .drawer transform/opacity transition was running at the same time as the v159
+      slide-in animation, so the menu slid out, jumped back a little when the transition ended, then slid out again. The transition is
+      off now; the slide animation alone moves the menu, in and out.
+   2. Item details photo keeps its space and fades in with the details window. When it sharpens (centered copy, then the HD copy),
+      the new picture cross-fades over the old one in the same box, so it never jumps or blinks.
+   3-7. Every title in the Bin Labels pages (Home Depot, RichTech, AutoZone/Box Truck, Hilti), the Label details page, the Logos page
+      and Media uses the main-screen category title: dark band fading right, white side line, white uppercase type.
+   8. The Pull List (clipboard) is the same frosted glass as the cart, with the same glass buttons and fields, and it closes with the
+      cart's slide down. Find a Job matches.
+   9. A divider line between Jobber and CompanyCam in the menu footer, the same line as between the menu sections.
+   10. The Jobber logo's center is see-through (assets/jobber-logo-white-open.png). */
+(function () {
+  var BAND = 'linear-gradient(90deg, rgba(15,23,32,.62) 0%, rgba(15,23,32,.5) 55%, rgba(15,23,32,.22) 78%, rgba(15,23,32,0) 96%)';
+  var GL = 'rgba(15,23,32,.38)', G = 'rgba(15,23,32,.24)', EDGE = '1px solid rgba(255,255,255,.5)';
+  var T = 'html body .detail-overlay .bl-cat, html body #res-media .bl-cat, html body #res-view .detail-body > .detail-name, html body #lbl-detail .detail-flow h2, html body #lbl-detail .detail-features h2';
+  var TB = T.split(', ').map(function (s) { return s + '::before'; }).join(', ');
+  var st = document.createElement('style'); st.id = 'storm-v164-css';
+  st.textContent = ''
+    /* 1. drawer: one slide, no competing transition */
+    + 'html body #drawer, html body #drawer.open, html body #drawer.drw-out { transition: none !important; }'
+    + '@keyframes drwSlideIn164 { 0% { transform: translate3d(-102%,0,0); } 100% { transform: translate3d(0,0,0); } }'
+    + '@keyframes drwSlideOut164 { 0% { transform: translate3d(0,0,0); } 100% { transform: translate3d(-102%,0,0); } }'
+    + 'html body #drawer.open { animation: drwSlideIn164 .34s cubic-bezier(.22,.8,.3,1) both !important; }'
+    + 'html body #drawer.drw-out { animation: drwSlideOut164 .3s cubic-bezier(.55,0,.8,.3) both !important; }'
+    /* 2. details photo */
+    + 'html body #detail img.detail-photo { display: block; box-sizing: border-box; height: min(320px, 72vw) !important; max-height: none; }'
+    + 'html body #detail img.detail-photo.st-wait { opacity: 1 !important; transition: opacity .26s ease-out !important; }'
+    + 'html body #detail img.detail-photo.st164-pend { opacity: 0 !important; transition: none !important; }'
+    + 'html body #detail img.detail-photo.st164-show { transition: opacity .26s ease-out !important; }'
+    + '#detail img.st164-ghost { position: absolute; z-index: 2; margin: 0 !important; pointer-events: none; opacity: 1; transition: opacity .26s ease-out; -webkit-user-select: none; user-select: none; }'
+    /* 3-7. titles = main-screen category title */
+    + T + ' { position: relative !important; display: block; margin: 22px -16px 8px !important; padding: 9px 12px 9px 28px !important; border: 0 !important; border-left: 0 !important; border-radius: 0 !important;'
+    + ' background: ' + BAND + ' !important; -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3);'
+    + ' font-size: 14px !important; font-weight: 800 !important; letter-spacing: .09em !important; line-height: 1.25 !important; text-transform: uppercase !important; color: #fff !important; text-shadow: none !important; }'
+    + TB + ' { content: "" !important; display: block !important; position: absolute !important; left: 12px !important; top: 8px !important; bottom: 8px !important; width: 4px !important; border-radius: 2px !important; background: #fff !important; }'
+    + 'html body #res-view .detail-body > .detail-name { margin-top: 18px !important; }'
+    /* 8. Pull List = cart glass */
+    + 'html body #pull-sheet { background: ' + G + ' !important; -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); border-top: ' + EDGE + '; box-shadow: 0 -8px 30px rgba(0,0,0,.25) !important; color: #fff; }'
+    + 'html body #pull-sheet .pick-sheet-head, html body #pull-sheet .pick-sheet-head h2, html body #pull-sheet .pick-line-name, html body #pull-sheet .pick-empty, html body #pull-sheet .pick-sheet-close, html body #pull-sheet .pick-sheet-foot div { color: #fff !important; }'
+    + 'html body #pull-sheet .pick-line-code, html body #pull-sheet .pull-sub { color: rgba(255,255,255,.72) !important; }'
+    + 'html body #pull-sheet .pick-line, html body #pull-sheet .pick-sheet-foot { border-color: rgba(255,255,255,.18) !important; }'
+    + 'html body #pull-sheet .pull-qty { background: transparent !important; border: ' + EDGE + ' !important; }'
+    + 'html body #pull-sheet .pull-qty b { color: #fff !important; } html body #pull-sheet .pull-qty span { color: rgba(255,255,255,.72) !important; }'
+    + 'html body #pull-sheet .pick-line img { background: #fff !important; }'
+    + 'html body #pull-sheet .jc-in, html body #job-find .jc-in { background: rgba(255,255,255,.1) !important; border: ' + EDGE + ' !important; color: #fff !important; }'
+    + 'html body #pull-sheet .jc-in::placeholder, html body #job-find .jc-in::placeholder { color: rgba(255,255,255,.6) !important; }'
+    + 'html body #pull-sheet .jc-in:focus, html body #job-find .jc-in:focus { border-color: #fff !important; box-shadow: 0 0 0 3px rgba(255,255,255,.18) !important; }'
+    + 'html body #pull-sheet .jc-in.st-need { border-color: #fca5a5 !important; box-shadow: 0 0 0 3px rgba(248,113,113,.35) !important; }'
+    + 'html body #pull-sheet .pull-save, html body #pull-sheet .pull-print, html body #pull-sheet .jc-find, html body #pull-sheet .jc-clear,'
+    + ' html body #job-find .pull-print, html body #job-find .jc-clear, html body #job-find .jf-btn { background: ' + GL + ' !important; color: #fff !important; border: ' + EDGE + ' !important; box-shadow: none !important; }'
+    + 'html body #pull-sheet button:disabled { opacity: .5 !important; }'
+    + '@keyframes pullExit164 { 0% { transform: translate3d(0,0,0); } 100% { transform: translate3d(0,102%,0); } }'
+    + 'html body #pull-sheet.fx-exit { animation: pullExit164 .3s cubic-bezier(.55,0,.8,.3) forwards !important; transition: none !important; }'
+    + 'html body #job-find .jf-card { background: ' + G + ' !important; -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); border: ' + EDGE + '; color: #fff; }'
+    + 'html body #job-find h2, html body #job-find .jf-name, html body #job-find .jf-line, html body #job-find .jf-line b { color: #fff !important; }'
+    + 'html body #job-find .jf-addr { color: rgba(255,255,255,.85) !important; } html body #job-find .jf-meta, html body #job-find .jf-empty { color: rgba(255,255,255,.7) !important; }'
+    + 'html body #job-find .jf-item { background: rgba(255,255,255,.08) !important; border: 1px solid rgba(255,255,255,.3) !important; color: #fff !important; }'
+    + 'html body #job-find .jf-lines, html body #job-find .jf-line { border-color: rgba(255,255,255,.18) !important; }'
+    + 'html body #job-find .jf-hint { color: rgba(255,255,255,.7) !important; }'
+    + 'html body #job-find .jf-x { background: ' + GL + ' !important; border: ' + EDGE + ' !important; color: #fff !important; }'
+    /* 9. footer divider: same line as between the menu sections (1px solid rgba(255,255,255,.18)), full menu width */
+    + 'html body #drawer .drawer-foot .st164-div { display: block; height: 0; margin: 6px -16px; border: 0; border-top: 1px solid rgba(255,255,255,.18); }';
+  document.head.appendChild(st);
+
+  /* 2. photo: show with the window, cross-fade every later swap */
+  function ghost(im, oldSrc) {
+    if (!oldSrc || !im.isConnected || im.classList.contains('st164-pend') || !im.offsetWidth) return;
+    var g = document.createElement('img'), cs = getComputedStyle(im);
+    g.className = 'st164-ghost'; g.alt = ''; g.src = oldSrc;
+    ['objectFit', 'objectPosition', 'borderTopWidth', 'borderTopStyle', 'borderTopColor', 'borderRightWidth', 'borderRightStyle', 'borderRightColor', 'borderBottomWidth', 'borderBottomStyle', 'borderBottomColor', 'borderLeftWidth', 'borderLeftStyle', 'borderLeftColor', 'borderRadius', 'backgroundColor', 'padding'].forEach(function (k) { g.style[k] = cs[k]; });
+    g.style.boxSizing = 'border-box'; g.style.width = im.offsetWidth + 'px'; g.style.height = im.offsetHeight + 'px'; g.style.left = '0px'; g.style.top = '0px';
+    im.parentNode.insertBefore(g, im.nextSibling);
+    var a = g.getBoundingClientRect(), b = im.getBoundingClientRect();
+    g.style.left = (b.left - a.left) + 'px'; g.style.top = (b.top - a.top) + 'px';
+    var gone = false;
+    function fade() { if (gone) return; gone = true; requestAnimationFrame(function () { g.style.opacity = '0'; setTimeout(function () { if (g.parentNode) g.parentNode.removeChild(g); }, 320); }); }
+    function ready() { if (im.decode) im.decode().then(fade, fade); else fade(); }
+    if (im.complete && im.naturalWidth) ready(); else { im.addEventListener('load', ready, { once: true }); im.addEventListener('error', fade, { once: true }); }
+    setTimeout(fade, 2500);
+  }
+  function watch(im) {
+    if (!im || im.__st164) return; im.__st164 = true;
+    im.classList.remove('st164-show');
+    if (!(im.complete && im.naturalWidth)) {
+      im.classList.add('st164-pend');
+      var on = function () { if (!im.classList.contains('st164-pend')) return; void im.offsetWidth; im.classList.add('st164-show'); im.classList.remove('st164-pend'); };
+      im.addEventListener('load', on, { once: true }); im.addEventListener('error', on, { once: true }); setTimeout(on, 1500);
+    }
+    new MutationObserver(function (ms) { ms.forEach(function (m) { if (m.attributeName === 'src' && m.oldValue && m.oldValue !== im.getAttribute('src')) ghost(im, m.oldValue); }); })
+      .observe(im, { attributes: true, attributeFilter: ['src'], attributeOldValue: true });
+  }
+  function scan() { document.querySelectorAll('#detail img.detail-photo').forEach(watch); }
+  if (typeof openDetail === 'function') { var _od = openDetail; openDetail = function () { var r = _od.apply(this, arguments); try { scan(); } catch (e) {} return r; }; }
+  try { var d0 = document.getElementById('detail'); if (d0) new MutationObserver(function () { try { scan(); } catch (e) {} }).observe(d0, { childList: true, subtree: true }); } catch (e) {}
+
+  /* 8. Pull List closes with the cart's slide down (X, tap outside) */
+  var pass = false;
+  window.addEventListener('click', function (e) {
+    if (pass) return; var t = e.target; if (!t || !t.closest) return;
+    var x = t.closest('#pull-sheet [data-pull-close]') || (t.id === 'pull-scrim' ? t : null); if (!x) return;
+    var sh = document.getElementById('pull-sheet'); if (!sh || !sh.classList.contains('open')) return;
+    e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation();
+    if (sh.classList.contains('fx-exit')) return;
+    var sc = document.getElementById('pull-scrim'); if (sc) sc.classList.remove('open');
+    sh.classList.add('fx-exit');
+    setTimeout(function () {
+      sh.style.transition = 'none'; pass = true;
+      try { x.click(); } catch (er) { sh.classList.remove('open'); }
+      pass = false; void sh.offsetWidth; sh.classList.remove('fx-exit'); void sh.offsetWidth;
+      setTimeout(function () { sh.style.transition = ''; }, 30);
+    }, 310);
+  }, true);
+
+  /* 9 + 10. menu footer: divider between Jobber and CompanyCam; Jobber logo with a see-through center */
+  var JOB = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/jobber-logo-white-open.png?v=1';
+  function foot() {
+    var j = document.querySelector('#drawer .drawer-foot .drawer-jobber[data-jobber]'), c = document.querySelector('#drawer .drawer-foot [data-ccam]');
+    if (j) { var i = j.querySelector('img'); if (i && i.src !== JOB) i.src = JOB; }
+    if (j && c && c.previousElementSibling === j && !(j.nextElementSibling && j.nextElementSibling.classList.contains('st164-div'))) {
+      var dv = document.createElement('div'); dv.className = 'st164-div'; dv.setAttribute('aria-hidden', 'true'); j.parentNode.insertBefore(dv, c);
+    }
+  }
+  foot(); document.addEventListener('DOMContentLoaded', foot); setTimeout(foot, 1600); setTimeout(foot, 4000);
 })();
