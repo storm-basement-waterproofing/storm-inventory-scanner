@@ -38,6 +38,8 @@
   #edge path { fill: none; stroke: #effaff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 0 99999; }
   #edge path.g1 { stroke: rgba(90,195,255,.55); stroke-width: 6; }
   #edge path.g2 { stroke: rgba(60,170,255,.18); stroke-width: 14; }
+/* v138 (Hark, 2026-11-09, Dave): edge light around the screen toned down 25% */
+#edge path { opacity: .75; }
   /* v88 (Hark, 2026-11-08): the header logo traces on the loading screen at the same time as the edge line (both driven by one clock).
      When the loop closes, the edge and the logo flash together and the page is ready. */
   #boot.done { pointer-events: none; }
