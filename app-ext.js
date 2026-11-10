@@ -1661,3 +1661,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   st.textContent = '#pick-sheet .pick-copy { background: rgba(15,23,32,.38) !important; color: #fff !important; border: 1px solid rgba(255,255,255,.5) !important; box-shadow: none !important; }';
   document.head.appendChild(st);
 })();
+
+/* v162 (Hark, 2026-11-10, Dave): items and titles slide in a pinch faster (1.3s to 1.05s), same easing so it stays smooth. */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v162-css';
+  st.textContent = '#list .card.sfx-bump, #list .cat-head.sfx-head, #list .cat-head.sfx-head::before, #list .cat-head.sfx-head > * { animation-duration: 1.05s !important; }';
+  document.head.appendChild(st);
+})();
