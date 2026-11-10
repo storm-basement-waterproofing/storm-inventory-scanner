@@ -206,6 +206,7 @@
   function drawLogo(q) { for (var k = 0; k < lpaths.length; k++) { var u = Math.max(0, Math.min(1, (q * TT - (DELAYS[k] || 0)) / DUR)); /* v95: linear, so the drop is visibly drawing from the first frame, like the edge */ var L = LL[k] || 900; lpaths[k].style.strokeDasharray = (u * L).toFixed(1) + ' ' + (L + 10).toFixed(1); lpaths[k].style.opacity = u > 0 ? '1' : '0'; } /* v96: real lengths; iPad Safari ignores pathLength on dashes */ }
   function markReady(s2, m) {
     if (m && m.w > 20) {
+      m.vw = window.innerWidth; m.vh = window.innerHeight;
       try { localStorage.setItem(KEY, JSON.stringify({ x: m.x, y: m.y, w: m.w, h: m.h, vw: window.innerWidth, vh: window.innerHeight })); } catch (e) {}
       if (q0 < 0) { if (placeLogo(m)) q0 = p; } /* first launch: start the trace now and let the loop run long enough for it */
       else if (rect && (Math.abs(rect.x - m.x) > 2 || Math.abs(rect.y - m.y) > 2 || Math.abs(rect.w - m.w) > 2)) placeLogo(m);
@@ -263,7 +264,7 @@
     try { (src || f.contentWindow).postMessage({ storm: 'wrapMode', mode: picked }, '*'); } catch (e) {}
     try { edgePath(); } catch (eE) {} p = 1; setEdge();
     var lr = null; try { lr = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (eC) {}
-    var hasLogo = !!(lr && placeLogo(lr)); if (hasLogo) drawLogo(1);
+    if (lr && (lr.vw !== window.innerWidth || lr.vh !== window.innerHeight)) lr = (rect && rect.vw === window.innerWidth && rect.vh === window.innerHeight) ? rect : null; /* v149: only a spot measured at this screen size (landscape/iPad fix) */ var hasLogo = !!(lr && placeLogo(lr)); if (hasLogo) drawLogo(1);
     cover.style.transition = 'none'; cover.style.opacity = '1';
     setTimeout(function () { void boot.offsetWidth; boot.classList.add('noedge', 'pulse1'); }, 120);
     setTimeout(function () { try { (src || f.contentWindow).postMessage({ storm: 'landed', present: present }, '*'); } catch (e) {} cover.style.transition = 'opacity .7s ease'; cover.style.opacity = '0'; }, 120 + 520);
@@ -272,6 +273,9 @@
       var w = document.getElementById('wpick'); if (w && w.parentNode) w.parentNode.removeChild(w); }, 120 + 1500);
   }
   function plainFade() { markReady(null); }
+  /* v149 (Hark, 2026-11-10): the app re-measures its banner logo after the mode tap and on rotate, so the outline trace sits exactly on it in landscape and on iPad */
+  window.addEventListener('message', function (e) { var m = e.data; if (m && m.storm === 'logoPos' && m.w > 20) { var r2 = { x: m.x, y: m.y, w: m.w, h: m.h, vw: window.innerWidth, vh: window.innerHeight }; try { localStorage.setItem(KEY, JSON.stringify(r2)); } catch (x) {} if (!rect || Math.abs(rect.x - m.x) > .5 || Math.abs(rect.y - m.y) > .5 || Math.abs(rect.w - m.w) > .5 || Math.abs(rect.h - m.h) > .5) { placeLogo(r2); if (entering || boot.classList.contains('pulse1')) { lt.style.opacity = ''; drawLogo(1); } } else rect = r2; } });
+  window.addEventListener('resize', function () { try { f.contentWindow.postMessage({ storm: 'logoQ' }, '*'); } catch (x) {} });
   window.addEventListener('message', function (e) { var m = e.data; if (m && m.storm === 'logo') { markReady(e.source, m); if (WPICK && !finished) { try { e.source.postMessage({ storm: 'wrapPicker' }, '*'); } catch (x) {} } } });
   var loaded = false;
   f.addEventListener('load', function () { if (loaded) return; loaded = true; setTimeout(plainFade, 3000); });
@@ -333,7 +337,7 @@
       p = 1; setEdge();
       var lr = (m.logo && m.logo.w > 20) ? m.logo : null;
       if (!lr) { try { lr = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (eC) {} }
-      var hasLogo = !!(lr && placeLogo(lr)); if (hasLogo) drawLogo(1);
+      if (lr && (lr.vw !== window.innerWidth || lr.vh !== window.innerHeight)) lr = (rect && rect.vw === window.innerWidth && rect.vh === window.innerHeight) ? rect : null; /* v149: only a spot measured at this screen size (landscape/iPad fix) */ var hasLogo = !!(lr && placeLogo(lr)); if (hasLogo) drawLogo(1);
       boot.classList.remove('flash', 'pulse1', 'gone', 'done'); boot.style.transition = 'none'; boot.style.opacity = '1';
       edge.style.opacity = '0'; if (lt) lt.style.opacity = '0';
       cover.style.transition = 'opacity .45s ease-in'; cover.style.opacity = '0'; void cover.offsetWidth; cover.style.opacity = '1';
