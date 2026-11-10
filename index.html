@@ -136,7 +136,7 @@
     62% { clip-path: inset(12px 5% calc(100% - 50px) 5% round 19px); }
     100% { clip-path: inset(12px calc(50% - 56px) calc(100% - 44px) calc(50% - 56px) round 16px); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { #camwrap.isl, #camwrap.isl-out { animation: none !important; } }
-  /* v143 (Hark, 2026-11-10, Dave): the opening video always fills the whole screen (iPad, Android, desktop); the blurred side-fill is gone (it lagged on iPad).
+  /* v143 (Hark, 2026-11-10, Dave; redeploy): the opening video always fills the whole screen (iPad, Android, desktop); the blurred side-fill is gone (it lagged on iPad).
      Opener buttons sit near the bottom on lighter, more see-through glass. Their pop and tap animations use only size and fade (no blur), so the iPad stays smooth when you tap. */
   #bootvid { object-fit: cover !important; object-position: 50% 50%; background: #000 !important; transform: translateZ(0); backface-visibility: hidden; }
   #wpick { padding-bottom: calc(44px + env(safe-area-inset-bottom)) !important; }
