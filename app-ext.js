@@ -1341,3 +1341,27 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
+
+/* v137 (Hark, 2026-11-09, Dave): on first entry into the app, the category titles on screen play the same slide
+   (white line pushes the title across, black band sweeps out) about a second after the page fades in. */
+(function () {
+  if (window.__stormIntroFx) return; window.__stormIntroFx = true;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var st = document.createElement('style');
+  st.textContent = '#list .cat-head.sfx-pre { background-size: 0% 100% !important; background-repeat: no-repeat; } #list .cat-head.sfx-pre::before, #list .cat-head.sfx-pre > * { opacity: 0 !important; }';
+  document.head.appendChild(st);
+  var pending = false, played = false;
+  function visHeads() { var out = []; var hs = document.querySelectorAll('#list .cat-head'); var h = window.innerHeight || 800; for (var i = 0; i < hs.length; i++) { var r = hs[i].getBoundingClientRect(); if (r.bottom > 0 && r.top < h) out.push(hs[i]); } return out; }
+  function prep() { if (!pending) return; visHeads().forEach(function (el) { el.classList.add('sfx-pre'); }); }
+  function play() {
+    if (played) return; played = true; pending = false;
+    var hs = visHeads();
+    document.querySelectorAll('#list .cat-head.sfx-pre').forEach(function (el) { if (hs.indexOf(el) < 0) el.classList.remove('sfx-pre'); });
+    hs.forEach(function (el, i) { setTimeout(function () { el.classList.remove('sfx-pre'); el.classList.remove('sfx-head'); void el.offsetWidth; el.classList.add('sfx-head'); setTimeout(function () { el.classList.remove('sfx-head'); }, 1500); }, i * 180); });
+  }
+  function arm(delay) { if (played || pending) return; pending = true; prep(); var l = document.getElementById('list'); if (l) new MutationObserver(prep).observe(l, { childList: true }); setTimeout(play, delay); }
+  window.addEventListener('message', function (e) { var d = e.data; if (d && d.storm === 'wrapMode') arm(2100); });
+  /* opened without the wrapper (no loading screen): play a second after the list first appears */
+  setTimeout(function () { if (window.parent === window && !pending && !played) { (function waitList(n) { if (document.querySelector('#list .cat-head')) arm(1000); else if (n < 40) setTimeout(function () { waitList(n + 1); }, 250); })(0); } }, 300);
+  setTimeout(function () { if (pending && !played) play(); }, 15000);
+})();
