@@ -1508,3 +1508,24 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function swap() { var i = document.querySelector('.drawer-jobber[data-ccam] img'); if (i && i.src !== CC) i.src = CC; }
   swap(); document.addEventListener('DOMContentLoaded', swap); setTimeout(swap, 1500);
 })();
+
+/* v151 (Hark, 2026-11-10, Dave): no glitch when a product photo opens Item details, and no flash when the photo there is tapped.
+   The details photo swaps a few times while it sharpens (trimmed copy, then the HD copy), so it now holds a fixed-height box, stays hidden
+   until the swaps settle, then fades in once. Photos ignore taps for selection/callout so Android doesn't flash a highlight on them. */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v151-css';
+  st.textContent = '#detail img.detail-photo { height: min(320px, 72vw); transition: opacity .22s ease; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; pointer-events: none; }'
+    + '#detail img.detail-photo.st-wait { opacity: 0 !important; transition: none !important; }'
+    + '#list img.photo, .pick-line img, .peek img { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; }';
+  document.head.appendChild(st);
+  function hold(im) {
+    if (!im || im.__stHold) return; im.__stHold = true; im.classList.add('st-wait');
+    var t = null, done = false, t0 = Date.now();
+    function reveal() { if (done) return; done = true; try { mo.disconnect(); } catch (e) {} im.classList.remove('st-wait'); }
+    function settle() { clearTimeout(t); if (Date.now() - t0 > 1100) { reveal(); return; } t = setTimeout(function () { if (im.complete) reveal(); else settle(); }, 240); }
+    var mo = new MutationObserver(settle); mo.observe(im, { attributes: true, attributeFilter: ['src'] });
+    im.addEventListener('load', settle); im.addEventListener('error', reveal);
+    settle(); setTimeout(reveal, 1300);
+  }
+  if (typeof openDetail === 'function') { var _o = openDetail; openDetail = function (bin, isSwipe) { var r = _o.apply(this, arguments); if (!isSwipe) { try { hold(document.querySelector('#detail img.detail-photo')); } catch (e) {} } return r; }; }
+})();
