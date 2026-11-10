@@ -1300,3 +1300,44 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(move, 300); }); else setTimeout(move, 300);
 })();
+
+/* v135 (Hark, 2026-11-09): scroll motion on the item list (Dave).
+   - Item cards: a soft "bumper" as they come up while scrolling down (rise, slight overshoot, settle).
+   - Category titles: the small white line slides in and pushes the title across the black band while it fades in,
+     and the black band sweeps out to the right edge, keeping its fade.
+   Only runs while the list is being scrolled down, so searching or re-rendering never re-animates what is already on screen. */
+(function () {
+  if (window.__stormScrollFx) return; window.__stormScrollFx = true;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var css = ''
+    + '#list .card.sfx-bump { animation: sfxBump .55s cubic-bezier(.22,.9,.3,1.25) both; }'
+    + '@keyframes sfxBump { 0% { opacity: 0; transform: translateY(26px) scale(.97); } 60% { opacity: 1; transform: translateY(-4px) scale(1.005); } 80% { transform: translateY(1.5px) scale(1); } 100% { opacity: 1; transform: none; } }'
+    + '#list .cat-head.sfx-head { background-repeat: no-repeat; animation: sfxBand .7s cubic-bezier(.3,.7,.2,1) both; }'
+    + '@keyframes sfxBand { 0% { background-size: 0% 100%; } 100% { background-size: 100% 100%; } }'
+    + '#list .cat-head.sfx-head::before { animation: sfxLine .7s cubic-bezier(.3,.7,.2,1) both; }'
+    + '@keyframes sfxLine { 0% { transform: translateX(-14px); opacity: 0; } 25% { opacity: 1; } 100% { transform: none; opacity: 1; } }'
+    + '#list .cat-head.sfx-head > * { animation: sfxTitle .7s cubic-bezier(.3,.7,.2,1) both; }'
+    + '@keyframes sfxTitle { 0% { transform: translateX(-42px); opacity: 0; } 100% { transform: none; opacity: 1; } }';
+  var st = document.createElement('style'); st.id = 'storm-scroll-fx'; st.textContent = css; document.head.appendChild(st);
+  var lastY = window.scrollY || 0, down = false, lastScroll = 0;
+  window.addEventListener('scroll', function () { var y = window.scrollY || 0; down = y > lastY; lastY = y; lastScroll = Date.now(); }, { passive: true });
+  if (!('IntersectionObserver' in window)) return;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (!en.isIntersecting) return;
+      var el = en.target; io.unobserve(el);
+      var scrolling = down && (Date.now() - lastScroll < 400);
+      var fromBelow = en.boundingClientRect.top > (en.rootBounds ? en.rootBounds.height * 0.55 : window.innerHeight * 0.55);
+      if (!scrolling || !fromBelow) return;
+      var cls = el.classList.contains('cat-head') ? 'sfx-head' : 'sfx-bump';
+      el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+      setTimeout(function () { el.classList.remove(cls); }, 800);
+    });
+  }, { rootMargin: '0px 0px 60px 0px', threshold: 0 });
+  function watch() { var l = document.getElementById('list'); if (!l) return; l.querySelectorAll('.card, .cat-head').forEach(function (el) { if (!el.__sfx) { el.__sfx = 1; io.observe(el); } }); }
+  function start() {
+    var l = document.getElementById('list'); if (!l) { setTimeout(start, 400); return; }
+    watch(); new MutationObserver(function () { watch(); }).observe(l, { childList: true, subtree: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
