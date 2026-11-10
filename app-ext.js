@@ -1366,7 +1366,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   setTimeout(function () { if (pending && !played) play(); }, 15000);
 })();
 
-/* v140 (Hark, 2026-11-09, Dave): Media section titles (Photo Series, Videos) use the same title bar as the main page categories: black band fading right, white side line, white uppercase type */
+/* v140 (Hark, 2026-11-09, Dave; redeploy): Media section titles (Photo Series, Videos) use the same title bar as the main page categories: black band fading right, white side line, white uppercase type */
 (function () {
   var st = document.createElement('style'); st.id = 'storm-v140-css';
   st.textContent = '#res-media .bl-cat { position: relative; margin: 22px -12px 8px; padding: 9px 12px 9px 28px; border: 0; border-left: 0; border-radius: 0; background: linear-gradient(90deg, #000 0%, #000 55%, rgba(0,0,0,.6) 75%, rgba(0,0,0,0) 96%); font-size: 14px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: #fff; }'
