@@ -1373,3 +1373,17 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#res-media .bl-cat::before { content: ""; position: absolute; left: 12px; top: 8px; bottom: 8px; width: 4px; border-radius: 2px; background: #fff; }';
   document.head.appendChild(st);
 })();
+
+/* v141 (Hark, 2026-11-10, Dave): the side menu uses the opener-button pop. The menu pops in (fade, blur clears, grows to full size) as it slides; its rows pop in from the side, one after another. Opening a section drops its rows down with the same pop (grow from 85%, blur clears, fade). */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v141-css';
+  st.textContent = '#drawer { overflow-x: hidden !important; } #drawer.open { animation: drwPop .46s cubic-bezier(.22,.8,.3,1) both; transform-origin: 0 50%; }'
+    + '@keyframes drwPop { 0% { opacity: 0; transform: translateX(-40%) scale(.9); filter: blur(6px); } 100% { opacity: 1; transform: none; filter: blur(0); } }'
+    + '#drawer.open > * { animation: drwRow .44s cubic-bezier(.22,.8,.3,1) backwards; }'
+    + '#drawer.open > :nth-child(1) { animation-delay: .08s; } #drawer.open > :nth-child(2) { animation-delay: .14s; } #drawer.open > :nth-child(3) { animation-delay: .20s; } #drawer.open > :nth-child(4) { animation-delay: .26s; } #drawer.open > :nth-child(5) { animation-delay: .32s; } #drawer.open > :nth-child(6) { animation-delay: .38s; } #drawer.open > :nth-child(n+7) { animation-delay: .44s; }'
+    + '@keyframes drwRow { 0% { opacity: 0; transform: translateX(-36px) scale(.85); filter: blur(6px); } 100% { opacity: 1; transform: none; filter: blur(0); } }'
+    + '#drawer .drawer-cats > *, #drawer .drawer-items > * { transform: scale(.85); transform-origin: 50% 0; filter: blur(6px); transition: opacity .42s ease, transform .42s cubic-bezier(.22,.8,.3,1), filter .42s ease; }'
+    + '#drawer .drawer-supplier.open > .drawer-cats > *, #drawer .drawer-section.expanded > .drawer-items > * { transform: none; filter: blur(0); }'
+    + '@media (prefers-reduced-motion: reduce) { #drawer.open, #drawer.open > * { animation: none !important; } }';
+  document.head.appendChild(st);
+})();
