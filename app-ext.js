@@ -1413,3 +1413,36 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   if (!hook()) document.addEventListener('DOMContentLoaded', hook);
 })();
+
+/* v143 (Hark, 2026-11-10, Dave):
+   - Landing on the main screen: the buttons (menu, Job/Inventory pill, camera, cart) bounce in one after another with a springy overshoot, like his reference video.
+   - Side menu is see-through frosted glass like the opener buttons, with no dark blue banner at the top; text turns white.
+   - The menu's x uses the camera screen's x style (frosted square, thin white edge).
+   - Category and media title bars are see-through glass instead of solid black. */
+(function () {
+  var G = 'rgba(15,23,32,.24)';
+  var st = document.createElement('style'); st.id = 'storm-v143-css';
+  st.textContent =
+      '@keyframes stBounce { 0% { opacity: 0; transform: scale(0); } 45% { opacity: 1; transform: scale(1.22); } 65% { transform: scale(.9); } 82% { transform: scale(1.05); } 100% { opacity: 1; transform: none; } }'
+    + 'body.st-bounce #hamburger, body.st-bounce #mode-switch .mode-pill, body.st-bounce #fab-dock > * { animation: stBounce .62s cubic-bezier(.3,.7,.4,1) backwards; }'
+    + 'body.st-bounce #hamburger { animation-delay: .05s; } body.st-bounce #mode-switch .mode-pill { animation-delay: .14s; }'
+    + 'body.st-bounce #fab-dock > :nth-child(1) { animation-delay: .23s; } body.st-bounce #fab-dock > :nth-child(2) { animation-delay: .32s; } body.st-bounce #fab-dock > :nth-child(3) { animation-delay: .41s; } body.st-bounce #fab-dock > :nth-child(n+4) { animation-delay: .5s; }'
+    + '#drawer { background: ' + G + ' !important; -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); border-right: 1px solid rgba(255,255,255,.5); box-shadow: 8px 0 30px rgba(0,0,0,.25); color: #fff; }'
+    + '#drawer .drawer-head { background: transparent !important; }'
+    + '#drawer .drawer-section, #drawer .drawer-foot { border-color: rgba(255,255,255,.18) !important; }'
+    + '#drawer .drawer-section-head, #drawer .drawer-item, #drawer .drawer-cat, #drawer .drawer-jobber, #drawer .drawer-items, #drawer .drawer-cats, #drawer .drawer-foot, #drawer .drawer-supplier { background: transparent !important; color: #fff !important; }'
+    + 'html body #drawer .drawer-item .drawer-item-name, html body #drawer .drawer-item .drawer-item-name.v116-name, html body #drawer .drawer-cat .drawer-item-name { color: #fff !important; }'
+    + '#drawer .drawer-chevron { color: rgba(255,255,255,.75) !important; }'
+    + '#drawer .drawer-item:active, #drawer .drawer-cat:active, #drawer .drawer-section-head:active { background: rgba(255,255,255,.12) !important; }'
+    + '#drawer .drawer-item > svg, #drawer .drawer-section-head svg { color: #fff; }'
+    + '#drawer .drawer-close { width: 44px; height: 44px; padding: 0 !important; border-radius: 12px; border: 1px solid rgba(255,255,255,.5) !important; background: rgba(15,23,32,.38) !important; -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4); box-shadow: 0 2px 10px rgba(0,0,0,.2); color: #fff !important; font-size: 26px !important; line-height: 1 !important; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }'
+    + '#drawer .drawer-close:active { transform: translateY(2px) scale(.96); filter: brightness(.9); }'
+    + '.cat-head, #res-media .bl-cat { background: linear-gradient(90deg, rgba(15,23,32,.62) 0%, rgba(15,23,32,.5) 55%, rgba(15,23,32,.22) 78%, rgba(15,23,32,0) 96%) !important; -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3); }'
+    + '#list .cat-head.sfx-head, #list .cat-head.sfx-pre { background-repeat: no-repeat !important; }'
+    + '@media (prefers-reduced-motion: reduce) { body.st-bounce * { animation: none !important; } }';
+  document.head.appendChild(st);
+  var done = false;
+  function bounce(delay) { if (done) return; done = true; setTimeout(function () { document.body.classList.add('st-bounce'); setTimeout(function () { document.body.classList.remove('st-bounce'); }, 1400); }, delay); }
+  window.addEventListener('message', function (ev) { if (ev.data && ev.data.storm === 'landed') bounce(260); });
+  if (window.parent === window) { if (document.readyState === 'complete') bounce(400); else window.addEventListener('load', function () { bounce(400); }); }
+})();
