@@ -1587,3 +1587,31 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#pick-sheet .pick-line img { background: #fff; }';
   document.head.appendChild(st);
 })();
+
+/* v156 (Hark, 2026-11-10, Dave): tapping Jobber or CompanyCam no longer snaps off the screen. The side menu closes, the items and titles
+   on screen play the reverse of their slide-in (fade out to the left, bottom first), the banner and buttons fade, then the app opens.
+   Coming back, everything slides back in the way it entered. */
+(function () {
+  if (typeof stormOpenApp !== 'function') return;
+  var st = document.createElement('style'); st.id = 'storm-v156-css';
+  st.textContent = '@keyframes stOutCard { 0% { opacity: 1; transform: translate3d(0,0,0); } 85% { opacity: .15; } 100% { opacity: 0; transform: translate3d(-110px,0,0); } }'
+    + '#list .st-leave { animation: stOutCard .5s cubic-bezier(.8,.4,.75,.4) both !important; will-change: transform, opacity; }'
+    + 'body.st-leaving header, body.st-leaving #fab-dock, body.st-leaving #mode-switch { opacity: 0 !important; transition: opacity .5s ease-in !important; }';
+  document.head.appendChild(st);
+  function vis() { var out = [], h = window.innerHeight || 800; document.querySelectorAll('#list .cat-head, #list .card').forEach(function (el) { var r = el.getBoundingClientRect(); if (r.bottom > 0 && r.top < h) out.push(el); }); return out; }
+  var _open = stormOpenApp, busy = false, left = [];
+  function back() {
+    if (!busy) return; busy = false; document.body.classList.remove('st-leaving');
+    var d = 0; left.forEach(function (el) { var card = el.classList.contains('card'), cls = card ? 'sfx-bump' : 'sfx-head'; el.classList.remove('st-leave'); el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(function () { el.classList.remove(cls); }, 1500 + d); d += card ? 60 : 120; }); left = [];
+  }
+  stormOpenApp = function (kind) {
+    if (busy) return; busy = true; var self = this, args = arguments;
+    try { if (typeof closeDrawer === 'function') closeDrawer(); } catch (e) {}
+    left = vis(); var n = left.length;
+    left.forEach(function (el, i) { el.style.animationDelay = Math.min(150, (n - 1 - i) * 25) + 'ms'; el.classList.add('st-leave'); setTimeout(function () { el.style.animationDelay = ''; }, 900); });
+    document.body.classList.add('st-leaving');
+    setTimeout(function () { _open.apply(self, args); setTimeout(function () { if (!document.hidden) back(); }, 2200); }, 620);
+  };
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && busy) setTimeout(back, 150); });
+  window.addEventListener('pageshow', function () { if (busy) setTimeout(back, 150); });
+})();
