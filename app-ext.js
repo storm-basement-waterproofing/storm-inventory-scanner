@@ -1310,8 +1310,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   if (window.__stormScrollFx) return; window.__stormScrollFx = true;
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var css = '#list { overflow-x: clip; }'
-    + '#list .card.sfx-bump { animation: sfxCardIn 1.1s cubic-bezier(.25,.6,.2,1) both; will-change: transform, opacity; backface-visibility: hidden; }' /* v138: items slide in like the titles; no overshoot or scale, so no jello */
-    + '@keyframes sfxCardIn { 0% { opacity: 0; transform: translate3d(-90px,0,0); } 15% { opacity: .15; } 100% { opacity: 1; transform: translate3d(0,0,0); } }'
+    + '/* v139: whole item card slides across exactly like the titles (same distance, speed, easing) */ #list .card.sfx-bump { animation: sfxCardIn 1.3s cubic-bezier(.25,.6,.2,1) both; will-change: transform, opacity; backface-visibility: hidden; }' /* v138: items slide in like the titles; no overshoot or scale, so no jello */
+    + '@keyframes sfxCardIn { 0% { opacity: 0; transform: translate3d(-110px,0,0); } 15% { opacity: .15; } 100% { opacity: 1; transform: translate3d(0,0,0); } }'
     + '#list .cat-head.sfx-head { background-repeat: no-repeat; animation: sfxBand 1.3s cubic-bezier(.25,.6,.2,1) both; }'
     + '@keyframes sfxBand { 0% { background-size: 0% 100%; } 100% { background-size: 100% 100%; } }'
     + '#list .cat-head.sfx-head::before { animation: sfxLine 1.3s cubic-bezier(.25,.6,.2,1) both; }'
