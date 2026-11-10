@@ -1387,3 +1387,29 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '@media (prefers-reduced-motion: reduce) { #drawer.open, #drawer.open > * { animation: none !important; } }';
   document.head.appendChild(st);
 })();
+
+/* v142 (Hark, 2026-11-10, Dave): the side menu closes with the same pop played in reverse (rows leave bottom-up, the menu shrinks, blurs and fades as it slides away). The STORM logo is gone from the menu header. */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v142-css';
+  st.textContent = '.drawer-head img { display: none !important; } .drawer-head { min-height: 52px !important; }'
+    + '#drawer.drw-out { animation: drwPopOut .42s cubic-bezier(.55,0,.75,.2) both; transform-origin: 0 50%; }'
+    + '@keyframes drwPopOut { 0% { opacity: 1; transform: none; filter: blur(0); } 100% { opacity: 0; transform: translateX(-40%) scale(.9); filter: blur(6px); } }'
+    + '#drawer.drw-out > * { animation: drwRowOut .3s cubic-bezier(.55,0,.75,.2) both; }'
+    + '#drawer.drw-out > :nth-last-child(1) { animation-delay: 0s; } #drawer.drw-out > :nth-last-child(2) { animation-delay: .04s; } #drawer.drw-out > :nth-last-child(3) { animation-delay: .08s; } #drawer.drw-out > :nth-last-child(4) { animation-delay: .12s; } #drawer.drw-out > :nth-last-child(5) { animation-delay: .16s; } #drawer.drw-out > :nth-last-child(n+6) { animation-delay: .2s; }'
+    + '@keyframes drwRowOut { 0% { opacity: 1; transform: none; filter: blur(0); } 100% { opacity: 0; transform: translateX(-36px) scale(.85); filter: blur(6px); } }'
+    + '@media (prefers-reduced-motion: reduce) { #drawer.drw-out, #drawer.drw-out > * { animation: none !important; } }';
+  document.head.appendChild(st);
+  function hook() {
+    var d = document.getElementById('drawer'); if (!d || d.__v142) return !!d; d.__v142 = true;
+    var was = d.classList.contains('open'), tm = 0;
+    new MutationObserver(function () {
+      var now = d.classList.contains('open'); if (now === was) return; was = now;
+      clearTimeout(tm);
+      if (now) { d.classList.remove('drw-out'); return; }
+      d.classList.remove('drw-out'); void d.offsetWidth; d.classList.add('drw-out');
+      tm = setTimeout(function () { d.classList.remove('drw-out'); }, 460);
+    }).observe(d, { attributes: true, attributeFilter: ['class'] });
+    return true;
+  }
+  if (!hook()) document.addEventListener('DOMContentLoaded', hook);
+})();
