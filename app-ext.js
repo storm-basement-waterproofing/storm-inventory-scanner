@@ -1312,12 +1312,12 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var css = ''
     + '#list .card.sfx-bump { animation: sfxBump .55s cubic-bezier(.22,.9,.3,1.25) both; }'
     + '@keyframes sfxBump { 0% { opacity: 0; transform: translateY(26px) scale(.97); } 60% { opacity: 1; transform: translateY(-4px) scale(1.005); } 80% { transform: translateY(1.5px) scale(1); } 100% { opacity: 1; transform: none; } }'
-    + '#list .cat-head.sfx-head { background-repeat: no-repeat; animation: sfxBand .7s cubic-bezier(.3,.7,.2,1) both; }'
+    + '#list .cat-head.sfx-head { background-repeat: no-repeat; animation: sfxBand 1.3s cubic-bezier(.25,.6,.2,1) both; }'
     + '@keyframes sfxBand { 0% { background-size: 0% 100%; } 100% { background-size: 100% 100%; } }'
-    + '#list .cat-head.sfx-head::before { animation: sfxLine .7s cubic-bezier(.3,.7,.2,1) both; }'
-    + '@keyframes sfxLine { 0% { transform: translateX(-14px); opacity: 0; } 25% { opacity: 1; } 100% { transform: none; opacity: 1; } }'
-    + '#list .cat-head.sfx-head > * { animation: sfxTitle .7s cubic-bezier(.3,.7,.2,1) both; }'
-    + '@keyframes sfxTitle { 0% { transform: translateX(-42px); opacity: 0; } 100% { transform: none; opacity: 1; } }';
+    + '#list .cat-head.sfx-head::before { animation: sfxLine 1.3s cubic-bezier(.25,.6,.2,1) both; }'
+    + '@keyframes sfxLine { 0% { transform: translateX(-110px); opacity: 0; } 20% { opacity: 1; } 100% { transform: none; opacity: 1; } }'
+    + '#list .cat-head.sfx-head > * { animation: sfxTitle 1.3s cubic-bezier(.25,.6,.2,1) both; }'
+    + '@keyframes sfxTitle { 0% { transform: translateX(-110px); opacity: 0; } 15% { opacity: .15; } 100% { transform: none; opacity: 1; } }';
   var st = document.createElement('style'); st.id = 'storm-scroll-fx'; st.textContent = css; document.head.appendChild(st);
   var lastY = window.scrollY || 0, down = false, lastScroll = 0;
   window.addEventListener('scroll', function () { var y = window.scrollY || 0; down = y > lastY; lastY = y; lastScroll = Date.now(); }, { passive: true });
@@ -1331,7 +1331,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       if (!scrolling || !fromBelow) return;
       var cls = el.classList.contains('cat-head') ? 'sfx-head' : 'sfx-bump';
       el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
-      setTimeout(function () { el.classList.remove(cls); }, 800);
+      setTimeout(function () { el.classList.remove(cls); }, 1500); /* v136: titles slide slower and farther (Dave) */
     });
   }, { rootMargin: '0px 0px 60px 0px', threshold: 0 });
   function watch() { var l = document.getElementById('list'); if (!l) return; l.querySelectorAll('.card, .cat-head').forEach(function (el) { if (!el.__sfx) { el.__sfx = 1; io.observe(el); } }); }
