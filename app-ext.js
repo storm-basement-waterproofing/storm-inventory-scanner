@@ -1629,5 +1629,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function show() { if (!b.classList.contains('st-camhide')) return; b.classList.remove('st-camhide'); b.classList.remove('st-camback'); void b.offsetWidth; b.classList.add('st-camback'); clearTimeout(t); t = setTimeout(function () { b.classList.remove('st-camback'); }, 650); }
   var _os = openScanner;
   openScanner = function () { b.classList.remove('st-camback'); b.classList.add('st-camhide'); return _os.apply(this, arguments); };
-  window.addEventListener('message', function (e) { var d = e.data; if (!d) return; if (d.storm === 'camClosed') show(); });
+  window.addEventListener('message', function (e) { var d = e.data; if (!d) return; if (d.storm === 'camClosed' || d.storm === 'scanResult') show(); }); /* v158: Done also brings them back, even on an older cached wrapper */
+  window.addEventListener('focus', function () { setTimeout(function () { if (b.classList.contains('st-camhide') && document.hasFocus()) show(); }, 120); }); /* v158: back in the app means the camera is gone */
+  st.id = 'storm-v157-css'; var st2 = document.createElement('style'); st2.id = 'storm-v158-css'; document.head.appendChild(st2);
 })();
