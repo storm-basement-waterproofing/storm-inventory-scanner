@@ -160,6 +160,9 @@
   /* v145 (Dave): opener buttons are see-through from the first frame (no backdrop blur, which drew dark until it kicked in); title in capitals */
   #wpick button { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgba(15,23,32,.24) !important; }
   #wpick .ttl { text-transform: uppercase; letter-spacing: 1.2px !important; }
+  /* v147: frosted-glass island / camera frame */
+  #camisl { background: rgba(255,255,255,.16) !important; -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5); box-shadow: inset 0 0 0 1px rgba(255,255,255,.6); }
+  #camwrap.isl iframe { border-radius: 22px; }
 </style>
 <!-- v110: loader fade at end --></head>
 <body style="background:#000">
@@ -289,13 +292,18 @@
   function islandEl() { var d = document.getElementById('camisl'); if (!d) { d = document.createElement('div'); d.id = 'camisl'; document.body.appendChild(d); } return d; }
   /* v145 (Hark, 2026-11-10, Dave): the island starts right under the app's banner and runs as a keyframe animation with fixed pixel values (smoother on Android) */
   var islTop = 12;
+  /* v147 (Hark, 2026-11-10, Dave's reference video): the camera opens as a frosted-glass card under the banner, not full screen.
+     The island grows pill -> wide pill -> card, stays as the card's frosted frame, and runs backward on close. */
+  var islCard = null;
+  function cardRect(top) { var vw = window.innerWidth, vh = window.innerHeight, l = 10; var h = Math.round(Math.min(vh * .64, vh - top - 20)); return { t: top, l: l, r: l, b: Math.max(0, vh - top - h), w: vw - 2 * l, h: h }; }
   function islRule(top) {
-    var vw = window.innerWidth, vh = window.innerHeight, pw = 112, ph = 32, sx = Math.round((vw - pw) / 2), mx = Math.round(vw * .05);
-    var pill = 'inset(' + top + 'px ' + sx + 'px ' + (vh - top - ph) + 'px ' + sx + 'px round 16px)', wide = 'inset(' + top + 'px ' + mx + 'px ' + (vh - top - ph - 6) + 'px ' + mx + 'px round 19px)', full = 'inset(0px 0px 0px 0px round 0px)';
+    var vw = window.innerWidth, vh = window.innerHeight, pw = 112, ph = 32, sx = Math.round((vw - pw) / 2), mx = Math.round(vw * .07), c = cardRect(top); islCard = c;
+    var pill = 'inset(' + top + 'px ' + sx + 'px ' + (vh - top - ph) + 'px ' + sx + 'px round 16px)', wide = 'inset(' + top + 'px ' + mx + 'px ' + (vh - top - ph - 8) + 'px ' + mx + 'px round 20px)', card = 'inset(' + c.t + 'px ' + c.r + 'px ' + c.b + 'px ' + c.l + 'px round 28px)';
     var st = document.getElementById('camisl-kf'); if (!st) { st = document.createElement('style'); st.id = 'camisl-kf'; document.head.appendChild(st); }
-    st.textContent = '@keyframes islGrow { 0% { clip-path: ' + pill + '; opacity: 0; } 8% { opacity: 1; } 34% { clip-path: ' + wide + '; } 100% { clip-path: ' + full + '; opacity: 1; } }'
-      + '@keyframes islShrink { 0% { clip-path: ' + full + '; opacity: 1; } 66% { clip-path: ' + wide + '; } 92% { opacity: 1; } 100% { clip-path: ' + pill + '; opacity: 0; } }'
-      + '#camisl.grow { animation: islGrow .66s cubic-bezier(.32,.72,0,1) both; } #camisl.shrink { animation: islShrink .5s cubic-bezier(.32,.72,0,1) both; } #camisl.full { animation: none; clip-path: none; opacity: 1; }';
+    st.textContent = '@keyframes islGrow { 0% { clip-path: ' + pill + '; opacity: 0; } 8% { opacity: 1; } 34% { clip-path: ' + wide + '; } 100% { clip-path: ' + card + '; opacity: 1; } }'
+      + '@keyframes islShrink { 0% { clip-path: ' + card + '; opacity: 1; } 66% { clip-path: ' + wide + '; } 92% { opacity: 1; } 100% { clip-path: ' + pill + '; opacity: 0; } }'
+      + '#camisl.grow { animation: islGrow .66s cubic-bezier(.32,.72,0,1) both; } #camisl.shrink { animation: islShrink .5s cubic-bezier(.32,.72,0,1) both; } #camisl.full { animation: none; clip-path: ' + card + '; opacity: 1; }'
+      + '#camwrap.isl { inset: auto !important; top: ' + (c.t + 6) + 'px !important; left: ' + (c.l + 6) + 'px !important; width: ' + (c.w - 12) + 'px !important; height: ' + (c.h - 12) + 'px !important; padding: 0 !important; border-radius: 22px; overflow: hidden; background: #000; }';
   }
   var islHb = 0; function headerBottom() { if (islHb > 20 && islHb < window.innerHeight * .5) return islHb + 6; try { var h = f.contentDocument && f.contentDocument.querySelector('header'); if (h) { var r = h.getBoundingClientRect(), fr = f.getBoundingClientRect(); var b = Math.round(fr.top + r.bottom); if (b > 0 && b < window.innerHeight * .5) return b + 6; } } catch (e) {} return 62; } /* v146: the app is cross-origin, so its banner height comes in the scan message; 62px is the fallback */
   function islandOpen(q, src) {
@@ -303,7 +311,7 @@
     var d = islandEl(); d.className = ''; void d.offsetWidth;
     requestAnimationFrame(function () { requestAnimationFrame(function () { d.className = 'grow'; }); });
     setTimeout(function () { openCam(q, src); var w = document.getElementById('camwrap'); if (w) w.classList.add('isl', 'slow'); }, 600);
-    setTimeout(function () { var w = document.getElementById('camwrap'); if (w && w.classList.contains('on') && d.parentNode && d.className === 'grow') d.parentNode.removeChild(d); }, 1300);
+    /* v147: the island stays as the card's frosted frame while the camera is open */
   }
   function closeCam(silent, viaPop) {
     var w = document.getElementById('camwrap'); if (!w) return;
