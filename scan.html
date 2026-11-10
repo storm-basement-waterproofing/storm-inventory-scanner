@@ -924,9 +924,16 @@ header .hdr-logo, header .storm-logo-lit, .storm-logo-lit, .sll-trace { display:
       var id = (t.getSettings && t.getSettings().deviceId) || '';
       var caps = t.getCapabilities ? t.getCapabilities() : {}, zs = (t.getSettings && t.getSettings().zoom) || 1;
       var html = '';
-      if (backs.length > 1) backs.forEach(function (d, i) { html += '<button type="button" data-dev="' + d.deviceId + '"' + (d.deviceId === id && !(zs > 1.05) ? ' class="sel"' : '') + '>' + name(d, i, backs.length) + '</button>'; });
+      if (backs.length > 1) backs.forEach(function (d, i) { html += '<button type="button" data-dev="' + d.deviceId + '"' + (d.deviceId === id && !(zs > 1.05) && !(zs < 0.97) ? ' class="sel"' : '') + '>' + name(d, i, backs.length) + '</button>'; });
       if (caps.zoom && caps.zoom.max >= 2) [2, 5].forEach(function (z) { if (z <= caps.zoom.max) html += '<button type="button" data-zoom="' + z + '"' + (Math.abs(zs - z) < .1 ? ' class="sel"' : '') + '>' + z + '×</button>'; });
       if (caps.zoom && caps.zoom.max >= 2 && backs.length <= 1) html = '<button type="button" data-zoom="1"' + (zs < 1.05 ? ' class="sel"' : '') + '>1×</button>' + html;
+      /* v135 (Hark, 2026-11-10, Dave): the wide lens (.4x/.5x). Chrome on Android often shares one back camera that can zoom out below 1x; offer that as its own chip. */
+      var zmin = caps.zoom && caps.zoom.min ? caps.zoom.min : 1, hasWideDev = /0\.5×/.test(html);
+      if (zmin < 0.95 && !hasWideDev) {
+        var zl = (Math.round(zmin * 10) / 10).toString().replace(/^0/, '') + '×';
+        if (!/data-zoom="1"/.test(html) && !/>1×</.test(html)) html = '<button type="button" data-zoom="1"' + (Math.abs(zs - 1) < .05 ? ' class="sel"' : '') + '>1×</button>' + html;
+        html = '<button type="button" data-zoom="' + zmin + '"' + (zs < 0.97 ? ' class="sel"' : '') + '>' + zl + '</button>' + html;
+      }
       var had = thumb.style.opacity === '1'; chips.innerHTML = html; bar.classList.toggle('on', chips.children.length > 1); slideTo(chips.querySelector('.sel'), !had);
     }).catch(function () {});
   }
@@ -934,7 +941,7 @@ header .hdr-logo, header .storm-logo-lit, .storm-logo-lit, .sll-trace { display:
     var b = e.target.closest('button'); if (!b) return; try { if (navigator.vibrate) navigator.vibrate(10); } catch (x) {} slideTo(b);
     var t = cur();
     if (b.hasAttribute('data-zoom')) { if (t) t.applyConstraints({ advanced: [{ zoom: +b.getAttribute('data-zoom') }] }).then(render, render); return; }
-    var dev = b.getAttribute('data-dev'); if (!dev || (t && t.getSettings && t.getSettings().deviceId === dev && !((t.getSettings().zoom || 1) > 1.05))) { if (t && (t.getSettings().zoom || 1) > 1.05) t.applyConstraints({ advanced: [{ zoom: 1 }] }).then(render, render); return; }
+    var dev = b.getAttribute('data-dev'); if (!dev || (t && t.getSettings && t.getSettings().deviceId === dev && !(Math.abs((t.getSettings().zoom || 1) - 1) > .05))) { if (t && Math.abs((t.getSettings().zoom || 1) - 1) > .05) t.applyConstraints({ advanced: [{ zoom: 1 }] }).then(render, render); return; }
     var old = v.srcObject;
     if (old) old.getTracks().forEach(function (x) { x.stop(); });
     navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: dev }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }, audio: false }).then(function (s) {
