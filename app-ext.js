@@ -1348,16 +1348,17 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   if (window.__stormIntroFx) return; window.__stormIntroFx = true;
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var st = document.createElement('style');
-  st.textContent = '#list .cat-head.sfx-pre { background-size: 0% 100% !important; background-repeat: no-repeat; } #list .cat-head.sfx-pre::before, #list .cat-head.sfx-pre > * { opacity: 0 !important; }';
+  st.textContent = '#list .cat-head.sfx-pre { background-size: 0% 100% !important; background-repeat: no-repeat; } #list .cat-head.sfx-pre::before, #list .cat-head.sfx-pre > * { opacity: 0 !important; } #list .card.sfx-cpre { opacity: 0 !important; animation: none !important; }';
   document.head.appendChild(st);
   var pending = false, played = false;
   function visHeads() { var out = []; var hs = document.querySelectorAll('#list .cat-head'); var h = window.innerHeight || 800; for (var i = 0; i < hs.length; i++) { var r = hs[i].getBoundingClientRect(); if (r.bottom > 0 && r.top < h) out.push(hs[i]); } return out; }
-  function prep() { if (!pending) return; visHeads().forEach(function (el) { el.classList.add('sfx-pre'); }); }
+  function visAll() { var out = []; var hs = document.querySelectorAll('#list .cat-head, #list .card'); var h = window.innerHeight || 800; for (var i = 0; i < hs.length; i++) { var r = hs[i].getBoundingClientRect(); if (r.bottom > 0 && r.top < h) out.push(hs[i]); } return out; }
+  function prep() { if (!pending) return; visAll().forEach(function (el) { el.classList.add(el.classList.contains('card') ? 'sfx-cpre' : 'sfx-pre'); }); } /* v153: item cards on screen wait and slide in with their titles (Dave) */
   function play() {
     if (played) return; played = true; pending = false;
-    var hs = visHeads();
-    document.querySelectorAll('#list .cat-head.sfx-pre').forEach(function (el) { if (hs.indexOf(el) < 0) el.classList.remove('sfx-pre'); });
-    hs.forEach(function (el, i) { setTimeout(function () { el.classList.remove('sfx-pre'); el.classList.remove('sfx-head'); void el.offsetWidth; el.classList.add('sfx-head'); setTimeout(function () { el.classList.remove('sfx-head'); }, 1500); }, i * 180); });
+    var all = visAll();
+    document.querySelectorAll('#list .cat-head.sfx-pre, #list .card.sfx-cpre').forEach(function (el) { if (all.indexOf(el) < 0) el.classList.remove('sfx-pre', 'sfx-cpre'); });
+    var d = 0; all.forEach(function (el) { var card = el.classList.contains('card'), cls = card ? 'sfx-bump' : 'sfx-head'; (function (t) { setTimeout(function () { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); el.classList.remove('sfx-pre', 'sfx-cpre'); setTimeout(function () { el.classList.remove(cls); }, 1500); }, t); })(d); d += card ? 90 : 180; });
   }
   function arm(delay) { if (played || pending) return; pending = true; prep(); var l = document.getElementById('list'); if (l) new MutationObserver(prep).observe(l, { childList: true }); setTimeout(play, delay); }
   window.addEventListener('message', function (e) { var d = e.data; if (d && d.storm === 'wrapMode') arm(2100); });
@@ -1538,4 +1539,17 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   window.addEventListener('message', function (e) { var d = e.data; if (!d) return; if (d.storm === 'wrapMode') { requestAnimationFrame(burst); } else if (d.storm === 'logoQ') { setTimeout(send, 80); setTimeout(send, 350); } });
   window.addEventListener('resize', function () { setTimeout(send, 120); });
   window.addEventListener('orientationchange', function () { setTimeout(send, 300); });
+})();
+
+/* v153 (Hark, 2026-11-10, Dave): detail windows get a Back button in the same frosted glass square as the camera and the X buttons
+   (44px, 12px corners, thin white edge, white chevron). Same tap as before: it closes the window and goes back. */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v153-css';
+  st.textContent = '.detail-bar .detail-close.st-back { width: 44px; height: 44px; flex: none; padding: 0 !important; border-radius: 12px; border: 1px solid rgba(255,255,255,.5) !important; background: rgba(15,23,32,.38) !important; -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4); box-shadow: 0 2px 10px rgba(0,0,0,.2); color: #fff !important; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; font-size: 0 !important; }'
+    + '.detail-bar .detail-close.st-back svg { width: 22px; height: 22px; display: block; pointer-events: none; }'
+    + '.detail-bar .detail-close.st-back:active { transform: scale(.94); }';
+  document.head.appendChild(st);
+  var CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+  function fix() { document.querySelectorAll('.detail-bar .detail-close:not(.st-back)').forEach(function (b) { b.classList.add('st-back'); b.innerHTML = CHEV; b.setAttribute('aria-label', 'Back'); }); }
+  fix(); try { new MutationObserver(fix).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
 })();
