@@ -40,6 +40,8 @@
   #edge path.g2 { stroke: rgba(60,170,255,.18); stroke-width: 14; }
 /* v138 (Hark, 2026-11-09, Dave): edge light around the screen toned down 25% */
 #edge path { opacity: .75; }
+/* v141 (Hark, 2026-11-10, Dave): no screen-edge glow on the Job / Inventory pick into the app; the logo pulse stays (camera keeps its edge) */
+#boot.noedge #edge { visibility: hidden !important; }
   /* v88 (Hark, 2026-11-08): the header logo traces on the loading screen at the same time as the edge line (both driven by one clock).
      When the loop closes, the edge and the logo flash together and the page is ready. */
   #boot.done { pointer-events: none; }
@@ -213,9 +215,9 @@
     var lr = null; try { lr = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (eC) {}
     var hasLogo = !!(lr && placeLogo(lr)); if (hasLogo) drawLogo(1);
     cover.style.transition = 'none'; cover.style.opacity = '1';
-    setTimeout(function () { void boot.offsetWidth; boot.classList.add('pulse1'); }, 120);
+    setTimeout(function () { void boot.offsetWidth; boot.classList.add('noedge', 'pulse1'); }, 120);
     setTimeout(function () { try { (src || f.contentWindow).postMessage({ storm: 'landed', present: present }, '*'); } catch (e) {} cover.style.transition = 'opacity .7s ease'; cover.style.opacity = '0'; }, 120 + 520);
-    setTimeout(function () { finished = true; settled = true; boot.classList.remove('pulse1', 'leaving'); boot.classList.add('gone'); p = 0; setEdge(); if (lt) { drawLogo(0); lt.style.opacity = '0'; }
+    setTimeout(function () { finished = true; settled = true; boot.classList.remove('pulse1', 'leaving', 'noedge'); boot.classList.add('gone'); p = 0; setEdge(); if (lt) { drawLogo(0); lt.style.opacity = '0'; }
       var bv = document.getElementById('bootvid'); if (bv) { try { bv.pause(); } catch (e) {} bv.removeAttribute('src'); try { bv.load(); } catch (e) {} }
       var w = document.getElementById('wpick'); if (w && w.parentNode) w.parentNode.removeChild(w); }, 120 + 1500);
   }
@@ -258,12 +260,12 @@
       cover.style.transition = 'opacity .45s ease-in'; cover.style.opacity = '0'; void cover.offsetWidth; cover.style.opacity = '1';
       setTimeout(function () { /* full black: lines in, one pulse */
         edge.style.opacity = ''; if (lt && hasLogo) lt.style.opacity = '';
-        void boot.offsetWidth; boot.classList.add('pulse1');
+        void boot.offsetWidth; boot.classList.add('noedge', 'pulse1');
       }, 470);
       setTimeout(function () { /* peak: the page fades in under the fading lines */
         cover.style.transition = 'opacity .7s ease'; cover.style.opacity = '0';
       }, 470 + 520);
-      setTimeout(function () { boot.classList.remove('pulse1'); boot.style.transition = ''; boot.style.opacity = ''; boot.classList.add('gone'); p = 0; setEdge(); if (lt) { drawLogo(0); lt.style.opacity = '0'; } edge.style.opacity = ''; }, 470 + 1500);
+      setTimeout(function () { boot.classList.remove('pulse1', 'noedge'); boot.style.transition = ''; boot.style.opacity = ''; boot.classList.add('gone'); p = 0; setEdge(); if (lt) { drawLogo(0); lt.style.opacity = '0'; } edge.style.opacity = ''; }, 470 + 1500);
       return;
     }
     if (m.storm === 'scan' && typeof m.q === 'string') { /* v135 (Hark, 2026-11-09, Dave): going into the camera uses the same opener effect as picking Job / Inventory: fade to black, the STORM logo outline and screen frame pulse once, and the camera fades in under the fading lines */
