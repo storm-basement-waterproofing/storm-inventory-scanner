@@ -322,7 +322,7 @@
   }
   function closeCam(silent, viaPop) {
     var w = document.getElementById('camwrap'); if (!w) return;
-    try { var ap = document.getElementById('app'); if (ap && ap.contentWindow) ap.contentWindow.postMessage({ storm: 'camClosed' }, '*'); } catch (eCC) {} /* v151: the app brings its bottom icons back */
+    try { var ap = camApp || (document.getElementById('app') || {}).contentWindow; if (ap) ap.postMessage({ storm: 'camClosed' }, '*'); } catch (eCC) {} /* v152: send to the app's own frame (camApp), not the outer Google frame */ /* v151: the app brings its bottom icons back */
     var isl = !silent && w.classList.contains('isl'); w.removeAttribute('id'); /* v142: the closing copy gives up its id so a reopen never grabs it */
     if (isl) { /* v144: camera fades onto a black island, the camera turns off, then the island shrinks back into the pill */
       var d = islandEl(); d.className = 'full'; w.classList.remove('on');
