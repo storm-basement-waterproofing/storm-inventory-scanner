@@ -1633,3 +1633,17 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   window.addEventListener('focus', function () { setTimeout(function () { if (b.classList.contains('st-camhide') && document.hasFocus()) show(); }, 120); }); /* v158: back in the app means the camera is gone */
   st.id = 'storm-v157-css'; var st2 = document.createElement('style'); st2.id = 'storm-v158-css'; document.head.appendChild(st2);
 })();
+
+/* v159 (Hark, 2026-11-10, Dave): side menu has no fade. It slides in from the left and zips back off to the left. The cart's close
+   (X or tap outside) is the reverse of its pop-up: it slides back down off the screen. */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v159-css';
+  st.textContent = '@keyframes drwSlideIn { 0% { transform: translate3d(-105%,0,0); } 100% { transform: translate3d(0,0,0); } }'
+    + '@keyframes drwSlideOut { 0% { transform: translate3d(0,0,0); } 100% { transform: translate3d(-105%,0,0); } }'
+    + '#drawer.open { animation: drwSlideIn .34s cubic-bezier(.22,.8,.3,1) both !important; opacity: 1 !important; filter: none !important; }'
+    + '#drawer.drw-out { animation: drwSlideOut .3s cubic-bezier(.55,0,.8,.3) both !important; opacity: 1 !important; filter: none !important; }'
+    + '#drawer.drw-out > *, #drawer.open > * { animation: none !important; opacity: 1 !important; filter: none !important; }'
+    + '@keyframes cartExit { 0% { transform: translate3d(0,0,0); opacity: 1; } 100% { transform: translate3d(0,102%,0); opacity: 1; } }'
+    + '#pick-sheet.fx-exit { animation: cartExit .3s cubic-bezier(.55,0,.8,.3) forwards !important; }';
+  document.head.appendChild(st);
+})();
