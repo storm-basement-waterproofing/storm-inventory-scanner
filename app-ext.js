@@ -1569,3 +1569,21 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   if (typeof lblView === 'function') { var _lv = lblView; lblView = function () { var v = document.getElementById('lbl-view'); if (v) v.classList.remove('lv-out'); return _lv.apply(this, arguments); }; }
 })();
+
+/* v155 (Hark, 2026-11-10, Dave): the shopping cart (Order list sheet) is the same see-through frosted glass as the side menu, with white text.
+   Item photos keep their white tiles; the blue Copy button and the red Clear stay as they are. */
+(function () {
+  var G = 'rgba(15,23,32,.24)';
+  var st = document.createElement('style'); st.id = 'storm-v155-css';
+  st.textContent = '#pick-sheet { background: ' + G + ' !important; -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); border-top: 1px solid rgba(255,255,255,.5); box-shadow: 0 -8px 30px rgba(0,0,0,.25) !important; color: #fff; }'
+    + '#pick-sheet .pick-sheet-head, #pick-sheet .pick-sheet-head h2, #pick-sheet .pick-line-name, #pick-sheet .pick-empty, #pick-sheet .pick-qty, #pick-sheet .pick-sheet-close { color: #fff !important; }'
+    + '#pick-sheet .pick-line-code { color: rgba(255,255,255,.72) !important; }'
+    + '#pick-sheet .pick-line, #pick-sheet .pick-sheet-foot { border-color: rgba(255,255,255,.18) !important; }'
+    + '#pick-sheet .pick-stepper { border-color: rgba(255,255,255,.5) !important; background: transparent; }'
+    + '#pick-sheet .pick-step { background: rgba(255,255,255,.14) !important; color: #fff !important; }'
+    + '#pick-sheet .pick-qty { background: transparent !important; border: 0; }'
+    + '#pick-sheet .pick-remove { color: rgba(255,255,255,.8) !important; }'
+    + '#pick-sheet .pick-open-rt, #pick-sheet .pick-open-hi { background: rgba(15,23,32,.38) !important; color: #fff !important; border: 1px solid rgba(255,255,255,.5) !important; }'
+    + '#pick-sheet .pick-line img { background: #fff; }';
+  document.head.appendChild(st);
+})();
