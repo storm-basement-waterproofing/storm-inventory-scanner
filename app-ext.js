@@ -244,23 +244,28 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   if (typeof render !== 'function' || typeof CATEGORY_ORDER === 'undefined') return;
   var BY_BIN = { 'rt-25': 'AprilAire Accessories', 'rt-26': 'AprilAire Accessories', 'rt-03': 'Battery Backup', 'rt-04': 'High Water Alarms', 'hd-103': 'Extension Cords',
     /* v79 (2026-11-07, Dave's reorganize) */ 'rt-13': 'Check Valves', 'rt-34': 'Vapor Barrier', 'rt-41': 'Vapor Barrier', 'rt-36': 'Vapor Barrier', 'rt-29': 'CFS Carbon Fiber',
-    /* v85 (2026-11-08, Dave's 15-point list) */ 'rt-14': 'Pumps & Accessories', 'hd-63': 'AprilAire Accessories', 'hd-77': 'Exterior Discharge / Downspout Extensions', 'hd-78': 'Exterior Discharge / Downspout Extensions', 'hd-79': 'Exterior Discharge / Downspout Extensions', 'rt-37': 'Exterior Discharge / Downspout Extensions', 'rt-35': 'Vapor Barrier', 'hd-08': 'Exterior Waterproofing', 'hd-18': 'Exterior Waterproofing',
+    /* v85 (2026-11-08, Dave's 15-point list) */ 'hd-63': 'AprilAire Accessories', 'hd-77': 'Exterior Discharge / Downspout Extensions', 'hd-78': 'Exterior Discharge / Downspout Extensions', 'hd-79': 'Exterior Discharge / Downspout Extensions', 'rt-37': 'Exterior Discharge / Downspout Extensions', 'rt-35': 'Vapor Barrier', 'hd-08': 'Exterior Waterproofing', 'hd-18': 'Exterior Waterproofing',
     /* v127 (Hark, 2026-11-09, Dave's regroup) */ 'hd-64': 'AprilAire Accessories', 'az-02': 'Box Truck Oil Change', 'az-05': 'Box Truck Oil Change', 'az-06': 'Box Truck Oil Change', 'az-07': 'Box Truck Oil Change',
     'hd-03': 'Support Poles', 'hd-04': 'Support Poles', 'hd-61': 'Support Poles', 'hd-62': 'Support Poles', 'hd-66': 'J Hooks & Pipe Hangers', 'hd-67': 'J Hooks & Pipe Hangers', 'hd-68': 'J Hooks & Pipe Hangers',
-    'rt-33': 'Vapor Barrier Tape', 'hd-58': 'Job Site Cleanup', 'hd-59': 'Job Site Cleanup', 'hd-60': 'Job Site Cleanup', 'hd-19': 'Job Site Cleanup', 'hd-45': 'Job Site Cleanup', 'hd-50': 'Job Site Cleanup',
+    'rt-33': 'Vapor Barrier Tape', 'hd-58': 'Job Site Cleanup', 'hd-59': 'Job Site Cleanup', 'hd-19': 'Job Site Cleanup', 'hd-45': 'Job Site Cleanup', 'hd-50': 'Job Site Cleanup',
     'hd-71': 'Wall Treatment Spray', 'hd-72': 'Wall Treatment Spray', 'rt-39': 'Vapor Barrier', 'hd-36': 'DECKMATE Fasteners', 'hd-37': 'DECKMATE Fasteners', 'hd-38': 'DECKMATE Fasteners', 'hd-39': 'DECKMATE Fasteners', 'hd-40': 'DECKMATE Fasteners',
-    'hd-44': 'Drainage', 'hd-76': 'Exterior Discharge / Downspout Extensions' };
+    'hd-44': 'Drainage', 'hd-76': 'Exterior Discharge / Downspout Extensions',
+    /* v165 (Hark, 2026-11-10, Dave's round 3; later keys win) */ 'hd-01': 'Specialty 1-1/2 Fittings', 'hd-69': 'Specialty 1-1/2 Fittings', 'rt-14': 'Specialty 1-1/2 Fittings',
+    'hd-81': 'Exterior Discharge / Downspout Extensions', 'hd-80': 'Exterior Discharge / Downspout Extensions', 'hd-74': 'Exterior Discharge / Downspout Extensions', 'hd-75': 'Exterior Discharge / Downspout Extensions', 'hd-17': 'Exterior Discharge / Downspout Extensions',
+    'hd-41': 'Tapcon Concrete Screws', 'hd-42': 'Tapcon Concrete Screws', 'hd-43': 'Tapcon Concrete Screws', 'hd-99': 'Wall Treatment Spray', 'hd-60': 'Wall Treatment Spray', 'hd-73': 'Job Site Cleanup', 'hd-101': 'Job Site Cleanup' };
   var PHOTO = { 'hd-45': 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/items/hd-45.jpg?v=2' }; /* v127: hd-45 shows the 500-pack it is (list, details, bin labels) */
   var SUFFIX = { 'hd-103': ' (15AMP)', 'hi-03': ' (TE-2000)' }; /* v85: Dave's description adds */
-  var RENAME = { 'Power & Backup': 'Battery Backup', 'Sump Basins & Liners': 'Sump Basins & Lids', 'Wall Treatments': 'Vapor Barrier', 'Pumps': 'Pumps & Accessories', 'Jobsite Protection': 'Job Site Cleanup', 'Vehicle': 'Box Truck Parts' };
+  var RENAME = { 'Power & Backup': 'Battery Backup', 'Sump Basins & Liners': 'Sump Basins & Lids', 'Wall Treatments': 'Vapor Barrier', 'Pumps': 'Pumps & Accessories', 'Jobsite Protection': 'Job Site Cleanup', 'Vehicle': 'Box Truck Parts', 'Fasteners & Hardware': 'Worm Clamps' /* v165 */ };
   function fix() { if (!items || !items.forEach) return; for (var q = items.length - 1; q >= 0; q--) { var z = items[q]; if (z && !String(z.name || '').trim() && !String(z.sku || '').trim()) items.splice(q, 1); } items.forEach(function (it) { if (PHOTO[(it.bin || '').toLowerCase()]) it.photoUrl = PHOTO[(it.bin || '').toLowerCase()]; var b = (it.bin || '').toLowerCase(); if (BY_BIN[b]) it.category = BY_BIN[b]; else if (/hanging\s*strap/i.test(it.name || '')) it.category = 'AprilAire Accessories'; else if ((it.supplier === 'Hilti' || /^hi-/.test(b)) && /cord/i.test(it.name || '')) it.category = 'Extension Cords'; else if (RENAME[it.category]) it.category = RENAME[it.category]; var sx = SUFFIX[b]; if (sx && it.name && it.name.slice(-sx.length) !== sx) it.name += sx; }); }
-  var want = ['Sump Basins & Lids', 'Pumps & Accessories', 'Battery Backup', 'Check Valves', 'Switches & Floats', 'High Water Alarms', 'Dehumidifiers', 'AprilAire Accessories', 'Extension Cords', 'Drainage', 'Exterior Discharge / Downspout Extensions', 'Exterior Waterproofing', 'Vapor Barrier', 'Vapor Barrier Tape', 'Wall Treatment Spray', 'CFS Carbon Fiber', 'Support Poles', 'J Hooks & Pipe Hangers', 'DECKMATE Fasteners', 'Job Site Cleanup', 'Box Truck Oil Change', 'Box Truck Parts'];
+  var want = ['Sump Basins & Lids', 'Pumps & Accessories', 'Battery Backup', 'Check Valves', 'Switches & Floats', 'High Water Alarms', 'Dehumidifiers', 'AprilAire Accessories', 'Extension Cords', 'Drainage', 'Exterior Discharge / Downspout Extensions', 'Exterior Waterproofing', 'Vapor Barrier', 'Vapor Barrier Tape', 'Wall Treatment Spray', 'CFS Carbon Fiber', 'Support Poles', 'J Hooks & Pipe Hangers', 'DECKMATE Fasteners', 'Worm Clamps', 'Tapcon Concrete Screws', 'Job Site Cleanup', 'Box Truck Oil Change', 'Box Truck Parts'];
   var rest = CATEGORY_ORDER.filter(function (c) { return want.indexOf(c) < 0 && !RENAME[c] && !/^PVC & Fittings .{1,3}Other sizes$/.test(c); });
   /* set order inside a category (listed bins first, in this order; everything else stays A to Z after them) */
   var RANK = {}; ['rt-20', 'rt-21', 'rt-10', 'rt-11', 'rt-13', 'hd-103', 'HILTI-CORD', 'rt-18', 'rt-17', 'rt-19', 'rt-16', 'rt-34', 'rt-41', 'rt-36', 'rt-35', 'rt-39'].forEach(function (b, i) { RANK[b] = i + 1; });
   function rk(it) { var b = (it.bin || '').toLowerCase(); if (RANK[b]) return RANK[b]; if (it.category === 'Extension Cords' && /^hi-/.test(b)) return RANK['HILTI-CORD']; return 0; }
   if (typeof byName === 'function') { var _bn = byName; byName = function (a, b) { if (a && b && a.category === b.category) { var x = rk(a), y = rk(b); if (x || y) { if (!x) return 1; if (!y) return -1; return x - y; } } return _bn(a, b); }; }
-  CATEGORY_ORDER.length = 0; want.concat(rest).forEach(function (c) { CATEGORY_ORDER.push(c); });
+  var all = want.concat(rest); /* v165: Specialty 1-1/2 Fittings sits right after PVC & Fittings 1-1/2 in */
+  if (all.indexOf('Specialty 1-1/2 Fittings') < 0) { var pi = -1; all.forEach(function (x, i) { if (/^PVC & Fittings .{1,3}1-1\/2 in$/.test(x)) pi = i; }); if (pi < 0) all.push('Specialty 1-1/2 Fittings'); else all.splice(pi + 1, 0, 'Specialty 1-1/2 Fittings'); }
+  CATEGORY_ORDER.length = 0; all.forEach(function (c) { CATEGORY_ORDER.push(c); });
   var _r = render; render = function () { try { fix(); } catch (e) {} return _r.apply(this, arguments); };
   try { if (items && items.length) { fix(); render(); if (typeof buildDrawerCats === 'function') buildDrawerCats(); } } catch (e) {}
 })();
@@ -1819,4 +1824,104 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     }
   }
   foot(); document.addEventListener('DOMContentLoaded', foot); setTimeout(foot, 1600); setTimeout(foot, 4000);
+})();
+
+/* v165 (Hark, 2026-11-10, Dave): (1) the "ft" unit inside the quantity box sits a touch in from the edge (cards, Order list).
+   (2) press and hold any + / - quantity button: a tap is still exactly one step; after 1 s held it repeats (150 ms, speeding up to 60 ms).
+   Every repeat is a click on the same button, so the existing handlers (order qty, feet, cart bar, saving, v97 Job customer gate) all still run.
+   Repeating stops on release / cancel / leave, when the count stops changing (gate blocked, hit 0) or when the button goes away.
+   (3) Item details open with the cart's own motion (cart: transform .25s ease, 102% off-screen to 0), turned sideways so the panel
+   moves to the RIGHT (in from the left edge); X, phone back and swipe-back close it with the exact reverse. The v164 photo fade stays. */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = ''
+    + 'html body .card .stepper .ft-tag, html body #detail .stepper .ft-tag { position: relative; z-index: 1; margin-left: -9px !important; padding: 0 9px 0 0 !important; flex: none !important; pointer-events: none; } /* moved in 9px; box width unchanged so the card buttons keep their rows */'
+    + 'html body #pick-sheet .pick-stepper .pick-qty { width: auto !important; min-width: 44px !important; padding: 0 8px !important; box-sizing: border-box !important; white-space: nowrap !important; }'
+    + 'html body .step, html body .pick-step, html body [data-detail-step], html body [data-pick-inc], html body [data-pick-dec] { -webkit-touch-callout: none !important; -webkit-user-select: none !important; user-select: none !important; touch-action: manipulation !important; }';
+  document.head.appendChild(st);
+
+  var SEL = '.step, .pick-step, [data-detail-step], [data-pick-inc], [data-pick-dec]';
+  var HOLD = 1000, FIRST = 150, FAST = 60, RAMP = 2000;
+  var cur = null, synth = false, swallowUntil = 0;
+
+  function keyOf(b) {
+    if (b.hasAttribute('data-pick-inc')) return '#pick-sheet [data-pick-inc="' + b.getAttribute('data-pick-inc') + '"]';
+    if (b.hasAttribute('data-pick-dec')) return '#pick-sheet [data-pick-dec="' + b.getAttribute('data-pick-dec') + '"]';
+    if (b.hasAttribute('data-detail-step')) return '#detail [data-detail-step="' + b.getAttribute('data-detail-step') + '"]';
+    var c = b.closest('.card'), act = b.getAttribute('data-act'), bin = b.getAttribute('data-bin') || (c && c.getAttribute('data-bin'));
+    if (bin && act) return '.card[data-bin="' + bin + '"] .step[data-act="' + act + '"]';
+    return null;
+  }
+  function live(h) { /* the same button, even if its card / cart line was re-drawn */
+    if (h.btn && h.btn.isConnected) return h.btn;
+    if (!h.key) return null;
+    var n = null; try { n = document.querySelector(h.key); } catch (e) {}
+    if (n) h.btn = n; return n;
+  }
+  function valOf(b) {
+    var box = b && b.closest('.stepper, .pick-stepper'); if (!box) return null;
+    var v = box.querySelector('.count, .pick-qty'); if (!v) return null;
+    return v.tagName === 'INPUT' ? String(v.value) : String(v.textContent);
+  }
+  function isPlus(b) { return /plus|inc/i.test((b.getAttribute('data-act') || '') + (b.getAttribute('data-detail-step') || '') + (b.hasAttribute('data-pick-inc') ? 'inc' : '')); }
+  function gateBlocks(b) { try { return isPlus(b) && typeof window.stormJobCustOk === 'function' && !window.stormJobCustOk(); } catch (e) { return false; } }
+  function stop() { if (!cur) return; clearTimeout(cur.t); if (cur.fired) swallowUntil = Date.now() + 600; cur = null; }
+  function fire(h) {
+    var b = live(h); if (!b || b.disabled) return false;
+    if (gateBlocks(b)) return false;
+    var v = valOf(b);
+    if (h.fired && v !== null && v === h.lastV) return false; /* last step changed nothing: blocked or at the limit */
+    if (!isPlus(b) && v !== null && Number(String(v).replace(/[^0-9.\-]/g, '')) <= 0) return false; /* min 0 */
+    h.lastV = v; h.fired++;
+    synth = true; try { b.click(); } finally { synth = false; }
+    return true;
+  }
+  function loop(h) {
+    if (cur !== h) return;
+    if (!fire(h)) { h.done = true; return; }
+    var el = Date.now() - h.start - HOLD;
+    var d = el >= RAMP ? FAST : Math.round(FIRST - (FIRST - FAST) * (el / RAMP));
+    h.t = setTimeout(function () { loop(h); }, d);
+  }
+  document.addEventListener('pointerdown', function (e) {
+    if (e.button !== undefined && e.button !== 0) return;
+    var b = e.target.closest && e.target.closest(SEL); if (!b) return;
+    stop();
+    var h = { btn: b, key: keyOf(b), x: e.clientX, y: e.clientY, start: Date.now(), fired: 0, lastV: null };
+    cur = h;
+    h.t = setTimeout(function () { loop(h); }, HOLD);
+  }, true);
+  document.addEventListener('pointermove', function (e) { if (cur && !cur.fired && (Math.abs(e.clientX - cur.x) > 12 || Math.abs(e.clientY - cur.y) > 12)) stop(); }, true);
+  ['pointerup', 'pointercancel', 'touchend', 'touchcancel'].forEach(function (t) { document.addEventListener(t, stop, true); });
+  window.addEventListener('blur', function (e) { if (e.target === window) stop(); }); /* app lost focus (not a button blur) */
+  document.addEventListener('visibilitychange', function () { if (document.hidden) stop(); });
+  document.addEventListener('pointerleave', function (e) { if (cur && (e.target === cur.btn || e.target === document.documentElement)) stop(); }, true);
+  document.addEventListener('pointerout', function (e) { if (!cur || e.target !== cur.btn || !cur.btn.isConnected) return; var r = e.relatedTarget, rb = r && r.closest && r.closest(SEL); if (r && (cur.btn.contains(r) || (rb && keyOf(rb) === cur.key))) return; stop(); }, true);
+  /* the release after a hold must not add one more */
+  window.addEventListener('click', function (e) {
+    if (synth || Date.now() > swallowUntil) return;
+    swallowUntil = 0;
+    if (e.target.closest && e.target.closest(SEL + ', .stepper, .pick-stepper, .card, #pick-sheet, #detail')) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  document.addEventListener('contextmenu', function (e) { if (e.target.closest && e.target.closest(SEL)) e.preventDefault(); }, true);
+  document.addEventListener('selectstart', function (e) { if (cur || (e.target.closest && e.target.closest(SEL))) e.preventDefault(); }, true);
+
+  /* (3) details panel: cart motion, sideways */
+  var dst = document.createElement('style'); dst.id = 'storm-v165-css';
+  dst.textContent = '@keyframes stDetIn165 { 0% { transform: translate3d(-102%,0,0); opacity: 1; } 100% { transform: none; opacity: 1; } }'
+    + '@keyframes stDetOut165 { 0% { transform: none; opacity: 1; } 100% { transform: translate3d(-102%,0,0); opacity: 1; } }'
+    + 'html body #detail.detail-overlay.open.fx-in { animation: stDetIn165 .25s ease both !important; transition: none !important; }'
+    /* exact reverse of ease (.25,.1,.25,1) */
+    + 'html body #detail.detail-overlay.open.fx-out { animation: stDetOut165 .25s cubic-bezier(.75,0,.75,.9) both !important; transition: none !important; pointer-events: none !important; }';
+  document.head.appendChild(dst);
+  /* phone back / swipe-back: run the same animated close as the X instead of the instant hide. Capture runs before the base handler,
+     which then finds no detail open and does nothing, so it never plays twice. */
+  window.addEventListener('popstate', function () {
+    try {
+      if (window.overlayOpen !== 'detail' || (history.state && history.state.overlay)) return;
+      var d = document.getElementById('detail'); if (!d || !d.classList.contains('open') || d.classList.contains('fx-out')) return;
+      window.overlayOpen = null; /* the back already happened, so closeDetail must not go back again */
+      closeDetail();
+    } catch (e) {}
+  }, true);
 })();
