@@ -104,6 +104,8 @@
   @keyframes wpRise { 0% { opacity: 0; transform: translateY(46px); } 100% { opacity: 1; transform: none; } }
   #wpick { transition: opacity .9s ease; }
   /* v139 (Hark, 2026-11-10, Dave): opener buttons pop in like his reference video: each grows from 85% to full size while fading in and sharpening from a soft blur, Stock first, then Order for Jobs; on a tap both play it backwards in the same order, then the app opens. Title keeps its rise. */
+  /* v140 (Hark, 2026-11-10, Dave): opener question and buttons sit higher, clear of the words in the video */
+  #wpick { padding-bottom: calc(24vh + env(safe-area-inset-bottom)) !important; }
   #wpick.in button { animation: wpPop .42s cubic-bezier(.22,.8,.3,1) backwards; transform-origin: 50% 50%; will-change: transform, opacity, filter; }
   #wpick.in button[data-wm="stock"] { animation-delay: .32s; }
   #wpick.in button[data-wm="job"] { animation-delay: .40s; }
