@@ -61,7 +61,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   + '@media (prefers-reduced-motion: reduce) { .storm-logo-anim.go * { animation: none !important; } .sla-ripple, .sla-splash, .sla-p, .sla-crown, .sla-dust, .sla-wave { display: none; } }'
   /* detail window fade, matching the banner's fade */
   + '#detail.open.fx-in { animation: fxDetailIn .26s ease-out both; }'
-  + '#detail.open.fx-out { animation: fxDetailOut .2s ease-in both; pointer-events: none; }'
+  + '#detail.open.fx-out { animation: fxDetailOut .26s ease-in both; pointer-events: none; }' /* v154: exact reverse of the way in */
   + '@keyframes fxDetailIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }'
   + '@keyframes fxDetailOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(12px); } }'
   /* number fade on +/- */
@@ -134,7 +134,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       var d = document.getElementById('detail'), self = this, args = arguments;
       if (!d || !d.classList.contains('open') || outT) { if (!outT) return _cd.apply(self, args); return; }
       d.classList.remove('fx-in'); d.classList.add('fx-out');
-      outT = setTimeout(function () { outT = null; d.classList.remove('fx-out'); _cd.apply(self, args); }, 190);
+      outT = setTimeout(function () { outT = null; d.classList.remove('fx-out'); _cd.apply(self, args); }, 250);
     };
   }
 
@@ -1552,4 +1552,20 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
   function fix() { document.querySelectorAll('.detail-bar .detail-close:not(.st-back)').forEach(function (b) { b.classList.add('st-back'); b.innerHTML = CHEV; b.setAttribute('aria-label', 'Back'); }); }
   fix(); try { new MutationObserver(fix).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+})();
+
+/* v154 (Hark, 2026-11-10, Dave): tapping the Bin label in Item details fades the label in (same fade as the details window),
+   and backing out plays the exact reverse. */
+(function () {
+  var st = document.createElement('style'); st.id = 'storm-v154-css';
+  st.textContent = '@keyframes lvBgIn { from { opacity: 0; } to { opacity: 1; } } @keyframes lvBgOut { from { opacity: 1; } to { opacity: 0; } }'
+    + '@keyframes lvBoxIn { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } } @keyframes lvBoxOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(12px) scale(.97); } }'
+    + '#lbl-view.open { animation: lvBgIn .26s ease-out both; } #lbl-view.open .lbl-view-box { animation: lvBoxIn .26s ease-out both; }'
+    + '#lbl-view.open.lv-out { animation: lvBgOut .26s ease-in both; pointer-events: none; } #lbl-view.open.lv-out .lbl-view-box { animation: lvBoxOut .26s ease-in both; }';
+  document.head.appendChild(st);
+  if (typeof lblClose === 'function') {
+    var _lc = lblClose, t = null;
+    lblClose = function () { var v = document.getElementById('lbl-view'); if (!v || !v.classList.contains('open')) return _lc.apply(this, arguments); if (t) return; v.classList.add('lv-out'); t = setTimeout(function () { t = null; _lc(); v.classList.remove('lv-out'); }, 250); };
+  }
+  if (typeof lblView === 'function') { var _lv = lblView; lblView = function () { var v = document.getElementById('lbl-view'); if (v) v.classList.remove('lv-out'); return _lv.apply(this, arguments); }; }
 })();
