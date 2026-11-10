@@ -1274,3 +1274,29 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   if (typeof openDetail === 'function') { var _o = openDetail; openDetail = function () { var r = _o.apply(this, arguments); try { document.querySelectorAll('#detail img.detail-photo').forEach(function (im) { im.removeAttribute('data-hd'); }); sharp(); setTimeout(sharp, 300); } catch (e) {} return r; }; }
 })();
+
+/* v132 (Hark, 2026-11-09): Bin Labels live inside the Resource Center (the whole Bin Labels group moves in, under Media; same rows and taps) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '#drawer-resources.expanded > .drawer-items { max-height: 2000px !important; }'
+    + '#drawer-resources #drawer-labels { border-bottom: 0; }'
+    + '#drawer-resources #drawer-labels > .drawer-section-head { padding: 12px 16px 12px 24px; font-size: 16px; font-weight: 400; color: #111827; justify-content: flex-start; gap: 10px; }'
+    + '#drawer-resources #drawer-labels > .drawer-section-head .drawer-chevron { margin-left: auto; }'
+    + '#drawer-resources #drawer-labels:not(.expanded) > .drawer-items { max-height: 0 !important; }'
+    + '#drawer-resources #drawer-labels.expanded > .drawer-items { max-height: 600px !important; }'
+    + '#drawer-resources #drawer-labels .drawer-item { padding-left: 40px; }'
+    + '.lbl-ico { width: 20px; height: 20px; flex: none; }';
+  document.head.appendChild(st);
+  var tries = 0;
+  function move() {
+    var res = document.getElementById('drawer-resources'), lab = document.getElementById('drawer-labels');
+    var box = res && res.querySelector(':scope > .drawer-items');
+    if (!box || !lab) { if (++tries < 40) setTimeout(move, 250); return; }
+    if (lab.parentNode === box) return;
+    var head = lab.querySelector(':scope > .drawer-section-head');
+    if (head && !head.querySelector('.lbl-ico')) head.insertAdjacentHTML('afterbegin', '<svg class="lbl-ico" viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>');
+    var media = box.querySelector('[data-res-page="media"]');
+    if (media && media.nextSibling) box.insertBefore(lab, media.nextSibling); else box.appendChild(lab);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(move, 300); }); else setTimeout(move, 300);
+})();
