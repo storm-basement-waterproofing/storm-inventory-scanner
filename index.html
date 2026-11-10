@@ -145,6 +145,16 @@
   #wpick.exiting button, #wpick.exiting button.picked { animation-name: wpPopOut2 !important; }
   @keyframes wpPop2 { 0% { opacity: 0; transform: scale(.85); } 100% { opacity: 1; transform: none; } }
   @keyframes wpPopOut2 { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(.85); } }
+  /* v144: smooth camera island */
+  #camisl { position: fixed; inset: 0; z-index: 4; background: #000; pointer-events: none; will-change: clip-path, opacity;
+    clip-path: inset(12px calc(50% - 56px) calc(100% - 44px) calc(50% - 56px) round 16px); opacity: 0;
+    transition: clip-path .62s cubic-bezier(.32,.72,0,1), opacity .18s ease; }
+  #camisl.grow, #camisl.full { clip-path: inset(0 0 0 0 round 0); opacity: 1; }
+  #camisl.full { transition: none; }
+  #camisl.shrink { clip-path: inset(12px calc(50% - 56px) calc(100% - 44px) calc(50% - 56px) round 16px); opacity: 0; transition: clip-path .5s cubic-bezier(.32,.72,0,1), opacity .2s ease .32s; }
+  #camwrap.isl { animation: none !important; clip-path: none !important; }
+  #camwrap.slow { transition: opacity .38s ease !important; }
+  #camwrap.isl-out { animation: none !important; }
 </style>
 <!-- v110: loader fade at end --></head>
 <body style="background:#000">
@@ -269,11 +279,22 @@
     requestAnimationFrame(function () { w.classList.add('on'); });
     try { history.pushState({ stormCam: 1 }, ''); } catch (e) {}
   }
+  /* v144 (Hark, 2026-11-10, Dave: island was jumpy): a plain black island grows from a pill at the top to full screen on its own (nothing else loads while it moves),
+     then the camera starts behind black and fades in. Closing runs it backward. */
+  function islandEl() { var d = document.getElementById('camisl'); if (!d) { d = document.createElement('div'); d.id = 'camisl'; document.body.appendChild(d); } return d; }
+  function islandOpen(q, src) {
+    var d = islandEl(); d.className = ''; void d.offsetWidth;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { d.className = 'grow'; }); });
+    setTimeout(function () { openCam(q, src); var w = document.getElementById('camwrap'); if (w) w.classList.add('isl', 'slow'); }, 600);
+    setTimeout(function () { var w = document.getElementById('camwrap'); if (w && w.classList.contains('on') && d.parentNode && d.className === 'grow') d.parentNode.removeChild(d); }, 1300);
+  }
   function closeCam(silent, viaPop) {
     var w = document.getElementById('camwrap'); if (!w) return;
     var isl = !silent && w.classList.contains('isl'); w.removeAttribute('id'); /* v142: the closing copy gives up its id so a reopen never grabs it */
-    if (isl) { w.classList.remove('isl'); void w.offsetWidth; w.classList.add('isl-out'); } else w.classList.remove('on');
-    setTimeout(function () { if (w.parentNode) w.parentNode.removeChild(w); }, isl ? 540 : 200); /* removing the frame turns the camera off */
+    if (isl) { /* v144: camera fades onto a black island, the camera turns off, then the island shrinks back into the pill */
+      var d = islandEl(); d.className = 'full'; w.classList.remove('on');
+      setTimeout(function () { if (w.parentNode) w.parentNode.removeChild(w); requestAnimationFrame(function () { d.className = 'shrink'; }); setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 640); }, 400);
+    } else { w.classList.remove('on'); setTimeout(function () { if (w.parentNode) w.parentNode.removeChild(w); }, 200); } /* removing the frame turns the camera off */
     if (!viaPop && !silent) { try { if (history.state && history.state.stormCam) history.back(); } catch (e) {} }
   }
   window.addEventListener('popstate', function () { if (document.getElementById('camwrap')) closeCam(false, true); });
@@ -300,7 +321,7 @@
     }
     if (m.storm === 'scan' && typeof m.q === 'string') { /* v135 (Hark, 2026-11-09, Dave): going into the camera uses the same opener effect as picking Job / Inventory: fade to black, the STORM logo outline and screen frame pulse once, and the camera fades in under the fading lines */
       var camQ = m.q, camSrc = e.source;
-      if (!window.__stormCamFx) { openCam(camQ, camSrc); var cw0 = document.getElementById('camwrap'); if (cw0) cw0.classList.add('isl'); return; } /* v142: Dynamic Island open (the old black pulse below is no longer used) */
+      if (!window.__stormCamFx) { islandOpen(camQ, camSrc); return; } /* v144: smooth island open (the old black pulse below is no longer used) */
       if (document.getElementById('camwrap') || window.__stormCamFx) { openCam(camQ, camSrc); return; }
       window.__stormCamFx = true;
       try { edgePath(); } catch (eE2) {}
