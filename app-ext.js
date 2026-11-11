@@ -2710,3 +2710,22 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + T2.split(', ').map(function (x) { return x + '::before'; }).join(', ') + ' { display: none !important; content: none !important; }';
   document.head.appendChild(st);
 })();
+
+/* v177 (Hark, 2026-11-10, Dave: "same UI on the main video side"): the opening video screen (Pick your order type) in the Truck Check look.
+   Navy fade over the bottom of the video, small caps title, Stock as a dark tile with a blue edge, Order for Jobs as the blue primary.
+   The Stock sub-line ("Orders that are for inventory") is readable again (it was white on white). Same buttons, same taps. */
+(function () {
+  if (document.getElementById('storm-v177-css')) return;
+  var P = 'html body #mode-picker';
+  var st = document.createElement('style'); st.id = 'storm-v177-css';
+  st.textContent = ''
+    + P + ' .picker-video-dim { background: linear-gradient(to top, #14202F 0%, rgba(20,32,47,.92) 24%, rgba(20,32,47,.35) 48%, rgba(20,32,47,0) 66%) !important; }'
+    + P + ' .mode-picker-title { font-size: 14px !important; font-weight: 800 !important; letter-spacing: 3px !important; color: #9FB3C8 !important; text-shadow: none !important; margin-bottom: 6px; }'
+    + P + ' .mode-pick-btn { min-height: 66px !important; margin-top: 12px !important; border-radius: 16px !important; box-shadow: none !important; font-size: 18px !important; font-weight: 800 !important; padding: 12px 16px !important; }'
+    + P + ' .mode-pick-btn[data-mode-pick="stock"] { background: #1B2C3F !important; border: 1.5px solid #29ABE2 !important; color: #fff !important; outline: none !important; }'
+    + P + ' .mode-pick-btn[data-mode-pick="stock"] .mode-pick-sub { color: #9FB3C8 !important; }'
+    + P + ' .mode-pick-btn[data-mode-pick="job"] { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; border: 0 !important; color: #04121D !important; }'
+    + P + ' .mode-pick-btn[data-mode-pick="job"] .mode-pick-sub { color: rgba(4,18,29,.72) !important; }'
+    + P + ' .mode-pick-btn .mode-pick-sub { font-size: 13px !important; font-weight: 600 !important; margin-top: 4px !important; }';
+  document.head.appendChild(st);
+})();
