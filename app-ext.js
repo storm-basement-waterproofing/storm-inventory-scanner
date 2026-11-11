@@ -1,4 +1,4 @@
-/* v193 (Hark, 2026-11-11, Dave approved): pairs with app v145 (manager code / Crew lock screen). Side menu gets "Switch user / Lock"; Resource Center gets Insurance Certificates (Lindsey, Suzanne: contact pages with tap-to-email); cart RichTech button is one "Order on RichTech" (copies the list, opens RichTech sign-in); guide's PIN chapter now explains the lock screen. See the v193 block at the end. */
+/* v193 (Hark, 2026-11-11, Dave approved): pairs with app v145 (Crew view by default, manager code). Side menu gets "Manager Login" ("Manager · Log out" once logged in); Resource Center gets Insurance Certificates (Lindsey, Suzanne: contact pages with tap-to-email); cart RichTech button is one "Order on RichTech" (copies the list, opens RichTech sign-in); guide's PIN chapter now explains the crew view and Manager Login. See the v193 block at the end. */
 /* v192 (Hark, 2026-11-11, Dave): "How to Use the App" row at the bottom of the side menu opens a full-screen crew guide (numbered chapters, looping phone animation, reduced-motion frames). See the v192 block at the end. */
 /* v191 (Hark, 2026-11-11, Dave): dock buttons fold into one spinning "+" (tap to flare out / suck back in; cart count on the +); Pull List "Print Preview" shows the printed sheet on screen; mode toggle reads "Stage Job". See the v191 block at the end. */
 /* v190 (Hark, 2026-11-11, Dave): cart $ total pill keeps clear of the button below it (Inventory + Job, phone + iPad; big totals no longer run off the edge); "Quote" label under the quote button; blue "Customer Search" label under the Pull List / Find a Job button. See the v190 block at the end. */
@@ -4340,7 +4340,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var CH = [
     { t: 'Getting around', s: 'Getting around', h:
       '<ol class="sh-steps">'
-      + '<li><b>Top switch: ' + k('Stage Job') + ' | ' + k('Inventory') + '.</b> Stage Job = getting material ready for a customer\'s job. Inventory = counting what\'s on the shelf and ordering more (managers only; crew phones stay on Stage Job).</li>'
+      + '<li><b>Top switch: ' + k('Stage Job') + ' | ' + k('Inventory') + '.</b> Stage Job = getting material ready for a customer\'s job. Inventory = counting what\'s on the shelf and ordering more (Manager Login only; the crew view stays on Stage Job).</li>'
       + '<li><b>White round ' + k('+') + ' bottom right.</b> Tap it and the buttons pop out: Camera, Cart, ' + k('Customer Search') + ' (clipboard, Stage Job only) and ' + k('Quote') + '. Tap it again (it turns into an X) to tuck them away.</li>'
       + '<li><b>Menu ' + k('&#9776;') + ' top left.</b> Products by store, Quote Templates, Resources (Checklists, Bin Labels and more), Staging, Open Jobber app, CompanyCam, and this guide at the bottom.</li>'
       + '</ol><div class="sh-tip">Lost? Close what\'s open with the X in its corner. You\'re back on the main list.</div>' },
@@ -4376,12 +4376,12 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       + '<li>Scan the same label again to add one more. Tap the pop-up to see the cart and change amounts.</li>'
       + '<li>Tap the X at the top. What you scanned is in the app\'s cart.</li>'
       + '</ol><div class="sh-tip">Bin label stickers: menu &rarr; Resources &rarr; Bin Labels, pick the store, print. One label per bin. If a code isn\'t a STORM label, the camera says so. Nothing gets added.</div>' },
-    { t: 'Crew & manager code', s: 'Sign in', h: /* v193: was "Counts & crew PIN" */
+    { t: 'Crew view & Manager Login', s: 'Manager', h: /* v193: was "Counts & crew PIN" */
       '<ol class="sh-steps">'
-      + '<li>When the app opens it shows a lock screen. Field crew: tap ' + k('Crew \u2014 no prices') + '. No code needed.</li>'
+      + '<li>The app opens in the <b>crew view</b>: no prices, no ordering, no count changes. No code needed.</li>'
       + '<li>Crew can browse items, Find a Job / Customer Search, stage and print Pull Lists, scan labels, and <b>check Pull List boxes</b> (that takes the stock off On hand).</li>'
-      + '<li>Prices, ' + k('On hand') + ' counts, ' + k('Keep on hand') + ', Needs Ordering, the cart and ordering are for managers. They need the <b>manager code</b> from Dave.</li>'
-      + '<li>The phone remembers who you picked. Menu &rarr; ' + k('Switch user / Lock') + ' goes back to the lock screen.</li>'
+      + '<li>Prices, ' + k('On hand') + ' counts, ' + k('Keep on hand') + ', Needs Ordering, the cart and ordering are for Dave and the main guy: menu &rarr; ' + k('Manager Login') + ', enter the manager code.</li>'
+      + '<li>A manager phone stays logged in for 30 days. Menu &rarr; ' + k('Manager \u00b7 Log out') + ' goes back to the crew view.</li>'
       + '<li>Too many wrong codes locks it for 10 minutes.</li>'
       + '</ol>' },
     { t: 'Do & Don\'t', s: 'Do / Don\'t', h:
@@ -4450,7 +4450,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 })();
 
 /* v193 (Hark, 2026-11-11, Dave approved): pairs with app v145.
-   1. "Switch user / Lock" row in the side menu (above How to Use the App): back to the lock screen (window.stormAccess.lock); shows Manager or Crew.
+   1. "Manager Login" row in the side menu (lock icon, above How to Use the App) opens the manager code screen (window.stormAccess.login);
+      once logged in it reads "Manager · Log out" and taps back to the crew view (stormAccess.logout). No lock screen on open (Dave, 10:46).
    2. Resource Center > Insurance Certificates: a page with two contacts (Lindsey, Alliance Group: workers comp; Suzanne, Paris-Kirwan:
       general liability & disability). Each opens a contact page with a tap-to-email button (mailto, subject prefilled). Same res-list /
       res-view pages, close button and back button as Logos / Media. */
@@ -4489,8 +4490,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>';
   var LOCK = '<svg class="st-help-ico" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 
-  /* 1. Switch user / Lock */
-  function who() { try { return window.stormAccess && stormAccess.isMgr() ? 'Manager' : 'Crew'; } catch (e) { return ''; } }
+  /* 1. Manager Login / Manager · Log out */
+  function mgr() { try { return !!(window.stormAccess && stormAccess.isMgr()); } catch (e) { return false; } }
   function addLock() {
     var dr = e$('drawer'); if (!dr) return false;
     var b = e$('st-lock-row');
@@ -4499,7 +4500,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       var foot = dr.querySelector('.drawer-foot'), help = e$('st-help-row');
       if (help && help.parentNode) help.parentNode.insertBefore(b, help); else (foot || dr).appendChild(b);
     }
-    var w = who(); b.innerHTML = LOCK + '<span class="drawer-item-name">Switch user / Lock</span>' + (w ? '<span class="st-lock-who">' + w + '</span>' : '');
+    var m = mgr(); b.innerHTML = LOCK + '<span class="drawer-item-name">' + (m ? 'Manager \u00b7 Log out' : 'Manager Login') + '</span>';
     return true;
   }
   (function wait(n) { if (addLock() && e$('st-help-row')) { var b = e$('st-lock-row'), hr = e$('st-help-row'); if (b && hr && b.nextSibling !== hr && hr.parentNode) hr.parentNode.insertBefore(b, hr); return; } if (n < 200) setTimeout(function () { wait(n + 1); }, 150); })(0);
@@ -4543,7 +4544,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   window.addEventListener('click', function (e) {
     var t = e.target; if (!t || !t.closest) return;
-    if (t.closest('#st-lock-row')) { e.stopImmediatePropagation(); e.preventDefault(); try { closeDrawer(); } catch (x) {} try { if (window.stormAccess) stormAccess.lock(); } catch (x) {} return; }
+    if (t.closest('#st-lock-row')) { e.stopImmediatePropagation(); e.preventDefault(); try { closeDrawer(); } catch (x) {} try { if (window.stormAccess) { if (stormAccess.isMgr()) stormAccess.logout(); else stormAccess.login(); } } catch (x) {} return; }
     if (t.closest('[data-ins-page]')) { e.stopImmediatePropagation(); e.preventDefault(); openList(); return; }
     var c = t.closest('[data-ins-contact]'); if (c) { e.stopImmediatePropagation(); e.preventDefault(); openContact(c.getAttribute('data-ins-contact')); return; }
   }, true);
