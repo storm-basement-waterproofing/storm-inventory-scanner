@@ -1,3 +1,4 @@
+/* v188 (Hark, 2026-11-11, Dave): bottom-right version badge shows the real app version (was stuck at v130); no second tag. */
 /* v187 (Hark, 2026-11-11, Dave): version tag in the bottom-right corner of the app (app version · ext version). */
 /* v185 (Hark, 2026-11-11, Dave): Pull List keeps the footage line "Job 99 ft · Grab 1 roll (100 ft)" under the item name. */
 /* v184 (Hark, 2026-11-11, Dave): footage items (FT_ITEMS: rt-18 sticks, rt-34/35/36/41 rolls) show feet on the Pull List; a check now takes whole sticks/rolls off On hand (ceil(feet / length)), not the feet number. */
@@ -4013,9 +4014,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
 /* v187 (Hark, 2026-11-11, Dave): small version tag, bottom right, so everyone can see which version is running. */
 (function () {
-  var EXT = 'v187';
+  var EXT = 'v188';
   function put() {
     var f = document.querySelector('.foot'), m = f && (f.textContent || '').match(/Inventory\s*\u00b7\s*(v\d+)/);
+    var vb = document.getElementById('ver-badge'); if (vb) { if (m) vb.textContent = m[1]; return; } /* v188: the app's own bottom-right badge was hard-coded v130; it now shows the live footer version */
     var t = document.getElementById('st-ver'); if (!t) { t = document.createElement('div'); t.id = 'st-ver'; document.body.appendChild(t);
       var st = document.createElement('style'); st.textContent = '#st-ver{position:fixed;right:6px;bottom:calc(2px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:600 10px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:rgba(138,148,163,.85);letter-spacing:.3px}@media print{#st-ver{display:none!important}}'; document.head.appendChild(st); }
     t.textContent = (m ? m[1] : '') + (m ? ' \u00b7 ' : '') + 'ext ' + EXT;
