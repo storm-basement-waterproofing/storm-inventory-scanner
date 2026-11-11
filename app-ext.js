@@ -1,3 +1,4 @@
+/* v193 (Hark, 2026-11-11, Dave approved): pairs with app v145 (manager code / Crew lock screen). Side menu gets "Switch user / Lock"; Resource Center gets Insurance Certificates (Lindsey, Suzanne: contact pages with tap-to-email); cart RichTech button is one "Order on RichTech" (copies the list, opens RichTech sign-in); guide's PIN chapter now explains the lock screen. See the v193 block at the end. */
 /* v192 (Hark, 2026-11-11, Dave): "How to Use the App" row at the bottom of the side menu opens a full-screen crew guide (numbered chapters, looping phone animation, reduced-motion frames). See the v192 block at the end. */
 /* v191 (Hark, 2026-11-11, Dave): dock buttons fold into one spinning "+" (tap to flare out / suck back in; cart count on the +); Pull List "Print Preview" shows the printed sheet on screen; mode toggle reads "Stage Job". See the v191 block at the end. */
 /* v190 (Hark, 2026-11-11, Dave): cart $ total pill keeps clear of the button below it (Inventory + Job, phone + iPad; big totals no longer run off the edge); "Quote" label under the quote button; blue "Customer Search" label under the Pull List / Find a Job button. See the v190 block at the end. */
@@ -3644,7 +3645,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
         if (tot) h.querySelector('.cl-gsub') ? h.querySelector('.cl-gsub').insertAdjacentText('beforeend', ' \u00b7 ' + tot[0]) : null;
         var btns = [];
         if (name === 'Home Depot') btns.push(['#hd-copy-btn', /next/i.test((g.querySelector('#hd-copy-btn') || {}).textContent || '') ? 'Copy next' : 'Copy & open']);
-        if (name === 'RichTech') btns.push(['__rtcopy', 'Copy']);
+        if (name === 'RichTech') btns.push(['__rtcopy', 'Order']); /* v193: one button - copy + open RichTech sign-in */
         if (name === 'Hilti') { btns.push(['[data-pick-copy-hi]', 'Copy']); btns.push(['[data-pick-open-hi]', 'Open cart']); }
         if (name === 'AutoZone') btns.push(['[data-pick-copy-az]', 'Copy']);
         btns.forEach(function (b) { var x = document.createElement('button'); x.type = 'button'; x.className = 'cl-gbtn'; x.setAttribute('data-cl-proxy', b[0]); x.textContent = b[1]; h.appendChild(x); });
@@ -3674,7 +3675,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (px) {
       e.preventDefault(); e.stopPropagation();
       var sel = px.getAttribute('data-cl-proxy');
-      if (sel === '__rtcopy') { try { copyPickOrder(); } catch (x) {} return; }
+      if (sel === '__rtcopy') { try { if (typeof orderOnRichTech === 'function') orderOnRichTech(pickOrderText()); else copyPickOrder(); } catch (x) {} return; }
       var g = px.closest('.cl-grp'), o = (g && g.querySelector(sel)) || document.querySelector('#pick-sheet ' + sel);
       if (o) o.click();
       return;
@@ -4018,7 +4019,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
 /* v187 (Hark, 2026-11-11, Dave): small version tag, bottom right, so everyone can see which version is running. */
 (function () {
-  var EXT = 'v192';
+  var EXT = 'v193';
   function put() {
     var f = document.querySelector('.foot'), m = f && (f.textContent || '').match(/Inventory\s*\u00b7\s*(v\d+)/);
     var vb = document.getElementById('ver-badge'); if (vb) { if (m) vb.textContent = m[1]; return; } /* v188: the app's own bottom-right badge was hard-coded v130; it now shows the live footer version */
@@ -4339,7 +4340,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var CH = [
     { t: 'Getting around', s: 'Getting around', h:
       '<ol class="sh-steps">'
-      + '<li><b>Top switch: ' + k('Stage Job') + ' | ' + k('Inventory') + '.</b> Stage Job = getting material ready for a customer\'s job. Inventory = counting what\'s on the shelf and ordering more.</li>'
+      + '<li><b>Top switch: ' + k('Stage Job') + ' | ' + k('Inventory') + '.</b> Stage Job = getting material ready for a customer\'s job. Inventory = counting what\'s on the shelf and ordering more (managers only; crew phones stay on Stage Job).</li>'
       + '<li><b>White round ' + k('+') + ' bottom right.</b> Tap it and the buttons pop out: Camera, Cart, ' + k('Customer Search') + ' (clipboard, Stage Job only) and ' + k('Quote') + '. Tap it again (it turns into an X) to tuck them away.</li>'
       + '<li><b>Menu ' + k('&#9776;') + ' top left.</b> Products by store, Quote Templates, Resources (Checklists, Bin Labels and more), Staging, Open Jobber app, CompanyCam, and this guide at the bottom.</li>'
       + '</ol><div class="sh-tip">Lost? Close what\'s open with the X in its corner. You\'re back on the main list.</div>' },
@@ -4375,18 +4376,19 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       + '<li>Scan the same label again to add one more. Tap the pop-up to see the cart and change amounts.</li>'
       + '<li>Tap the X at the top. What you scanned is in the app\'s cart.</li>'
       + '</ol><div class="sh-tip">Bin label stickers: menu &rarr; Resources &rarr; Bin Labels, pick the store, print. One label per bin. If a code isn\'t a STORM label, the camera says so. Nothing gets added.</div>' },
-    { t: 'Counts & crew PIN', s: 'PIN', h:
+    { t: 'Crew & manager code', s: 'Sign in', h: /* v193: was "Counts & crew PIN" */
       '<ol class="sh-steps">'
-      + '<li>Changing an ' + k('On hand') + ' count, ' + k('Keep on hand') + ', or checking Pull List boxes asks for the <b>crew PIN</b>.</li>'
-      + '<li>Enter it once. That phone remembers it.</li>'
-      + '<li>Get the PIN from Dave. Never share it or write it on anything.</li>'
-      + '<li>Too many wrong tries locks it for 10 minutes.</li>'
+      + '<li>When the app opens it shows a lock screen. Field crew: tap ' + k('Crew \u2014 no prices') + '. No code needed.</li>'
+      + '<li>Crew can browse items, Find a Job / Customer Search, stage and print Pull Lists, scan labels, and <b>check Pull List boxes</b> (that takes the stock off On hand).</li>'
+      + '<li>Prices, ' + k('On hand') + ' counts, ' + k('Keep on hand') + ', Needs Ordering, the cart and ordering are for managers. They need the <b>manager code</b> from Dave.</li>'
+      + '<li>The phone remembers who you picked. Menu &rarr; ' + k('Switch user / Lock') + ' goes back to the lock screen.</li>'
+      + '<li>Too many wrong codes locks it for 10 minutes.</li>'
       + '</ol>' },
     { t: 'Do & Don\'t', s: 'Do / Don\'t', h:
       '<div class="sh-two"><div><h4>Do</h4><ol class="sh-steps sh-do">'
       + '<li>Check a box only when it\'s in the truck.</li><li>Uncheck if it comes back off the truck.</li><li>Grab whole rolls and sticks.</li><li>Save Job before you print.</li><li>Fix a count right away if the shelf doesn\'t match.</li></ol></div>'
       + '<div><h4>Don\'t</h4><ol class="sh-steps sh-dont">'
-      + '<li>Don\'t check boxes ahead of time.</li><li>Don\'t share the crew PIN.</li><li>Don\'t guess counts. Count the bin.</li><li>Don\'t take stuff without it being on a Pull List.</li></ol></div></div>' }
+      + '<li>Don\'t check boxes ahead of time.</li><li>Don\'t share the manager code.</li><li>Don\'t guess counts. Count the bin.</li><li>Don\'t take stuff without it being on a Pull List.</li></ol></div></div>' }
   ];
 
   var el = null, body = null, chips = null, bar = null;
@@ -4445,4 +4447,105 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     try { closeDrawer(); } catch (x) {}
     setTimeout(open, 170);
   }, true);
+})();
+
+/* v193 (Hark, 2026-11-11, Dave approved): pairs with app v145.
+   1. "Switch user / Lock" row in the side menu (above How to Use the App): back to the lock screen (window.stormAccess.lock); shows Manager or Crew.
+   2. Resource Center > Insurance Certificates: a page with two contacts (Lindsey, Alliance Group: workers comp; Suzanne, Paris-Kirwan:
+      general liability & disability). Each opens a contact page with a tap-to-email button (mailto, subject prefilled). Same res-list /
+      res-view pages, close button and back button as Logos / Media. */
+(function () {
+  if (window.__stormV193) return; window.__stormV193 = 1;
+  var LOGO = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/logos/STORM-logo-color-transparent.svg?v=91';
+  var SUBJ = 'Certificate of Insurance request \u2013 STORM Basement Waterproofing';
+  var NOTE = 'For commercial permits (towns) and customer homes';
+  var INS = [
+    { id: 'lindsey', name: 'Lindsey', company: 'Alliance Group', what: 'Workers comp certificates', ask: 'workers comp', email: 'lindseym@alliance-group.net' },
+    { id: 'suzanne', name: 'Suzanne', company: 'Paris-Kirwan', what: 'General liability & disability certificates', ask: 'general liability and disability', email: 'Suzannes@paris-kirwan.com' }
+  ];
+  function e$(x) { return document.getElementById(x); }
+  function h(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var st = document.createElement('style'); st.id = 'storm-v193-css';
+  st.textContent = ''
+    + '#drawer .drawer-item.st-lock-row { padding: 12px 0 !important; margin-top: 4px; font-weight: 600; }'
+    + '#drawer .drawer-item.st-lock-row .st-lock-who { margin-left: auto; padding: 2px 9px; border-radius: 10px; background: rgba(41,171,226,.14); color: #1F9BD7; font-size: 12px; font-weight: 700; }'
+    + '.st-ins-av { flex: none; width: 46px; height: 46px; border-radius: 50%; background: #29ABE2; color: #fff; display: flex; align-items: center; justify-content: center; font: 800 19px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }'
+    + '.st-ins-card { display: flex; align-items: center; gap: 12px; cursor: pointer; }'
+    + '.st-ins-card .bl-info { flex: 1; min-width: 0; }'
+    + '.st-ins-head { display: flex; align-items: center; gap: 14px; margin: 4px 0 6px; }'
+    + '.st-ins-head .st-ins-av { width: 60px; height: 60px; font-size: 24px; }'
+    + '.st-ins-head .detail-name { margin: 0 !important; }'
+    + '.st-ins-co { font-size: 15px; color: #6B7280; font-weight: 600; margin-top: 2px; }'
+    + '.st-ins-rows { background: #fff; border: 1px solid #E6EBF1; border-radius: 14px; overflow: hidden; margin-top: 14px; }'
+    + '.st-ins-row { display: flex; gap: 12px; padding: 12px 14px; border-top: 1px solid #F0F2F5; font-size: 15px; color: #0F1720; }'
+    + '.st-ins-row:first-child { border-top: 0; }'
+    + '.st-ins-row > span { flex: none; width: 86px; color: #6B7280; font-weight: 600; }'
+    + '.st-ins-row > b { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }'
+    + 'a.res-dl.st-ins-mail { text-decoration: none; color: #fff; }';
+  function put() { (document.head || document.documentElement).appendChild(st); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+
+  var SHIELD = '<svg class="res-ico" viewBox="0 0 24 24" fill="none" stroke="#16212E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>';
+  var MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>';
+  var LOCK = '<svg class="st-help-ico" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+
+  /* 1. Switch user / Lock */
+  function who() { try { return window.stormAccess && stormAccess.isMgr() ? 'Manager' : 'Crew'; } catch (e) { return ''; } }
+  function addLock() {
+    var dr = e$('drawer'); if (!dr) return false;
+    var b = e$('st-lock-row');
+    if (!b) {
+      b = document.createElement('button'); b.type = 'button'; b.id = 'st-lock-row'; b.className = 'drawer-item st-lock-row';
+      var foot = dr.querySelector('.drawer-foot'), help = e$('st-help-row');
+      if (help && help.parentNode) help.parentNode.insertBefore(b, help); else (foot || dr).appendChild(b);
+    }
+    var w = who(); b.innerHTML = LOCK + '<span class="drawer-item-name">Switch user / Lock</span>' + (w ? '<span class="st-lock-who">' + w + '</span>' : '');
+    return true;
+  }
+  (function wait(n) { if (addLock() && e$('st-help-row')) { var b = e$('st-lock-row'), hr = e$('st-help-row'); if (b && hr && b.nextSibling !== hr && hr.parentNode) hr.parentNode.insertBefore(b, hr); return; } if (n < 200) setTimeout(function () { wait(n + 1); }, 150); })(0);
+  window.addEventListener('stormaccess', addLock);
+
+  /* 2. Insurance Certificates */
+  function addIns() {
+    var res = e$('drawer-resources'), box = res && res.querySelector(':scope > .drawer-items'); if (!box) return false;
+    if (box.querySelector('[data-ins-page]')) return true;
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'drawer-item'; b.setAttribute('data-ins-page', '1');
+    b.innerHTML = SHIELD + '<span class="drawer-item-name">Insurance Certificates</span><span class="drawer-chevron">&#9662;</span>';
+    box.appendChild(b);
+    return true;
+  }
+  (function wait(n) { if (addIns()) return; if (n < 200) setTimeout(function () { wait(n + 1); }, 150); })(0);
+  function page(id) { var v = e$(id); if (!v) { v = document.createElement('div'); v.id = id; v.className = 'detail-overlay res-pg'; document.body.appendChild(v); } return v; }
+  function show(v, kind) { v.classList.add('open'); v.scrollTop = 0; v.classList.remove('res-in'); void v.offsetWidth; v.classList.add('res-in'); try { history.pushState({ overlay: kind }, ''); } catch (x) {} }
+  function bar(t) { return '<div class="detail-bar"><button class="detail-close" type="button" data-res-close aria-label="Close">&times;</button><div class="res-title">' + h(t) + '</div><img class="res-hlogo" src="' + LOGO + '" alt=""></div>'; }
+  function av(c) { return '<span class="st-ins-av" aria-hidden="true">' + h(c.name.charAt(0)) + '</span>'; }
+  function openList() {
+    var v = page('res-list');
+    v.innerHTML = bar('Insurance Certificates') + '<div class="detail-body" style="max-width:1100px"><p class="bl-intro">' + h(NOTE) + '. Tap a contact to email a certificate request.</p><div class="bl-cat">Insurance Certificates</div><div class="bl-grid">'
+      + INS.map(function (c) { return '<div class="bl-card st-ins-card" role="button" tabindex="0" data-ins-contact="' + c.id + '">' + av(c) + '<div class="bl-info"><div class="bl-name">' + h(c.name) + ' \u00b7 ' + h(c.company) + '</div><div class="bl-state">' + h(c.what) + ' &rsaquo;</div></div></div>'; }).join('')
+      + '</div></div>';
+    show(v, 'res-list');
+  }
+  function mailto(c) {
+    var body = 'Hi ' + c.name + ',\n\nCould you please send a ' + c.ask + ' certificate of insurance for STORM Basement Waterproofing LLC?\n\nCertificate holder (name and address):\n\n\nThank you,\n';
+    return 'mailto:' + c.email + '?subject=' + encodeURIComponent(SUBJ) + '&body=' + encodeURIComponent(body);
+  }
+  function openContact(id) {
+    var c = INS.filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    var v = page('res-view');
+    v.innerHTML = bar(c.name) + '<div class="detail-body">'
+      + '<div class="st-ins-head">' + av(c) + '<div><div class="detail-name">' + h(c.name) + '</div><div class="st-ins-co">' + h(c.company) + '</div></div></div>'
+      + '<div class="st-ins-rows"><div class="st-ins-row"><span>Request</span><b>' + h(c.what) + '</b></div><div class="st-ins-row"><span>Company</span><b>' + h(c.company) + '</b></div><div class="st-ins-row"><span>Email</span><b>' + h(c.email) + '</b></div></div>'
+      + '<p class="res-note">' + h(NOTE) + '. Put the certificate holder\'s name and address in the email.</p>'
+      + '<a class="res-dl st-ins-mail" href="' + h(mailto(c)) + '" target="_blank" rel="noopener">' + MAIL + '<span class="res-dlt">Email ' + h(c.name) + '<small>' + h(c.email) + '</small></span></a>'
+      + '</div>';
+    show(v, 'res-view');
+  }
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest('#st-lock-row')) { e.stopImmediatePropagation(); e.preventDefault(); try { closeDrawer(); } catch (x) {} try { if (window.stormAccess) stormAccess.lock(); } catch (x) {} return; }
+    if (t.closest('[data-ins-page]')) { e.stopImmediatePropagation(); e.preventDefault(); openList(); return; }
+    var c = t.closest('[data-ins-contact]'); if (c) { e.stopImmediatePropagation(); e.preventDefault(); openContact(c.getAttribute('data-ins-contact')); return; }
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key !== 'Enter' && e.key !== ' ') return; var c = e.target && e.target.closest && e.target.closest('[data-ins-contact]'); if (c) { e.preventDefault(); openContact(c.getAttribute('data-ins-contact')); } });
 })();
