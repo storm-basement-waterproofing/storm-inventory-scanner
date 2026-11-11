@@ -1,3 +1,4 @@
+/* v194 (Hark, 2026-11-11 11:28, Dave): pairs with app v146 (Manager Login in place: no reload, video or picker). Side menu bottom rows spaced out (Jobber | CompanyCam, then Manager Login and How to Use the App as full rows; safe area from the wrapper); Insurance Certificates pages show the main-screen STORM logo centered at the top; help guide bottom spacing + new app-specific explainer. See the v194 block at the end. */
 /* v193 (Hark, 2026-11-11, Dave approved): pairs with app v145 (Crew view by default, manager code). Side menu gets "Manager Login" ("Manager · Log out" once logged in); Resource Center gets Insurance Certificates (Lindsey, Suzanne: contact pages with tap-to-email); cart RichTech button is one "Order on RichTech" (copies the list, opens RichTech sign-in); guide's PIN chapter now explains the crew view and Manager Login. See the v193 block at the end. */
 /* v192 (Hark, 2026-11-11, Dave): "How to Use the App" row at the bottom of the side menu opens a full-screen crew guide (numbered chapters, looping phone animation, reduced-motion frames). See the v192 block at the end. */
 /* v191 (Hark, 2026-11-11, Dave): dock buttons fold into one spinning "+" (tap to flare out / suck back in; cart count on the +); Pull List "Print Preview" shows the printed sheet on screen; mode toggle reads "Stage Job". See the v191 block at the end. */
@@ -4019,7 +4020,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
 /* v187 (Hark, 2026-11-11, Dave): small version tag, bottom right, so everyone can see which version is running. */
 (function () {
-  var EXT = 'v193';
+  var EXT = 'v194';
   function put() {
     var f = document.querySelector('.foot'), m = f && (f.textContent || '').match(/Inventory\s*\u00b7\s*(v\d+)/);
     var vb = document.getElementById('ver-badge'); if (vb) { if (m) vb.textContent = m[1]; return; } /* v188: the app's own bottom-right badge was hard-coded v130; it now shows the live footer version */
@@ -4331,6 +4332,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   ];
   var CAPS = ['1. Tap Customer Search', '2. Pick the job', '3. Items fill the Pull List', '4. Check each box', '5. Load the truck'];
   function anim() {
+    try { if (window.stormHelpAnim) { var nx = window.stormHelpAnim(); if (nx) return nx; } } catch (e) {} /* v194: app-specific explainer */
     var live = '<div class="sh-ph sh-live"><div class="sh-scr">' + SCENES.map(function (s) { return '<div class="sh-sc">' + s + '</div>'; }).join('') + '</div></div>'
       + '<div class="sh-cap">' + CAPS.map(function (c) { return '<span>' + c + '</span>'; }).join('') + '</div>';
     var strip = '<div class="sh-strip">' + SCENES.map(function (s, i) { return '<figure class="sh-f' + (i + 1) + '"><div class="sh-ph"><div class="sh-scr"><div class="sh-sc">' + s + '</div></div></div><figcaption>' + CAPS[i] + '</figcaption></figure>'; }).join('') + '</div>';
@@ -4340,7 +4342,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var CH = [
     { t: 'Getting around', s: 'Getting around', h:
       '<ol class="sh-steps">'
-      + '<li><b>Top switch: ' + k('Stage Job') + ' | ' + k('Inventory') + '.</b> Stage Job = getting material ready for a customer\'s job. Inventory = counting what\'s on the shelf and ordering more (Manager Login only; the crew view stays on Stage Job).</li>'
+      + '<li><b>Top switch: ' + k('Stage Job') + ' | ' + k('Inventory') + '.</b> Stage Job = getting material ready for a customer\'s job. Inventory = counting what\'s on the shelf and ordering more (managers only: tapping ' + k('Inventory') + ' asks for the manager code, then switches right there).</li>'
       + '<li><b>White round ' + k('+') + ' bottom right.</b> Tap it and the buttons pop out: Camera, Cart, ' + k('Customer Search') + ' (clipboard, Stage Job only) and ' + k('Quote') + '. Tap it again (it turns into an X) to tuck them away.</li>'
       + '<li><b>Menu ' + k('&#9776;') + ' top left.</b> Products by store, Quote Templates, Resources (Checklists, Bin Labels and more), Staging, Open Jobber app, CompanyCam, and this guide at the bottom.</li>'
       + '</ol><div class="sh-tip">Lost? Close what\'s open with the X in its corner. You\'re back on the main list.</div>' },
@@ -4380,8 +4382,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       '<ol class="sh-steps">'
       + '<li>The app opens in the <b>crew view</b>: no prices, no ordering, no count changes. No code needed.</li>'
       + '<li>Crew can browse items, Find a Job / Customer Search, stage and print Pull Lists, scan labels, and <b>check Pull List boxes</b> (that takes the stock off On hand).</li>'
-      + '<li>Prices, ' + k('On hand') + ' counts, ' + k('Keep on hand') + ', Needs Ordering, the cart and ordering are for Dave and the main guy: menu &rarr; ' + k('Manager Login') + ', enter the manager code.</li>'
-      + '<li>A manager phone stays logged in for 30 days. Menu &rarr; ' + k('Manager \u00b7 Log out') + ' goes back to the crew view.</li>'
+      + '<li>Prices, ' + k('On hand') + ' counts, ' + k('Keep on hand') + ', Needs Ordering, the cart and ordering are for Dave and the main guy: tap ' + k('Inventory') + ' on the top switch (or menu &rarr; ' + k('Manager Login') + '), type the manager code, and the app switches to Inventory with prices right there.</li>'
+      + '<li>A manager phone stays logged in for 30 days. Menu &rarr; ' + k('Manager \u00b7 Log out') + ' goes straight back to the crew view (prices hidden).</li>'
       + '<li>Too many wrong codes locks it for 10 minutes.</li>'
       + '</ol>' },
     { t: 'Do & Don\'t', s: 'Do / Don\'t', h:
@@ -4518,11 +4520,13 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   (function wait(n) { if (addIns()) return; if (n < 200) setTimeout(function () { wait(n + 1); }, 150); })(0);
   function page(id) { var v = e$(id); if (!v) { v = document.createElement('div'); v.id = id; v.className = 'detail-overlay res-pg'; document.body.appendChild(v); } return v; }
   function show(v, kind) { v.classList.add('open'); v.scrollTop = 0; v.classList.remove('res-in'); void v.offsetWidth; v.classList.add('res-in'); try { history.pushState({ overlay: kind }, ''); } catch (x) {} }
-  function bar(t) { return '<div class="detail-bar"><button class="detail-close" type="button" data-res-close aria-label="Close">&times;</button><div class="res-title">' + h(t) + '</div><img class="res-hlogo" src="' + LOGO + '" alt=""></div>'; }
+  function bar(t, noLogo) { return '<div class="detail-bar"><button class="detail-close" type="button" data-res-close aria-label="Close">&times;</button><div class="res-title">' + h(t) + '</div>' + (noLogo ? '' : '<img class="res-hlogo" src="' + LOGO + '" alt="">') + '</div>'; }
+  /* v194 (Dave): the main screen's STORM logo (same markup as the header), centered at the top of the Insurance Certificates pages */
+  function brand() { var b = ''; try { b = window.stormBrandLogoHTML ? window.stormBrandLogoHTML(true) : ''; } catch (e) {} return b ? '<div class="st-brand st-ins-brand">' + b + '</div>' : ''; }
   function av(c) { return '<span class="st-ins-av" aria-hidden="true">' + h(c.name.charAt(0)) + '</span>'; }
   function openList() {
     var v = page('res-list');
-    v.innerHTML = bar('Insurance Certificates') + '<div class="detail-body" style="max-width:1100px"><p class="bl-intro">' + h(NOTE) + '. Tap a contact to email a certificate request.</p><div class="bl-cat">Insurance Certificates</div><div class="bl-grid">'
+    v.innerHTML = bar('Insurance Certificates', true) + '<div class="detail-body" style="max-width:1100px">' + brand() + '<p class="bl-intro">' + h(NOTE) + '. Tap a contact to email a certificate request.</p><div class="bl-cat">Insurance Certificates</div><div class="bl-grid">'
       + INS.map(function (c) { return '<div class="bl-card st-ins-card" role="button" tabindex="0" data-ins-contact="' + c.id + '">' + av(c) + '<div class="bl-info"><div class="bl-name">' + h(c.name) + ' \u00b7 ' + h(c.company) + '</div><div class="bl-state">' + h(c.what) + ' &rsaquo;</div></div></div>'; }).join('')
       + '</div></div>';
     show(v, 'res-list');
@@ -4534,7 +4538,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function openContact(id) {
     var c = INS.filter(function (x) { return x.id === id; })[0]; if (!c) return;
     var v = page('res-view');
-    v.innerHTML = bar(c.name) + '<div class="detail-body">'
+    v.innerHTML = bar(c.name, true) + '<div class="detail-body">' + brand()
       + '<div class="st-ins-head">' + av(c) + '<div><div class="detail-name">' + h(c.name) + '</div><div class="st-ins-co">' + h(c.company) + '</div></div></div>'
       + '<div class="st-ins-rows"><div class="st-ins-row"><span>Request</span><b>' + h(c.what) + '</b></div><div class="st-ins-row"><span>Company</span><b>' + h(c.company) + '</b></div><div class="st-ins-row"><span>Email</span><b>' + h(c.email) + '</b></div></div>'
       + '<p class="res-note">' + h(NOTE) + '. Put the certificate holder\'s name and address in the email.</p>'
@@ -4549,4 +4553,270 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var c = t.closest('[data-ins-contact]'); if (c) { e.stopImmediatePropagation(); e.preventDefault(); openContact(c.getAttribute('data-ins-contact')); return; }
   }, true);
   document.addEventListener('keydown', function (e) { if (e.key !== 'Enter' && e.key !== ' ') return; var c = e.target && e.target.closest && e.target.closest('[data-ins-contact]'); if (c) { e.preventDefault(); openContact(c.getAttribute('data-ins-contact')); } });
+})();
+
+/* v194 (Hark, 2026-11-11 11:28, Dave): pairs with app v146.
+   1. Side menu bottom no longer "smashed up": Jobber + CompanyCam share one row (two white buttons), Manager Login and How to Use the App are
+      full-width rows under them; nothing squeezed, the menu scrolls, and it keeps clear of the iPhone home bar (the wrapper now tells the app
+      how tall the notch / home bar areas are: --st-sat / --st-sab, because env() reads 0 inside the Google frames).
+   2. Manager Login is in place (app v146): no reload, no video, no order-type picker.
+   3. Insurance Certificates pages: the main screen's STORM logo (same header markup) centered at the top (window.stormBrandLogoHTML).
+   4. How to Use the App: room at the bottom of every chapter and the Done button (safe area, iPad), guide sits above the version tag.
+   5. New explainer at the top of the guide: the real app, crew view (no prices): header with the STORM logo, Stage Job | Inventory,
+      white item cards with real photos and On hand pills, the + opening to camera / cart / Customer Search / Quote, Find a Job with
+      Not scheduled / Past tags, the Pull List with blue x2 and check boxes, Print Preview, and the STORM truck. CSS only, 14 s loop,
+      reduced-motion shows the frames side by side. */
+(function () {
+  if (window.__stormV194) return; window.__stormV194 = 1;
+  var A = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/';
+  var BL = '#29ABE2', BLD = '#1F9BD7', INK = '#0F1720', MUTE = '#6B7280', SH = '0 1px 2px rgba(15,23,32,.06), 0 6px 18px rgba(15,23,32,.08)';
+
+  /* ---- safe area from the wrapper ---- */
+  function setSafe(t, b) { var d = document.documentElement.style; d.setProperty('--st-sat', Math.max(0, +t || 0) + 'px'); d.setProperty('--st-sab', Math.max(0, +b || 0) + 'px'); }
+  window.addEventListener('message', function (e) { var m = e.data; if (m && m.storm === 'safe') setSafe(m.t, m.b); });
+  (function ask(n) { try { if (window.top !== window) window.top.postMessage({ storm: 'safeQ' }, '*'); } catch (e) {} if (n < 4) setTimeout(function () { ask(n + 1); }, 1500 * (n + 1)); })(0);
+  window.addEventListener('orientationchange', function () { setTimeout(function () { try { window.top.postMessage({ storm: 'safeQ' }, '*'); } catch (e) {} }, 400); });
+
+  /* ---- the main screen's logo markup ---- */
+  window.stormBrandLogoHTML = function (withTrace) {
+    var lg = document.querySelector('header .storm-logo-lit');
+    if (lg) {
+      var c = lg.cloneNode(true);
+      ['flash', 'present', 'go'].forEach(function (k) { c.classList.remove(k); });
+      c.removeAttribute('id'); c.setAttribute('aria-label', 'STORM Basement Waterproofing');
+      Array.prototype.forEach.call(c.querySelectorAll('[id]'), function (x) { x.removeAttribute('id'); });
+      if (!withTrace) Array.prototype.forEach.call(c.querySelectorAll('.sll-trace'), function (x) { x.parentNode.removeChild(x); });
+      return c.outerHTML;
+    }
+    return '<div class="storm-logo-lit" role="img" aria-label="STORM Basement Waterproofing"><img class="sla-sub" src="' + A + 'sub.png" alt=""><img class="sla-storm" src="' + A + 'storm.png" alt=""><img class="sla-drop" src="' + A + 'drop.png" alt=""></div>';
+  };
+
+  var D = 'html body #drawer#drawer.drawer'; /* id twice: beats v179's html body.cl #drawer.drawer */
+  var H = 'html body #st-help';
+  var SAB = 'max(var(--st-sab, 0px), env(safe-area-inset-bottom))', SAT = 'max(var(--st-sat, 0px), env(safe-area-inset-top))';
+  var css = ''
+    /* 1. drawer footer */
+    + D + ' { padding-bottom: calc(14px + ' + SAB + ') !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }'
+    + D + ' .drawer-foot { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; gap: 10px !important; align-items: stretch !important; justify-content: stretch !important; flex: none !important; height: auto !important; min-height: 0 !important; margin: 18px 16px 0 !important; padding: 0 !important; border-top: 0 !important; overflow: visible !important; }'
+    + D + ' .drawer-foot .st164-div { display: none !important; }'
+    + D + ' .drawer-foot .drawer-jobber { grid-column: auto !important; width: auto !important; min-width: 0 !important; min-height: 52px !important; height: auto !important; flex: none !important; }'
+    + D + ' .drawer-foot .drawer-jobber img { max-width: 100% !important; height: 22px !important; }'
+    + D + ' .drawer-foot #st-lock-row, ' + D + ' .drawer-foot #st-help-row { grid-column: 1 / -1 !important; display: flex !important; flex-direction: row !important; align-items: center !important; gap: 12px !important; width: 100% !important; min-width: 0 !important; height: auto !important; min-height: 54px !important; margin: 0 !important; padding: 9px 14px !important; box-sizing: border-box !important; background: #fff !important; color: ' + INK + ' !important; border: 0 !important; border-radius: 14px !important; box-shadow: ' + SH + ' !important; text-align: left !important; font-size: 16px !important; font-weight: 700 !important; line-height: 1.2 !important; writing-mode: horizontal-tb !important; cursor: pointer; }'
+    + D + ' .drawer-foot #st-lock-row { margin-top: 4px !important; }'
+    + D + ' .drawer-foot #st-lock-row .drawer-item-name, ' + D + ' .drawer-foot #st-help-row .drawer-item-name { flex: 1 1 auto !important; min-width: 0 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; color: ' + INK + ' !important; font-size: 16px !important; font-weight: 700 !important; }'
+    + D + ' .drawer-foot #st-lock-row::after, ' + D + ' .drawer-foot #st-help-row::after { content: "\\203A"; flex: none; font-size: 22px; line-height: 1; color: #9AA6B2; font-weight: 600; }'
+    + D + ' .drawer-foot .st-help-ico { flex: none !important; width: 34px !important; height: 34px !important; padding: 7px !important; box-sizing: border-box !important; border-radius: 10px !important; background: #EEF3F8 !important; stroke: ' + INK + ' !important; margin: 0 !important; }'
+    + D + ' .drawer-foot .st-help-ico * { stroke: ' + INK + ' !important; }'
+    + D + ' .drawer-foot #st-lock-row .st-lock-who { margin-left: 0 !important; }'
+    + D + ' #cl-ver { padding: 14px 0 6px !important; text-align: center; }'
+    /* 3. insurance pages: main-screen logo centered at the top */
+    + '.st-brand { display: flex; justify-content: center; margin: 6px 0 16px; pointer-events: none; }'
+    + '.st-brand .storm-logo-lit { width: min(60vw, 220px) !important; filter: none !important; margin: 0 auto !important; cursor: default !important; animation: none !important; }'
+    + '.st-brand .storm-logo-lit .sla-storm { filter: brightness(0) !important; }'
+    + '.st-brand .storm-logo-lit .sll-trace { opacity: 0 !important; }'
+    + '.st-brand .storm-logo-lit img { animation: none !important; }'
+    /* 4. guide spacing */
+    + H + ' { z-index: 2147483200 !important; height: 100% !important; }'
+    + H + ' .sh-top { padding-top: calc(10px + ' + SAT + ') !important; }'
+    + H + ' .sh-body { flex: 1 1 auto !important; min-height: 0 !important; overscroll-behavior: contain; padding: 14px 14px calc(84px + ' + SAB + ') !important; }'
+    + H + ' .sh-card { margin-bottom: 18px !important; padding-bottom: 20px !important; overflow: visible !important; }'
+    + H + ' .sh-card:last-child { margin-bottom: 0 !important; }'
+    + H + ' .sh-next { margin-top: 18px !important; min-height: 54px !important; padding: 0 16px !important; line-height: 1.2 !important; white-space: normal !important; }'
+    + H + ' .sh-steps li { overflow-wrap: anywhere; }'
+    + H + ' .sh-k { white-space: normal !important; }'
+    + '@media (min-width: 700px) { ' + H + ' .sh-body { padding-left: 24px !important; padding-right: 24px !important; } }'
+    /* 5. explainer */
+    + H + ' .xa { display: flex; flex-direction: column; align-items: center; }'
+    + H + ' .xa-ph { position: relative; width: 214px; height: 432px; border-radius: 34px; background: ' + INK + '; padding: 9px; box-sizing: border-box; box-shadow: 0 14px 34px rgba(15,23,32,.25); flex: none; }'
+    + H + ' .xa-ph::before { content: ""; position: absolute; left: 50%; top: 13px; width: 54px; height: 14px; margin-left: -27px; border-radius: 8px; background: ' + INK + '; z-index: 5; }'
+    + H + ' .xa-scr { position: relative; width: 196px; height: 414px; border-radius: 26px; background: #EEF2F7; overflow: hidden; font-family: Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: ' + INK + '; }'
+    + '@media (min-width: 700px) { ' + H + ' .xa-ph.xa-live { zoom: 1.2; } }'
+    + H + ' .xa-sc { position: absolute; inset: 0; opacity: 0; animation: xaScene 14s infinite both; }'
+    + '@keyframes xaScene { 0% { opacity: 0; } 1.6%, 12.8% { opacity: 1; } 14.3%, 100% { opacity: 0; } }'
+    + H + ' .xa-cap { position: relative; height: 26px; margin-top: 14px; width: 100%; text-align: center; font-weight: 800; font-size: 15px; color: ' + INK + '; }'
+    + H + ' .xa-cap span { position: absolute; left: 0; right: 0; opacity: 0; animation: xaScene 14s infinite both; }'
+    /* main screen bits */
+    + H + ' .xa-hd { position: relative; height: 70px; padding-top: 28px; box-sizing: border-box; }'
+    + H + ' .xa-ham, ' + H + ' .xa-srch { position: absolute; top: 30px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(15,23,32,.14); display: flex; align-items: center; justify-content: center; }'
+    + H + ' .xa-ham { left: 9px; flex-direction: column; gap: 2px; } ' + H + ' .xa-ham i { display: block; width: 10px; height: 1.6px; border-radius: 1px; background: ' + INK + '; }'
+    + H + ' .xa-srch { right: 9px; } ' + H + ' .xa-srch svg { width: 11px; height: 11px; }'
+    + H + ' .xa-logo { display: flex; justify-content: center; }'
+    + H + ' .xa-logo .storm-logo-lit { width: 82px !important; filter: none !important; margin: 0 auto !important; animation: none !important; cursor: default !important; }'
+    + H + ' .xa-logo .storm-logo-lit .sla-storm { filter: brightness(0) !important; } ' + H + ' .xa-logo .storm-logo-lit img { animation: none !important; }'
+    + H + ' .xa-tog { display: flex; width: 116px; margin: 5px auto 0; padding: 2px; border-radius: 12px; background: #fff; box-shadow: 0 1px 3px rgba(15,23,32,.12); font-size: 7.5px; font-weight: 800; }'
+    + H + ' .xa-tog span { flex: 1; text-align: center; padding: 3px 0; border-radius: 10px; color: ' + INK + '; } ' + H + ' .xa-tog span.on { background: ' + BL + '; color: #fff; }'
+    + H + ' .xa-sbar { margin: 9px 8px 0; height: 20px; border-radius: 9px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,32,.08); font-size: 7px; color: #9AA6B2; display: flex; align-items: center; padding: 0 8px; }'
+    + H + ' .xa-chips { display: flex; gap: 4px; margin: 7px 8px 0; } ' + H + ' .xa-chips span { padding: 3px 7px; border-radius: 9px; background: #fff; font-size: 6.5px; font-weight: 700; box-shadow: 0 1px 2px rgba(15,23,32,.08); } ' + H + ' .xa-chips span.on { background: ' + BL + '; color: #fff; }'
+    + H + ' .xa-sec { margin: 9px 10px 4px; font-size: 6.5px; font-weight: 800; letter-spacing: .1em; color: ' + MUTE + '; }'
+    + H + ' .xa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 8px; }'
+    + H + ' .xa-card { background: #fff; border-radius: 10px; padding: 5px; box-shadow: 0 1px 3px rgba(15,23,32,.09); min-width: 0; }'
+    + H + ' .xa-card .xa-im { height: 58px; border-radius: 7px; background: #fff center / contain no-repeat; }'
+    + H + ' .xa-card b { display: block; margin-top: 4px; font-size: 7px; line-height: 1.2; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + H + ' .xa-card small { display: block; font-size: 6px; color: ' + MUTE + '; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + H + ' .xa-oh { display: inline-block; margin-top: 4px; padding: 2px 6px; border-radius: 8px; background: #EAF6FC; color: #0B6F99; font-size: 6.5px; font-weight: 800; }'
+    + H + ' .xa-oh.lo { background: #FFF4DB; color: #8A5A00; }'
+    + H + ' .xa-add { margin-top: 4px; border: 1px solid #DCE4EE; border-radius: 7px; text-align: center; font-size: 6.5px; font-weight: 700; padding: 3px 0; }'
+    + H + ' .xa-plus { position: absolute; right: 10px; bottom: 16px; width: 34px; height: 34px; border-radius: 50%; background: #fff; box-shadow: 0 3px 10px rgba(15,23,32,.22); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 500; line-height: 1; color: ' + INK + '; z-index: 3; }'
+    + H + ' .xa-plus.x { transform: rotate(45deg); }'
+    + H + ' .xa-dim { position: absolute; inset: 0; background: rgba(15,23,32,.38); z-index: 2; }'
+    + H + ' .xa-dock { position: absolute; right: 12px; bottom: 58px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; z-index: 3; }'
+    + H + ' .xa-db { position: relative; width: 30px; height: 30px; border-radius: 50%; background: ' + INK + '; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(15,23,32,.25); animation: xaFlare 14s infinite both; }'
+    + H + ' .xa-db svg { width: 15px; height: 15px; } ' + H + ' .xa-db.cs { background: ' + BL + '; }'
+    + H + ' .xa-db em { position: absolute; right: 36px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-style: normal; font-size: 7px; font-weight: 800; padding: 2px 6px; border-radius: 8px; background: #fff; color: ' + INK + '; box-shadow: 0 1px 3px rgba(15,23,32,.2); }'
+    + H + ' .xa-db.cs em { background: ' + BL + '; color: #fff; }'
+    + '@keyframes xaFlare { 0% { opacity: 0; transform: translateY(var(--dy, 40px)) scale(.3); } 2.6%, 100% { opacity: 1; transform: none; } }'
+    /* sheets */
+    + H + ' .xa-sheet { position: absolute; left: 0; right: 0; bottom: 0; top: 34px; background: #fff; border-radius: 16px 16px 0 0; box-shadow: 0 -4px 18px rgba(15,23,32,.16); padding: 10px 9px; box-sizing: border-box; z-index: 4; }'
+    + H + ' .xa-st { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; margin-bottom: 7px; } ' + H + ' .xa-st i { margin-left: auto; width: 18px; height: 18px; border-radius: 6px; background: ' + INK + '; color: #fff; font-style: normal; font-size: 11px; line-height: 18px; text-align: center; }'
+    + H + ' .xa-in { height: 20px; border-radius: 8px; border: 1px solid #DCE4EE; font-size: 7px; color: #9AA6B2; display: flex; align-items: center; padding: 0 7px; margin-bottom: 8px; }'
+    + H + ' .xa-job { position: relative; border: 1px solid #E6EBF1; border-radius: 10px; padding: 6px 8px; margin-bottom: 6px; font-size: 8px; font-weight: 800; }'
+    + H + ' .xa-job small { display: block; font-size: 6.5px; font-weight: 600; color: ' + MUTE + '; margin-top: 1px; }'
+    + H + ' .xa-tag { position: absolute; right: 7px; top: 6px; font-size: 6px; font-weight: 800; padding: 2px 5px; border-radius: 6px; background: #EAF6FC; color: #0B6F99; }'
+    + H + ' .xa-tag.uns { background: #FFF4DB; color: #8A5A00; } ' + H + ' .xa-tag.past { background: #EEF1F4; color: #6B7280; }'
+    + H + ' .xa-job.pick { animation: xaPick 14s infinite both; animation-delay: 4s; }'
+    + '@keyframes xaPick { 0%, 5.5% { background: #fff; border-color: #E6EBF1; } 6.5%, 13% { background: #EAF6FC; border-color: ' + BL + '; } 14.3%, 100% { background: #fff; border-color: #E6EBF1; } }'
+    + H + ' .xa-cust { font-size: 7px; color: ' + MUTE + '; font-weight: 600; margin: -4px 0 7px; }'
+    + H + ' .xa-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-top: 1px solid #EEF2F6; font-size: 7.5px; font-weight: 700; }'
+    + H + ' .xa-row:first-of-type { border-top: 0; }'
+    + H + ' .xa-row .xa-ri { width: 24px; height: 24px; flex: none; border-radius: 6px; background: #fff center / contain no-repeat; box-shadow: 0 0 0 1px #EEF2F6; }'
+    + H + ' .xa-row span { flex: 1; min-width: 0; line-height: 1.2; } ' + H + ' .xa-row span small { display: block; font-size: 6px; color: ' + MUTE + '; font-weight: 600; }'
+    + H + ' .xa-q { flex: none; color: ' + BL + '; font-weight: 800; font-size: 9px; }'
+    + H + ' .xa-box { position: relative; width: 14px; height: 14px; flex: none; border-radius: 4px; border: 2px solid #B8C4D0; box-sizing: border-box; }'
+    + H + ' .xa-box::after { content: ""; position: absolute; left: 3px; top: 0; width: 4px; height: 7px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) scale(0); }'
+    + H + ' .xa-fill .xa-row { animation: xaIn 14s infinite both; }'
+    + '@keyframes xaIn { 0% { opacity: 0; transform: translateX(-14px); } 2%, 100% { opacity: 1; transform: none; } }'
+    + H + ' .xa-chk .xa-box { animation: xaBox 14s infinite both; } ' + H + ' .xa-chk .xa-box::after { animation: xaTick 14s infinite both; animation-delay: inherit; }'
+    + '@keyframes xaBox { 0% { background: transparent; border-color: #B8C4D0; } 1.4%, 100% { background: #16A34A; border-color: #16A34A; } }'
+    + '@keyframes xaTick { 0% { transform: rotate(45deg) scale(0); } 1.4%, 100% { transform: rotate(45deg) scale(1); } }'
+    + H + ' .xa-btns { display: flex; gap: 5px; margin-top: 9px; } ' + H + ' .xa-btns span { flex: 1; text-align: center; font-size: 7px; font-weight: 800; padding: 6px 0; border-radius: 8px; background: #EEF3F8; } ' + H + ' .xa-btns span.pri { background: ' + BL + '; color: #fff; }'
+    + H + ' .xa-save { margin-top: 5px; text-align: center; font-size: 7px; font-weight: 800; padding: 6px 0; border-radius: 8px; background: ' + INK + '; color: #fff; }'
+    /* print preview */
+    + H + ' .xa-pv { position: absolute; inset: 0; background: #5B6672; z-index: 4; padding: 30px 10px 10px; box-sizing: border-box; }'
+    + H + ' .xa-pvb { display: flex; align-items: center; gap: 6px; color: #fff; font-size: 9px; font-weight: 800; margin-bottom: 7px; } ' + H + ' .xa-pvb i { width: 18px; height: 18px; border-radius: 6px; background: rgba(255,255,255,.2); font-style: normal; text-align: center; line-height: 18px; } ' + H + ' .xa-pvb b { margin-left: auto; padding: 4px 9px; border-radius: 8px; background: ' + BL + '; font-size: 7.5px; }'
+    + H + ' .xa-paper { background: #fff; border-radius: 4px; padding: 10px 9px; box-shadow: 0 4px 14px rgba(0,0,0,.25); }'
+    + H + ' .xa-paper .xa-logo { margin-bottom: 4px; } ' + H + ' .xa-paper .xa-logo .storm-logo-lit { width: 70px !important; }'
+    + H + ' .xa-ph1 { font-size: 9px; font-weight: 800; text-align: center; } ' + H + ' .xa-ph2 { font-size: 6.5px; color: ' + MUTE + '; text-align: center; margin-bottom: 6px; }'
+    + H + ' .xa-paper .xa-row { font-size: 7px; } ' + H + ' .xa-pf { margin-top: 6px; padding-top: 5px; border-top: 2px solid ' + BL + '; text-align: center; font-size: 6px; font-weight: 800; letter-spacing: .12em; color: ' + MUTE + '; }'
+    /* truck */
+    + H + ' .xa-sky { position: absolute; inset: 0; background: linear-gradient(#EAF6FC, #EEF2F7 60%); }'
+    + H + ' .xa-done { position: absolute; left: 0; right: 0; top: 110px; text-align: center; font-size: 13px; font-weight: 800; color: #15803D; }'
+    + H + ' .xa-done small { display: block; font-size: 8px; color: ' + MUTE + '; font-weight: 700; margin-top: 3px; }'
+    + H + ' .xa-road { position: absolute; left: 0; right: 0; bottom: 120px; height: 4px; background: #CBD5E1; border-radius: 2px; }'
+    + H + ' .xa-truck { position: absolute; left: 34px; bottom: 124px; width: 128px; animation: xaTruck 14s infinite both; animation-delay: 12s; }'
+    + '@keyframes xaTruck { 0% { transform: translateX(-170px); } 4.5%, 9.5% { transform: none; } 13.5%, 100% { transform: translateX(210px); } }'
+    /* taps */
+    + H + ' .xa-tap { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: rgba(41,171,226,.35); border: 2px solid ' + BL + '; box-sizing: border-box; opacity: 0; pointer-events: none; z-index: 6; animation: xaTap 14s infinite both; }'
+    + '@keyframes xaTap { 0% { opacity: 0; transform: scale(1.7); } 1.2% { opacity: 1; transform: scale(1); } 2% { transform: scale(.8); } 3.2% { opacity: 1; transform: scale(1); } 4.6%, 100% { opacity: 0; } }'
+    /* reduced motion: frames side by side */
+    + H + ' .xa-strip { display: none; gap: 12px; overflow-x: auto; width: 100%; padding: 2px 2px 6px; -webkit-overflow-scrolling: touch; }'
+    + H + ' .xa-strip figure { margin: 0; flex: none; width: 140px; text-align: center; font-size: 12.5px; font-weight: 700; color: ' + INK + '; }'
+    + H + ' .xa-strip .xa-ph { zoom: .654; } ' + H + ' .xa-strip figcaption { margin-top: 8px; line-height: 1.25; }'
+    + H + ' .xa-strip .xa-sc, ' + H + ' .xa-strip .xa-sc * { animation: none !important; } ' + H + ' .xa-strip .xa-sc { opacity: 1; }'
+    + H + ' .xa-strip .xa-tap { opacity: 1; } ' + H + ' .xa-strip .xa-job.pick { background: #EAF6FC; border-color: ' + BL + '; }'
+    + H + ' .xa-strip .xa-chk .xa-box { background: #16A34A; border-color: #16A34A; } ' + H + ' .xa-strip .xa-chk .xa-box::after { transform: rotate(45deg) scale(1); }'
+    + H + ' .xa-strip .xa-truck { transform: none; }'
+    + '@media (prefers-reduced-motion: reduce) { ' + H + ' .xa-live, ' + H + ' .xa-cap { display: none !important; } ' + H + ' .xa-strip { display: flex; } }';
+  var st = document.createElement('style'); st.id = 'storm-v194-css'; st.textContent = css;
+  function put() { (document.head || document.documentElement).appendChild(st); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+
+  /* keep the footer rows in order: Jobber, CompanyCam, Manager Login, How to Use the App */
+  function order() {
+    var f = document.querySelector('#drawer .drawer-foot'), l = document.getElementById('st-lock-row'), hr = document.getElementById('st-help-row');
+    if (!f) return false;
+    if (l && l.parentNode !== f) f.appendChild(l);
+    if (hr && hr.parentNode !== f) f.appendChild(hr);
+    if (l && hr && l.nextElementSibling !== hr) f.insertBefore(l, hr);
+    return !!(l && hr);
+  }
+  (function wait(n) { if (order()) return; if (n < 200) setTimeout(function () { wait(n + 1); }, 150); })(0);
+  window.addEventListener('stormaccess', function () { setTimeout(order, 0); });
+
+  /* ---- 5. explainer ---- */
+  var PHOTO = {
+    'rt-20': 'https://drive.google.com/thumbnail?id=17UbzdG6D7yu83arBeSRG79IiwEnfnguL&sz=w400',
+    'hd-05': 'https://drive.google.com/thumbnail?id=1KpIKv6yfyZgGv0nHb34S9wwL4NahgZv9&sz=w400',
+    'hd-11': 'https://drive.google.com/thumbnail?id=1LnYEIBUsD56uSJQWEyT0yQa6VUwXuPAy&sz=w400',
+    'hd-07': 'https://drive.google.com/thumbnail?id=1PZbP5sJcTq3OkmwE6-cYilULJ0fD_d8I&sz=w400',
+    'hd-06': 'https://drive.google.com/thumbnail?id=1AzSDwkFF-SHp4TpEBj_eKFOP64MdBtME&sz=w400',
+    'hd-15': 'https://drive.google.com/thumbnail?id=17uI2My6rt7mLdizGoalpA8cosMzxhPkR&sz=w400'
+  };
+  var DEMO = [
+    { bin: 'rt-20', name: 'Sump Basin - Perforated', sku: 'SB022PF', oh: 4, q: 1 },
+    { bin: 'hd-05', name: 'Concrete Mix 80 lb', sku: '100318511', oh: 156, q: 6 },
+    { bin: 'hd-11', name: 'PVC Elbow 90\u00b0', sku: '203812129', oh: 15, q: 2 },
+    { bin: 'hd-07', name: 'Quikrete Hydraulic Water-Stop 50 lb', sku: '100318526', oh: 3, q: 2 },
+    { bin: 'hd-06', name: 'Fast-Setting Mortar 55 lb', sku: '202188453', oh: 8, q: 3 },
+    { bin: 'hd-15', name: 'Heavy-Duty Clear PVC Cement 8 oz', sku: '100139307', oh: 6, q: 1 }
+  ];
+  function it(bin) { try { return (typeof findItem === 'function' && findItem(bin)) || null; } catch (e) { return null; } }
+  function photo(bin) {
+    var c = document.querySelector('#list .card[data-bin="' + bin + '"] img.photo'); if (c && c.src && /^https:/.test(c.src)) return c.src;
+    var x = it(bin); if (x && x.photoUrl) return x.photoUrl;
+    return PHOTO[bin] || '';
+  }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function bg(u) { return u ? ' style="background-image:url(&quot;' + esc(u) + '&quot;)"' : ''; }
+  function demo() { return DEMO.map(function (d) { var x = it(d.bin); return { bin: d.bin, name: (x && x.name) || d.name, sku: (x && x.sku) || d.sku, oh: d.oh, q: d.q, img: photo(d.bin) }; }); }
+
+  var I_SRCH = '<svg viewBox="0 0 24 24" fill="none" stroke="#0F1720" stroke-width="2.6" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>';
+  var I_CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+  var I_CART = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.5 11h10L20 7H7"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></svg>';
+  var I_CLIP = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9z"/><path d="M9 11h6M9 15h4"/></svg>';
+  var I_QUOTE = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 13h7M9 17h5"/></svg>';
+  var TRUCK = '<svg viewBox="0 0 128 64" aria-hidden="true"><rect x="2" y="8" width="80" height="40" rx="5" fill="' + BL + '"/><path d="M82 20h22l18 16v12H82z" fill="' + INK + '"/><path d="M88 24h13l11 10H88z" fill="#BFE9FA"/><image href="' + A + 'drop.png" x="8" y="15" width="12" height="27"/><text x="23" y="33" font-size="13" font-weight="900" fill="#fff" font-family="Montserrat,Arial,sans-serif" textLength="52" lengthAdjust="spacingAndGlyphs">STORM</text><text x="23" y="41" font-size="4.4" font-weight="700" fill="#fff" font-family="Montserrat,Arial,sans-serif" textLength="52" lengthAdjust="spacingAndGlyphs">BASEMENT WATERPROOFING</text><circle cx="24" cy="52" r="9" fill="' + INK + '"/><circle cx="24" cy="52" r="3.6" fill="#CBD5E1"/><circle cx="102" cy="52" r="9" fill="' + INK + '"/><circle cx="102" cy="52" r="3.6" fill="#CBD5E1"/></svg>';
+
+  function logo() { return '<div class="xa-logo">' + window.stormBrandLogoHTML(false) + '</div>'; }
+  function header() { return '<div class="xa-hd"><span class="xa-ham"><i></i><i></i><i></i></span>' + logo() + '<span class="xa-srch">' + I_SRCH + '</span></div><div class="xa-tog"><span class="on">Stage Job</span><span>Inventory</span></div>'; }
+  function main(d) {
+    return header() + '<div class="xa-sbar">Search items, SKU, bin\u2026</div><div class="xa-chips"><span class="on">All</span><span>Home Depot</span><span>RichTech</span><span>Hilti</span></div>'
+      + '<div class="xa-sec">STAGE A JOB</div><div class="xa-grid">' + d.slice(0, 4).map(function (x, i) {
+        return '<div class="xa-card"><div class="xa-im"' + bg(x.img) + '></div><b>' + esc(x.name) + '</b><small>SKU: ' + esc(x.sku) + '</small><span class="xa-oh' + (x.oh < 5 ? ' lo' : '') + '">On hand ' + x.oh + '</span><div class="xa-add">+ Add to order</div></div>';
+      }).join('') + '</div>';
+  }
+  function rows(d, cls) { return d.map(function (x) { return '<div class="xa-row"><i class="xa-ri"' + bg(x.img) + '></i><span>' + esc(x.name) + '<small>SKU ' + esc(x.sku) + '</small></span><b class="xa-q">x' + x.q + '</b>' + (cls === 'nobox' ? '' : '<b class="xa-box"></b>') + '</div>'; }).join(''); }
+  function scenes() {
+    var d = demo();
+    var dock = function (open) {
+      return (open ? '<div class="xa-dim"></div><div class="xa-dock">'
+        + '<span class="xa-db" style="--dy:150px;animation-delay:2.05s">' + I_CAM + '<em>Camera</em></span>'
+        + '<span class="xa-db" style="--dy:112px;animation-delay:2.15s">' + I_CART + '<em>Cart</em></span>'
+        + '<span class="xa-db cs" style="--dy:76px;animation-delay:2.25s">' + I_CLIP + '<em>Customer Search</em></span>'
+        + '<span class="xa-db" style="--dy:38px;animation-delay:2.35s">' + I_QUOTE + '<em>Quote</em></span></div>' : '')
+        + '<span class="xa-plus' + (open ? ' x' : '') + '">+</span>';
+    };
+    return [
+      main(d) + dock(false) + '<span class="xa-tap" style="right:14px;bottom:20px;left:auto;top:auto;margin:0;animation-delay:1.05s"></span>',
+      main(d) + dock(true) + '<span class="xa-tap" style="right:14px;bottom:122px;left:auto;top:auto;margin:0;animation-delay:3.0s"></span>',
+      main(d) + '<div class="xa-sheet"><div class="xa-st">Find a Job<i>&times;</i></div><div class="xa-in">Customer name or address</div>'
+        + '<div class="xa-job pick">Smith<small>12 Elm St \u00b7 Hilton</small><span class="xa-tag">Tue Nov 17</span></div>'
+        + '<div class="xa-job">Garcia<small>40 Oak Ave \u00b7 Victor</small><span class="xa-tag uns">Not scheduled</span></div>'
+        + '<div class="xa-job">Lee<small>7 Pine Rd \u00b7 Spencerport</small><span class="xa-tag past">Past \u00b7 Nov 9</span></div>'
+        + '<div class="xa-job">Brown<small>88 Lake Rd \u00b7 Brockport</small><span class="xa-tag">Thu Nov 19</span></div></div>'
+        + '<span class="xa-tap" style="left:60px;top:126px;animation-delay:4.85s"></span>',
+      main(d) + '<div class="xa-sheet xa-fill"><div class="xa-st">Pull List<i>&times;</i></div><div class="xa-cust">Smith \u00b7 12 Elm St</div>' + rows(d)
+        + '<div class="xa-btns"><span>Print Preview</span><span>Print</span></div><div class="xa-save">Save Job</div></div>',
+      main(d) + '<div class="xa-sheet xa-chk"><div class="xa-st">Pull List<i>&times;</i></div><div class="xa-cust">Smith \u00b7 12 Elm St</div>' + rows(d)
+        + '<div class="xa-btns"><span>Print Preview</span><span>Print</span></div><div class="xa-save">Save Job</div></div>',
+      '<div class="xa-pv"><div class="xa-pvb"><i>&times;</i>Print Preview<b>Print</b></div><div class="xa-paper">' + logo() + '<div class="xa-ph1">Pull List \u00b7 Smith</div><div class="xa-ph2">12 Elm St, Hilton \u00b7 Tue Nov 17</div>' + rows(d, 'nobox') + '<div class="xa-pf">STORM BASEMENT WATERPROOFING</div></div></div>'
+        + '<span class="xa-tap" style="right:22px;left:auto;top:40px;margin:0;animation-delay:11.1s"></span>',
+      '<div class="xa-sky"></div><div class="xa-done">&#10003; All loaded<small>Pull List checked \u00b7 On hand updated</small></div><div class="xa-road"></div><div class="xa-truck">' + TRUCK + '</div>'
+    ];
+  }
+  var CAPS = ['1. Main screen: Stage Job', '2. Tap + \u2192 Customer Search', '3. Pick the job', '4. Items fill the Pull List', '5. Check each box as it loads', '6. Print Preview \u2192 Print', '7. Load the truck'];
+  var CAPS_SHORT = ['Main screen', 'Tap + \u2192 Customer Search', 'Pick the job', 'Items fill the Pull List', 'Check each box', 'Print Preview', 'Load the truck'];
+  function sc(i, h) {
+    /* scene i shows from 2i s; rows and boxes carry their own delays on the same 14 s clock */
+    var k = 0;
+    if (i === 3) h = h.replace(/<div class="xa-row">/g, function () { k++; return '<div class="xa-row" style="animation-delay:' + (6.15 + (k - 1) * 0.3).toFixed(2) + 's">'; });
+    if (i === 4) h = h.replace(/<b class="xa-box"><\/b>/g, function () { k++; return '<b class="xa-box" style="animation-delay:' + (8.35 + (k - 1) * 0.4).toFixed(2) + 's"></b>'; });
+    return '<div class="xa-sc" style="animation-delay:' + (i * 2) + 's">' + h + '</div>';
+  }
+  window.stormHelpAnim = function () {
+    var S = scenes();
+    var live = '<div class="xa-ph xa-live"><div class="xa-scr">' + S.map(function (h, i) { return sc(i, h); }).join('') + '</div></div>'
+      + '<div class="xa-cap">' + CAPS.map(function (c, i) { return '<span style="animation-delay:' + (i * 2) + 's">' + c + '</span>'; }).join('') + '</div>';
+    var strip = '<div class="xa-strip">' + S.map(function (h, i) { return '<figure><div class="xa-ph"><div class="xa-scr"><div class="xa-sc">' + h + '</div></div></div><figcaption>' + (i + 1) + '. ' + CAPS_SHORT[i] + '</figcaption></figure>'; }).join('') + '</div>';
+    return '<div class="sh-card sh-anim xa" role="img" aria-label="Short animation of the app: the main screen in Stage Job, tap the plus then Customer Search, pick the job, items fill the Pull List, check each box, Print Preview, load the STORM truck">' + live + strip + '</div>';
+  };
 })();

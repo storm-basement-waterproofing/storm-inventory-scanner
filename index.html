@@ -432,5 +432,15 @@
     }
   });
 </script>
+<!-- v194 (Hark, 2026-11-11, Dave): wrapper tells the app (inside the Google frames, where env() reads 0) how tall the iPhone notch and home-bar areas are, so the side menu and the help guide keep clear of them. -->
+<div id="safeprobe" aria-hidden="true" style="position:fixed;left:0;top:0;width:0;height:0;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;visibility:hidden;pointer-events:none"></div>
+<script>
+(function () {
+  var pr = document.getElementById('safeprobe'), seen = [];
+  function vals() { var cs = getComputedStyle(pr); return { storm: 'safe', t: parseFloat(cs.paddingTop) || 0, b: parseFloat(cs.paddingBottom) || 0 }; }
+  window.addEventListener('message', function (e) { var m = e.data; if (!m || m.storm !== 'safeQ' || !e.source || e.source === window) return; if (seen.indexOf(e.source) < 0) seen.push(e.source); try { e.source.postMessage(vals(), '*'); } catch (x) {} });
+  window.addEventListener('resize', function () { var v = vals(); seen.forEach(function (s) { try { s.postMessage(v, '*'); } catch (x) {} }); });
+})();
+</script>
 </body>
 </html>
