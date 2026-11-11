@@ -2664,3 +2664,49 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + Q + ' .qs-total b { color: #fff !important; font-size: 20px; }';
   document.head.appendChild(st);
 })();
+
+/* v176 (Hark, 2026-11-10, Dave: "all the links in the drawer ... are still the old UI"): Resource Center pages (Logos, Logo files,
+   Media), Bin Labels and the checklists in the Truck Check look: navy page, dark cards with blue edge text, small grey caps
+   section titles like the home screen, blue primary buttons. STORM header logo moved to the right so it no longer covers the title. */
+(function () {
+  if (document.getElementById('storm-v176-css')) return;
+  var O = ['#res-list', '#res-view', '#labels', '#lbl-view', '#lbl-detail', '#chk-view'];
+  function A(sfx) { return O.map(function (o) { return 'html body ' + o + sfx; }).join(', '); }
+  var T2 = 'html body #res-list #res-media .bl-cat, html body #res-view .detail-body > .detail-name, html body #lbl-detail .detail-flow h2, html body #lbl-detail .detail-features h2, html body #res-media .bl-cat';
+  var st = document.createElement('style'); st.id = 'storm-v176-css';
+  st.textContent = ''
+    + A('') + ' { background: #14202F !important; color: #fff !important; }'
+    + A(' .detail-bar') + ' { background: linear-gradient(180deg, #183D5A 0%, #14202F 100%) !important; border-bottom: 1px solid #253C54 !important; box-shadow: none !important; color: #fff !important; display: flex !important; align-items: center !important; gap: 12px !important; }'
+    + A(' .detail-bar > div') + ', ' + A(' .res-title') + ' { color: #fff !important; font-weight: 800 !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }'
+    + A(' .res-hlogo') + ' { position: static !important; transform: none !important; margin-left: auto !important; height: 24px !important; max-width: 38% !important; flex: none; }'
+    + A(' .detail-close') + ' { background: #1B2C3F !important; border: 1px solid #253C54 !important; color: #fff !important; border-radius: 14px !important; box-shadow: none !important; }'
+    + A(' .detail-body') + ' { background: transparent !important; color: #fff !important; }'
+    + A(' .bl-intro') + ', ' + A(' .res-note') + ', ' + A(' .chk-hint') + ' { color: #9FB3C8 !important; }'
+    + A(' .bl-cat') + ' { background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; padding: 18px 2px 8px !important; margin: 6px 0 4px !important; color: #9FB3C8 !important; font-size: 13px !important; font-weight: 800 !important; letter-spacing: 2px !important; text-transform: uppercase !important; }'
+    + A(' .bl-cat::before') + ', ' + A(' .bl-cat::after') + ' { display: none !important; }'
+    + A(' .bl-card') + ' { background: #1B2C3F !important; border: 1px solid #253C54 !important; border-radius: 14px !important; box-shadow: none !important; color: #fff !important; }'
+    + A(' .bl-bin') + ', ' + A(' .bl-name') + ', ' + A(' .detail-name') + ' { color: #fff !important; }'
+    + A(' .bl-state') + ', ' + A(' .res-mlink .bl-state') + ' { color: #29ABE2 !important; font-weight: 700 !important; }'
+    + A(' .bl-none') + ' { color: #9FB3C8 !important; }'
+    + A(' .res-mthumb') + ', ' + A(' .res-lthumb') + ' { border-radius: 10px !important; }'
+    + A(' .res-mthumb') + ' { background: #253C54 !important; }'
+    + A(' .res-mdl') + ' { color: #29ABE2 !important; border-color: #29ABE2 !important; background: transparent !important; }'
+    + A(' .res-mdl svg') + ' { stroke: #29ABE2 !important; }'
+    + A(' .tabs') + ' { background: #1B2C3F !important; border: 1px solid #253C54 !important; border-radius: 16px !important; padding: 5px !important; gap: 6px !important; }'
+    + A(' .tab') + ' { background: transparent !important; border: 0 !important; color: #9FB3C8 !important; border-radius: 12px !important; box-shadow: none !important; }'
+    + A(' .tab.active') + ' { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; color: #04121D !important; }'
+    + A(' .tab .badge') + ' { background: #253C54 !important; color: #29ABE2 !important; }'
+    + A(' .tab.active .badge') + ' { background: rgba(4,18,29,.18) !important; color: #04121D !important; }'
+    + A(' .res-dl') + ' { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; color: #04121D !important; border: 0 !important; border-radius: 14px !important; }'
+    + A(' .res-dl svg') + ' { stroke: #04121D !important; }'
+    + A(' .res-dl.res-dl2') + ' { background: transparent !important; color: #fff !important; border: 1.5px solid #425D78 !important; }'
+    + A(' .res-dl.res-dl2 svg') + ' { stroke: #fff !important; }'
+    + A(' .res-open') + ', ' + A(' .res-go') + ' { color: #29ABE2 !important; }'
+    + A(' .res-stage') + ' { border: 1px solid #253C54 !important; border-radius: 14px !important; }'
+    + A(' .chk-open') + ' { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; color: #04121D !important; border: 0 !important; border-radius: 14px !important; font-weight: 800 !important; }'
+    + A(' .chk-page') + ' { border-radius: 12px !important; border: 1px solid #253C54 !important; box-shadow: none !important; }'
+    + A(' input') + ', ' + A(' select') + ' { background: #1B2C3F !important; color: #fff !important; border: 1px solid #253C54 !important; }'
+    + T2 + ' { background: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; margin: 18px 0 6px !important; padding: 8px 2px !important; color: #9FB3C8 !important; font-size: 13px !important; letter-spacing: 2px !important; }'
+    + T2.split(', ').map(function (x) { return x + '::before'; }).join(', ') + ' { display: none !important; content: none !important; }';
+  document.head.appendChild(st);
+})();
