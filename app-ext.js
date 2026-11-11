@@ -2539,3 +2539,88 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }, true);
   if (!attach()) { var tries = 0; (function poll() { if (attach() || ++tries > 60) return; setTimeout(poll, 250); })(); }
 })();
+
+/* v172 (Hark, 2026-11-10, Dave): Find a Job in the Truck Check look. Same search, saved jobs, From Jobber list, job detail, Edit list,
+   Print list, Back to results and close.
+   Solid dark sheet (#0E1621) with the blue-to-dark top, big "Find a Job" title, dark search box, every job a dark rounded card. Saved
+   jobs get a blue initials circle and, when this phone has Pull List truck checks for that customer (v167), a "Loaded on truck N of M"
+   bar with an IN PROGRESS (blue) or LOADED (green) pill; jobs with no checks on this phone show neither. In a saved job, Edit list is
+   the blue primary and Print list / Back to results are ghost. Nothing new is read from or written to the sheet. */
+(function () {
+  var J = 'html body #job-find';
+  var st = document.createElement('style'); st.id = 'storm-v172-css';
+  st.textContent = ''
+    + J + ' { background: rgba(5,10,16,.6) !important; }'
+    + J + ' .jf-card { width: min(96vw, 520px) !important; max-height: 88vh !important; max-height: 88dvh !important; padding: 0 0 14px !important; gap: 10px !important; background: #0E1621 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border: 1px solid #1F3246 !important; border-radius: 22px !important; box-shadow: 0 14px 40px rgba(0,0,0,.55) !important; overflow: hidden; }'
+    + J + ' .jf-head { padding: 16px 16px 6px; background: linear-gradient(180deg, #14324A 0%, #0E1621 100%); }'
+    + J + ' .jf-head h2 { font-size: 26px !important; font-weight: 800 !important; color: #fff !important; }'
+    + J + ' .jf-x { width: 40px !important; height: 40px !important; border-radius: 12px !important; background: #152231 !important; border: 1px solid #1F3246 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: #E6F4FC !important; line-height: 38px !important; }'
+    + J + ' .jf-q { margin: 0 14px !important; width: calc(100% - 28px) !important; box-sizing: border-box; height: 48px !important; background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 14px !important; color: #fff !important; }'
+    + J + ' .jf-q::placeholder { color: #7E93A8 !important; }'
+    + J + ' .jf-q:focus { border-color: #29ABE2 !important; box-shadow: 0 0 0 3px rgba(41,171,226,.22) !important; }'
+    + J + ' .jf-list { padding: 2px 14px 4px; gap: 10px !important; }'
+    + J + ' .jf-item { padding: 14px !important; background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 16px !important; box-shadow: none !important; }'
+    + J + ' .jf-item:active, ' + J + ' .jf-item.pressed { background: #1B2D40 !important; }'
+    + J + ' .jf-name { color: #fff !important; font-size: 17px !important; font-weight: 800 !important; }'
+    + J + ' .jf-addr { color: #9FB3C8 !important; }'
+    + J + ' .jf-meta { color: #7E93A8 !important; }'
+    + J + ' .jf-empty, ' + J + ' .jf-hint { color: #9FB3C8 !important; }'
+    + J + ' .jf-sec { margin: 12px 4px 0 !important; color: #7E93A8 !important; font-size: 12px !important; letter-spacing: .1em !important; }'
+    /* saved job card: initials + truck progress */
+    + J + ' .jf-item.tk-sv { display: grid !important; grid-template-columns: 46px minmax(0, 1fr); column-gap: 12px; align-items: center; }'
+    + J + ' .jf-item.tk-sv > .tk-av { grid-column: 1; grid-row: 1 / span 3; width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #29ABE2, #1B6E99); color: #04121D; font-size: 16px; font-weight: 900; line-height: 46px; text-align: center; letter-spacing: .02em; }'
+    + J + ' .jf-item.tk-sv > .jf-name, ' + J + ' .jf-item.tk-sv > .jf-addr, ' + J + ' .jf-item.tk-sv > .jf-meta { grid-column: 2; }'
+    + J + ' .jf-item.tk-sv > .tk-jp { grid-column: 1 / -1; margin-top: 10px; }'
+    + J + ' .tk-jp .tk-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: #9FB3C8; }'
+    + J + ' .tk-jp .tk-row b { color: #29ABE2; font-weight: 800; }'
+    + J + ' .tk-jp .tk-bar { height: 6px; margin-top: 6px; border-radius: 3px; background: #1E2C3B; overflow: hidden; }'
+    + J + ' .tk-jp .tk-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #29ABE2, #5FD3FF); }'
+    + J + ' .tk-st { display: inline-block; vertical-align: 2px; margin-left: 8px; padding: 2px 8px; border-radius: 7px; font-size: 10.5px; font-weight: 800; letter-spacing: .05em; }'
+    + J + ' .tk-st.prog { background: rgba(41,171,226,.15); color: #5FD3FF; }'
+    + J + ' .tk-st.done { background: rgba(34,197,94,.15); color: #22C55E; }'
+    /* job detail */
+    + J + ' .jf-detail { padding: 2px 2px 0; }'
+    + J + ' .jf-lines { border-top: 0 !important; margin: 12px 0 !important; }'
+    + J + ' .jf-line { margin-top: 6px; padding: 10px 12px !important; background: #152231; border: 1px solid #1F3246 !important; border-radius: 12px; color: #fff !important; }'
+    + J + ' .jf-line b { color: #29ABE2 !important; font-weight: 800; }'
+    + J + ' .jf-btn, ' + J + ' .jf-back, ' + J + ' .jc-clear { min-height: 52px !important; border-radius: 14px !important; background: transparent !important; border: 1.5px solid #3B536B !important; color: #fff !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: none !important; font-weight: 700 !important; }'
+    + J + ' .jf-btn[data-jf-edit] { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; border: 0 !important; color: #04121D !important; font-weight: 800 !important; }';
+  document.head.appendChild(st);
+
+  function norm(v) { return String(v || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+  function checksFor(name, addr) {
+    var all = {}; try { all = JSON.parse(localStorage.getItem('stormTruckCheckV1') || '{}') || {}; } catch (e) {}
+    var n = norm(name), a = norm(addr);
+    for (var k in all) {
+      var m = /^c:(.*)\|(.*)\|(.*)$/.exec(k); if (!m) continue;
+      if (norm(m[1] + ' ' + m[2]) === n && m[3] === a && all[k] && Array.isArray(all[k].bins)) return all[k].bins.length;
+    }
+    return 0;
+  }
+  function initials(s) { var w = String(s || '').trim().split(/\s+/).filter(Boolean); return ((w[0] || '').charAt(0) + (w.length > 1 ? w[w.length - 1].charAt(0) : '')).toUpperCase(); }
+  function dress() {
+    var L = document.getElementById('jf-list'); if (!L) return;
+    L.querySelectorAll('.jf-item[data-jf-i]').forEach(function (b) {
+      if (b.classList.contains('tk-sv')) return;
+      b.classList.add('tk-sv');
+      var nm = b.querySelector('.jf-name'), ad = b.querySelector('.jf-addr'), me = b.querySelector('.jf-meta');
+      var name = nm ? nm.textContent : '', addr = ad ? ad.textContent : '';
+      var av = document.createElement('span'); av.className = 'tk-av'; av.setAttribute('aria-hidden', 'true'); av.textContent = initials(name); b.insertBefore(av, b.firstChild);
+      var lm = me && /(\d+) lines?/.exec(me.textContent), tot = lm ? +lm[1] : 0, done = Math.min(tot, checksFor(name, addr));
+      if (tot && done) {
+        var p = document.createElement('div'); p.className = 'tk-jp';
+        p.innerHTML = '<div class="tk-row"><span>Loaded on truck</span><span><b>' + done + '</b> of ' + tot + '</span></div><div class="tk-bar"><i style="width:' + Math.round(done / tot * 100) + '%"></i></div>';
+        b.appendChild(p);
+        if (nm) { var s = document.createElement('span'); s.className = 'tk-st ' + (done >= tot ? 'done' : 'prog'); s.textContent = done >= tot ? 'LOADED' : 'IN PROGRESS'; nm.appendChild(s); }
+      }
+    });
+  }
+  var lo = null;
+  function watch() {
+    var L = document.getElementById('jf-list'); if (!L || L.__tk172) return;
+    L.__tk172 = true;
+    new MutationObserver(function () { try { dress(); } catch (e) {} }).observe(L, { childList: true });
+    try { dress(); } catch (e) {}
+  }
+  new MutationObserver(function () { if (document.getElementById('job-find')) watch(); }).observe(document.body, { childList: true });
+})();
