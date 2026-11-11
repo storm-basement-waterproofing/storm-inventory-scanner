@@ -2250,6 +2250,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
    counted from the items on screen that have a par above 0 (on hand >= par); it hides itself when none of them has a par. */
 (function () {
   var B = 'html body';
+/* v174 (Hark, 2026-11-10, Dave): supplier-dark logos cleaned (no light fill inside letters, no white specks); ?v=2 busts the cache. */
   var D = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/supplier-dark/';
   var st = document.createElement('style'); st.id = 'storm-v169-css';
   st.textContent = ''
@@ -2297,9 +2298,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + B + ' .flag.low { background: rgba(245,158,11,.16) !important; color: #F59E0B !important; }'
     + B + ' .flag.out { background: rgba(239,68,68,.16) !important; color: #EF4444 !important; }'
     + B + ' .card .supplier-logo { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }'
-    + B + ' img.supplier-logo[src*="1DHznKkuGyRWhuFvJplltMJVokeP2eURA"], ' + B + ' img.detail-logo[src*="1DHznKkuGyRWhuFvJplltMJVokeP2eURA"] { content: url("' + D + 'rt-dark.png"); }'
-    + B + ' img.supplier-logo[src*="1il864wxNHhA_e0hf0CcbBh97LsYbWq3s"], ' + B + ' img.detail-logo[src*="1il864wxNHhA_e0hf0CcbBh97LsYbWq3s"] { content: url("' + D + 'hd-dark.png"); }'
-    + B + ' img.supplier-logo[src*="1bQxJWNeUMWHnNCqakwQFb_buDEJsMIBh"], ' + B + ' img.detail-logo[src*="1bQxJWNeUMWHnNCqakwQFb_buDEJsMIBh"] { content: url("' + D + 'az-dark.png"); }'
+    + B + ' img.supplier-logo[src*="1DHznKkuGyRWhuFvJplltMJVokeP2eURA"], ' + B + ' img.detail-logo[src*="1DHznKkuGyRWhuFvJplltMJVokeP2eURA"] { content: url("' + D + 'rt-dark.png?v=2"); }'
+    + B + ' img.supplier-logo[src*="1il864wxNHhA_e0hf0CcbBh97LsYbWq3s"], ' + B + ' img.detail-logo[src*="1il864wxNHhA_e0hf0CcbBh97LsYbWq3s"] { content: url("' + D + 'hd-dark.png?v=2"); }'
+    + B + ' img.supplier-logo[src*="1bQxJWNeUMWHnNCqakwQFb_buDEJsMIBh"], ' + B + ' img.detail-logo[src*="1bQxJWNeUMWHnNCqakwQFb_buDEJsMIBh"] { content: url("' + D + 'az-dark.png?v=2"); }'
     /* steppers + buttons on cards */
     + B + ' .card .stepper { gap: 8px !important; border: 0 !important; border-radius: 0 !important; overflow: visible !important; background: transparent !important; }'
     + B + ' .card .step { width: 46px !important; height: 46px !important; border-radius: 50% !important; border: 1.5px solid #3B536B !important; background: transparent !important; color: #E6F4FC !important; font-size: 24px !important; box-shadow: none !important; }'
