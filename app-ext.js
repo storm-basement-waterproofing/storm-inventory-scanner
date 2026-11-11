@@ -1,3 +1,5 @@
+/* v184 (Hark, 2026-11-11, Dave): footage items (FT_ITEMS: rt-18 sticks, rt-34/35/36/41 rolls) show feet on the Pull List; a check now takes whole sticks/rolls off On hand (ceil(feet / length)), not the feet number. */
+function stUnits(bin, n) { n = Number(n) || 0; if (!n) return ''; try { var F = window.FT_ITEMS; if (F && F[bin] && F[bin].len) return Math.ceil(n / F[bin].len); } catch (e) {} return n; }
 /* v183 (Hark, 2026-11-11): crew PIN rides on every Pull List check (setStagingCheck), incl. offline-queued taps; pairs with app v135. */
 /* v181 (Hark, 2026-11-11): separate "On hand" pill on every card + bottom sheet (Inventory mode); edits On hand only, never the order. See the v181 block at the end. */
 /* v182 (Hark, 2026-11-11): Staging in the side menu is live (opens Find a Job in the Pull List); Pull List checks take stock off On hand on the server.
@@ -2187,7 +2189,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
           if (!(res.rows && res.rows.length) && cur.length && !getQ().some(function (o) { return o.k === k; })) {
             /* first sync for a job checked before v180: send this phone's checks up instead of clearing them */
             var nmOf = {}, sh0 = sheet();
-            if (sh0) sh0.querySelectorAll('.pick-line[data-pull-bin]').forEach(function (ln) { var n = ln.querySelector('.pick-line-name'), b = ln.querySelector('.pull-qty b'); nmOf[ln.getAttribute('data-pull-bin')] = [n ? n.textContent.trim() : '', b ? (parseInt(b.textContent, 10) || '') : '']; });
+            if (sh0) sh0.querySelectorAll('.pick-line[data-pull-bin]').forEach(function (ln) { var n = ln.querySelector('.pick-line-name'), b = ln.querySelector('.pull-qty b'); nmOf[ln.getAttribute('data-pull-bin')] = [n ? n.textContent.trim() : '', b ? stUnits(ln.getAttribute('data-pull-bin'), parseInt(b.textContent, 10)) : '']; });
             var q0 = getQ(), now = Date.now();
             cur.forEach(function (b) { var m = nmOf[b] || ['', '']; q0.push({ k: k, cust: custLabel(), bin: b, name: m[0], qty: m[1], on: true, by: devName(), t: now }); });
             putQ(q0); flush(); bins = cur;
@@ -2281,7 +2283,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var k = srvKey();
     if (k) {
       var nm = ln.querySelector('.pick-line-name'), qb = ln.querySelector('.pull-qty b');
-      enqueue({ k: k, cust: custLabel(), bin: bin, name: nm ? nm.textContent.trim() : '', qty: qb ? (parseInt(qb.textContent, 10) || '') : '', on: i < 0, by: devName(), t: Date.now() });
+      enqueue({ k: k, cust: custLabel(), bin: bin, name: nm ? nm.textContent.trim() : '', qty: qb ? stUnits(bin, parseInt(qb.textContent, 10)) : '', on: i < 0, by: devName(), t: Date.now() });
     }
   }, true);
   /* name / address typed, New Job, or a job loaded: header and checks follow the customer */
