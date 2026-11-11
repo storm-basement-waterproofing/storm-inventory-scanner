@@ -4423,6 +4423,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function go(i) {
     var c = document.getElementById('sh-ch' + i); if (!c) return;
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /* the last chapters are short on a tall screen (iPad): room below them so they can still land at the top */
+    var wrap = body.querySelector('.sh-wrap'), spc = body.querySelector('.sh-spc');
+    if (!spc && wrap) { spc = document.createElement('div'); spc.className = 'sh-spc'; spc.setAttribute('aria-hidden', 'true'); spc.style.height = '0px'; wrap.appendChild(spc); }
+    if (spc) { var cur0 = parseFloat(spc.style.height) || 0, need = (topIn(c) - GAP) - (body.scrollHeight - body.clientHeight) + cur0 + 8; spc.style.height = Math.max(cur0, need, 0) + 'px'; }
     var y = Math.max(0, Math.min(topIn(c) - GAP, body.scrollHeight - body.clientHeight));
     body.scrollTo({ top: y, behavior: reduce ? 'auto' : 'smooth' });
     clearTimeout(goT);
@@ -4437,7 +4441,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     chips.forEach(function (ch, i) { ch.classList.toggle('on', i === cur); ch.classList.toggle('seen', i < cur); });
     var on = chips[cur]; if (on && on.scrollIntoView && on.dataset.cur !== '1') { chips.forEach(function (c) { c.dataset.cur = ''; }); on.dataset.cur = '1'; try { on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (x) {} }
   }
-  function open() { build(); body.scrollTop = 0; el.classList.add('open'); track(); }
+  function open() { build(); var sp = body.querySelector('.sh-spc'); if (sp) sp.style.height = '0px'; body.scrollTop = 0; el.classList.add('open'); track(); }
   function close() { if (el) el.classList.remove('open'); }
   window.stormOpenHelp = open;
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && el && el.classList.contains('open')) close(); });
