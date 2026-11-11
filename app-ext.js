@@ -2186,3 +2186,56 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('[data-jc-clear], #job-find')) later(); }, true);
   if (!attach()) { var tries = 0; (function poll() { if (attach() || ++tries > 60) return; setTimeout(poll, 250); })(); }
 })();
+
+/* v168 (Hark, 2026-11-10, Dave): side menu in the Truck Check look, same contents and line icons as before.
+   Solid dark menu (#101B28) instead of glass; section titles (Products, Quote Templates, Resource Center) are small grey caps; every row
+   is a rounded dark card (#152231); icons stay white line icons on dark tiles (#0E1621, 1.5px #2A4A66 border, 11px corners); All Products
+   and each supplier show their item count in a blue-tinted pill. Footer: white Jobber and CompanyCam logos on one line with the divider
+   between them. No white box or background behind any logo. The STORM logo stays out of the menu header, and the Quote Templates
+   heading still has no Jobber logo (both as Dave asked earlier). */
+(function () {
+  var P = 'html body #drawer.drawer';
+  var TILE = P + ' .drawer-item > svg, ' + P + ' .drawer-item > .v116-ico, ' + P + ' .drawer-item > .drawer-chk-ico, ' + P + ' .drawer-item > .res-ico, ' + P + ' .drawer-item > .chk-ico-img, ' + P + ' .drawer-section-head > .lbl-ico';
+  var CARD = P + ' .drawer-item, ' + P + ' #drawer-labels > .drawer-section-head';
+  function chev(c) { return 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23' + c + '\' stroke-width=\'2.6\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M9 5l7 7-7 7\'/></svg>") center / 16px 16px no-repeat !important'; }
+  var GREY = chev('7E93A8'), BLUE = chev('29ABE2');
+  var st = document.createElement('style'); st.id = 'storm-v168-css';
+  st.textContent = ''
+    + P + ' { width: 310px !important; max-width: 86vw !important; background: #101B28 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-right: 1px solid #1F3246 !important; box-shadow: 10px 0 34px rgba(0,0,0,.45) !important; color: #fff !important; }'
+    + P + ' .drawer-head { padding: calc(14px + env(safe-area-inset-top)) 14px 4px !important; min-height: 0 !important; flex: none !important; background: transparent !important; }'
+    + P + ' .drawer-close { width: 38px !important; height: 38px !important; border-radius: 11px !important; border: 1.5px solid #2A4A66 !important; background: transparent !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: none !important; color: #E6F4FC !important; font-size: 24px !important; line-height: 1 !important; }'
+    + P + ' .drawer-section { border: 0 !important; padding: 0 14px; background: transparent !important; }'
+    + P + ' .drawer-section .drawer-section { padding: 0; }'
+    /* section titles */
+    + P + ' > .drawer-section > .drawer-section-head { padding: 16px 4px 4px !important; min-height: 0 !important; background: transparent !important; border: 0 !important; font-size: 11.5px !important; font-weight: 800 !important; letter-spacing: .1em !important; text-transform: uppercase !important; color: #7E93A8 !important; box-shadow: none !important; }'
+    + P + ' > .drawer-section > .drawer-section-head > span:not(.drawer-chevron) { color: #7E93A8 !important; font: inherit !important; letter-spacing: inherit !important; text-transform: inherit !important; }'
+    + P + ' .drawer-section > .drawer-section-head > .drawer-chevron, ' + P + ' .drawer-item > .drawer-chevron { background: ' + GREY + '; }'
+    + P + ' .drawer-section.expanded > .drawer-section-head > .drawer-chevron, ' + P + ' .drawer-supplier.open > .drawer-item > .drawer-chevron { background: ' + BLUE + '; }'
+    + P + ' > .drawer-section > .drawer-section-head:active, ' + P + ' > .drawer-section > .drawer-section-head.pressed { background: transparent !important; color: #9FB3C8 !important; }'
+    + P + ' .drawer-items, ' + P + ' .drawer-cats, ' + P + ' .drawer-supplier { background: transparent !important; }'
+    /* rows = cards */
+    + CARD + ' { box-sizing: border-box !important; min-height: 50px; margin-top: 6px !important; padding: 5px 12px 5px 6px !important; gap: 12px !important; border: 1px solid #1F3246 !important; border-radius: 12px !important; background: #152231 !important; color: #fff !important; box-shadow: none !important; font-size: 15.5px !important; font-weight: 700 !important; }'
+    + P + ' .drawer-item:active, ' + P + ' .drawer-item.pressed, ' + P + ' #drawer-labels > .drawer-section-head:active, ' + P + ' #drawer-labels > .drawer-section-head.pressed { background: #1B2D40 !important; }'
+    + P + ' #drawer-products > .drawer-items > .drawer-item:first-child, ' + P + ' #drawer-qt .drawer-item { padding-left: 16px !important; }'
+    + P + ' .drawer-item .drawer-item-name, ' + P + ' .drawer-item .drawer-item-name.v116-name { color: #fff !important; font-size: 15.5px !important; font-weight: 700 !important; line-height: 1.25 !important; }'
+    + P + ' .drawer-supplier.open > .drawer-item { border-color: #29ABE2 !important; background: #163049 !important; }'
+    + P + ' #drawer-labels.expanded > .drawer-section-head { border-color: #29ABE2 !important; background: #163049 !important; }'
+    + P + ' #drawer-labels > .drawer-section-head { width: 100% !important; justify-content: flex-start !important; }'
+    + P + ' #drawer-labels .drawer-items .drawer-item { margin-left: 16px !important; width: calc(100% - 16px) !important; }'
+    /* icon tiles */
+    + TILE + ' { box-sizing: border-box !important; width: 38px !important; height: 38px !important; flex: 0 0 38px !important; padding: 8px !important; margin: 0 !important; border-radius: 11px !important; background: #0E1621 !important; border: 1.5px solid #2A4A66 !important; box-shadow: none !important; color: #fff !important; }'
+    /* supplier categories (open a supplier) */
+    + P + ' .drawer-cat { box-sizing: border-box; margin-top: 2px !important; padding: 9px 12px 9px 62px !important; border: 0 !important; border-radius: 10px !important; background: transparent !important; color: #C9D6E3 !important; font-size: 14px !important; }'
+    + P + ' .drawer-cat .drawer-item-name { color: #C9D6E3 !important; font-size: 14px !important; font-weight: 600 !important; }'
+    + P + ' .drawer-cat:active, ' + P + ' .drawer-cat.pressed { background: #1B2D40 !important; }'
+    /* count pills: All Products + each supplier */
+    + P + ' #drawer-products > .drawer-items > .drawer-item > .drawer-count, ' + P + ' #drawer-products .drawer-supplier > .drawer-item > .drawer-count { display: inline-block !important; flex: none; min-width: 0; margin-left: auto; padding: 3px 9px; border-radius: 8px; background: rgba(41,171,226,.15) !important; color: #5FD3FF !important; font-size: 12.5px; font-weight: 800; line-height: 1.3; }'
+    + P + ' #drawer-products > .drawer-items > .drawer-item:first-child > .drawer-count { margin-right: 4px; }'
+    /* footer: Jobber | CompanyCam, white logos, no boxes */
+    + P + ' .drawer-foot { display: flex !important; align-items: center !important; justify-content: space-between !important; flex: none !important; gap: 10px; margin: auto 14px 0 !important; padding: 12px 2px calc(16px + env(safe-area-inset-bottom)) !important; border-top: 1px solid #1F3246 !important; background: transparent !important; }'
+    + P + ' .drawer-foot .drawer-jobber { width: auto !important; flex: 0 1 auto; padding: 6px 0 !important; margin: 0 !important; background: transparent !important; border: 0 !important; box-shadow: none !important; }'
+    + P + ' .drawer-foot .drawer-jobber img { height: 21px !important; width: auto !important; max-width: 118px !important; object-fit: contain; background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }'
+    + P + ' .drawer-foot .drawer-jobber:active, ' + P + ' .drawer-foot .drawer-jobber.pressed { background: transparent !important; opacity: .75; }'
+    + P + ' .drawer-foot .st164-div { flex: none; width: 0 !important; height: 26px !important; margin: 0 !important; border: 0 !important; border-left: 1px solid #2A4A66 !important; }';
+  document.head.appendChild(st);
+})();
