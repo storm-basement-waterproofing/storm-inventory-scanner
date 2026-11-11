@@ -1,5 +1,6 @@
 /* v181 (Hark, 2026-11-11): separate "On hand" pill on every card + bottom sheet (Inventory mode); edits On hand only, never the order. See the v181 block at the end. */
-/* v180 (Hark, 2026-11-10): crew-phone sync - shared Pull List checks (Staging tab) and 2 s live updates; see the v180 notes in the v167 block and at the end. */
+/* v182 (Hark, 2026-11-11): Staging in the side menu is live (opens Find a Job in the Pull List); Pull List checks take stock off On hand on the server.
+   v180 (Hark, 2026-11-10): crew-phone sync - shared Pull List checks (Staging tab) and 2 s live updates; see the v180 notes in the v167 block and at the end. */
 /* v175 (Hark, 2026-11-10, Dave: "lighten up the theme just a little"): every Truck Check navy (bg, cards, borders, header) raised about 4% lightness, e.g. #0E1621 -> #14202F, #152231 -> #1B2C3F, #1F3246 -> #253C54. Same in scan.html. */
 /* EDITORS (any Hark chat or AI tool): this file is edited from more than one place. Before every save, download the newest app-ext.js from GitHub main, add your change on top of it, and keep every existing vNNN block. Never save from an older copy. */
 /* STORM app extensions v1 (Hark): bin label viewer + print list, Jobber/CompanyCam app launch */
@@ -3479,7 +3480,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
 
   /* ---- side menu ---- */
-  var SOON = [['staging', 'Staging'], ['truck', 'Truck Check'], ['restock', 'Restock'], ['wrap', 'Job Wrap-up'], ['crew', 'Crew Day']];
+  var SOON = [['truck', 'Truck Check'], ['restock', 'Restock'], ['wrap', 'Job Wrap-up'], ['crew', 'Crew Day']];
   function menu() {
     var dr = document.getElementById('drawer'); if (!dr) return false;
     var mn = document.getElementById('cl-menu');
@@ -3489,6 +3490,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
         + '<div class="cl-par" hidden><div class="cl-pring"></div><div><div class="cl-par-t1">Stocked to par</div><div class="cl-par-t2"></div><div class="cl-par-t3"></div></div></div>'
         + '<button type="button" class="cl-row cl-on" data-cl-go="home">' + ico('home') + '<span class="cl-name">Home</span></button>'
         + '<button type="button" class="cl-row" data-cl-go="pull">' + ico('pull') + '<span class="cl-name">Pull List</span></button>'
+        + '<button type="button" class="cl-row" data-cl-go="staging">' + ico('staging') + '<span class="cl-name">Staging</span></button>' /* v182: live (was a Soon placeholder) */
         + SOON.map(function (x) { return '<div class="cl-row cl-soon" aria-disabled="true">' + ico(x[0]) + '<span class="cl-name">' + x[1] + '</span><span class="cl-tag">Soon</span></div>'; }).join('')
         + '<div class="cl-lbl">CATEGORIES</div><div class="cl-cats"></div>'
         + '<div class="cl-lbl" id="cl-more-lbl">MORE</div>';
@@ -3552,8 +3554,14 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       var w = go.getAttribute('data-cl-go');
       shut();
       if (w === 'home') { try { setSupplier('All'); } catch (x) {} try { var q = document.getElementById('search'); if (q && q.value) { q.value = ''; q.dispatchEvent(new Event('input', { bubbles: true })); } } catch (x) {} window.scrollTo(0, 0); }
-      if (w === 'pull') {
-        var open = function () { var pf = document.getElementById('pull-fab'); if (pf) pf.click(); };
+      if (w === 'pull' || w === 'staging') {
+        /* v182 (Hark, 2026-11-11, Dave): Staging = Job mode, Pull List open, then Find a Job, so the crew picks a job and checks
+           its lines; each check takes that quantity off On hand on the server (setStagingCheck v134), and unchecking puts it back. */
+        var stg = w === 'staging';
+        var open = function () {
+          var pf = document.getElementById('pull-fab'); if (pf) pf.click();
+          if (stg) setTimeout(function () { var fb = document.querySelector('#pull-sheet [data-jc-find]') || document.querySelector('[data-jc-find]'); if (fb) fb.click(); }, 350);
+        };
         if (!isJob()) { var ms = document.getElementById('mode-switch'); if (ms) ms.click(); setTimeout(open, 420); } else setTimeout(open, 180);
       }
       return;
