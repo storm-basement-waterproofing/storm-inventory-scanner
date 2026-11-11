@@ -1063,5 +1063,71 @@ html body #sheet .qty button { border: 0 !important; background: #EEF2F7 !import
 html body #sheet .qty button[data-inc] { background: #29ABE2 !important; color: #fff !important; }
 html body #sheet-foot { color: #0F1720 !important; border-top: 0 !important; }
 </style>
+<style id="scan-v138-css">
+/* scan v138 (Hark, 2026-11-10, Dave approved the "clean" concept): camera chrome restyle, look only. The camera pipeline, lens chips
+   (incl. the v135 wide-lens logic), tap-to-focus, tracing, beep, result popup and in-camera cart are untouched.
+   Page #EAF0F7, Montserrat, a round white back button top-left, the STORM drop logo centred (static image only; no tracing),
+   the camera picture with rounded corners, a blue rounded framing box with a soft glow, lens chips in a frosted pill with the chosen
+   lens as a white chip ringed in blue, a white result card, white round cart button with a blue count, Cancel/Done as calm pills. */
+html body, html body button, html body input { font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important; }
+html body { background: #EAF0F7 !important; color: #0F1720 !important; -webkit-font-smoothing: antialiased; }
+html body header { background: #EAF0F7 !important; }
+html body header .cl-cam-logo { display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px; margin: 2px auto 0; pointer-events: none; }
+html body header .cl-cam-logo img { display: block; width: auto; }
+html body header .cl-cam-logo img.cl-d { height: 26px; }
+html body header .cl-cam-logo img.cl-w { height: 19px; filter: brightness(0); }
+html body #cam-close { width: 42px !important; height: 42px !important; border-radius: 50% !important; background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230F1720' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M15 5l-7 7 7 7'/></svg>") center / 22px 22px no-repeat !important; border: 0 !important; box-shadow: 0 1px 2px rgba(15,23,32,.05), 0 4px 14px rgba(15,23,32,.08) !important; color: transparent !important; font-size: 0 !important; }
+@media (orientation: portrait) {
+  html body #cam-close { left: 14px !important; right: auto !important; }
+  html body #view { border-radius: 26px 26px 0 0 !important; }
+  html body #lens-bar { left: 50% !important; right: auto !important; transform: translateX(-50%) !important; }
+}
+@media (orientation: landscape) { html body #view { border-radius: 0 22px 22px 0 !important; } }
+html body #view { background: #0F1720 !important; overflow: hidden !important; }
+html body #view::after { border: 2.5px solid #29A8E0 !important; border-radius: 22px !important; box-shadow: 0 0 0 200vmax rgba(15,23,32,.28), 0 0 18px rgba(41,168,224,.55), inset 0 0 14px rgba(41,168,224,.25) !important;
+  background: linear-gradient(90deg, transparent 5%, rgba(127,211,245,.95) 5%, rgba(127,211,245,.95) 95%, transparent 95%) 0 50% / 100% 2px no-repeat !important; }
+html body #msg { color: #6B7280 !important; font-size: 14px !important; font-weight: 500 !important; }
+html body #msg.err { color: #DC2626 !important; }
+html body #lens-bar { background: rgba(234,240,247,.72) !important; -webkit-backdrop-filter: blur(12px) saturate(1.3) !important; backdrop-filter: blur(12px) saturate(1.3) !important; border: 0 !important; box-shadow: 0 2px 12px rgba(15,23,32,.18) !important; padding: 4px !important; }
+html body #lens-bar .lens-thumb { top: 4px !important; background: #fff !important; box-shadow: inset 0 0 0 2px #29A8E0, 0 1px 4px rgba(15,23,32,.18) !important; }
+html body #lens-bar button, html body #lens-bar button.sel { color: #0F1720 !important; font-weight: 700 !important; font-size: 13.5px !important; }
+html body #lens-bar button:not(.sel) { opacity: .72; }
+html body #pop { background: #fff !important; border: 0 !important; border-radius: 16px !important; padding: 12px 14px !important; box-shadow: 0 1px 2px rgba(15,23,32,.05), 0 10px 28px rgba(15,23,32,.16) !important; color: #0F1720 !important; }
+html body #pop img { width: 52px !important; height: 52px !important; border-radius: 50% !important; border: 1px solid #E6ECF2 !important; background: #fff !important; object-fit: contain !important; }
+html body #pop-name { color: #0F1720 !important; font-size: 16px !important; font-weight: 700 !important; }
+html body #pop-sub { display: block !important; margin-top: 3px !important; padding: 0 !important; border-radius: 0 !important; background: transparent !important; color: #6B7280 !important; font-size: 13px !important; font-weight: 500 !important; letter-spacing: 0 !important; text-transform: none !important; }
+html body #pop-sub::before { content: "\2713  " !important; color: #29A8E0; font-weight: 800; }
+html body #cart-pill { width: 48px !important; height: 48px !important; border-radius: 50% !important; background: #fff !important; color: #0F1720 !important; border: 0 !important; box-shadow: 0 4px 16px rgba(15,23,32,.22) !important; }
+html body #cart-pill .cnt { background: #29A8E0 !important; color: #fff !important; border: 2px solid #fff !important; font-weight: 700 !important; }
+html body #cart-pill #cart-tot { top: 52px !important; background: #fff !important; color: #0F1720 !important; border: 0 !important; border-radius: 8px !important; font-weight: 700 !important; box-shadow: 0 1px 4px rgba(15,23,32,.16) !important; }
+html body #foot { background: #EAF0F7 !important; }
+html body #foot button { min-height: 50px !important; border-radius: 14px !important; font-size: 16px !important; font-weight: 700 !important; }
+html body #cancel { background: #fff !important; border: 1px solid #DCE4EE !important; color: #0F1720 !important; box-shadow: none !important; }
+html body #done { background: #29A8E0 !important; border: 0 !important; color: #fff !important; box-shadow: 0 4px 12px rgba(41,168,224,.28) !important; }
+html body #sheet { background: #EAF0F7 !important; border-radius: 22px !important; }
+html body #sheet-head h2 { font-size: 24px !important; font-weight: 800 !important; letter-spacing: -.015em; }
+html body #sheet-head button { width: 38px !important; height: 38px !important; line-height: 38px !important; font-size: 22px !important; background: #fff !important; color: #6B7280 !important; box-shadow: 0 1px 2px rgba(15,23,32,.05), 0 4px 14px rgba(15,23,32,.06) !important; }
+html body #sheet .line { border-radius: 14px !important; box-shadow: 0 1px 2px rgba(15,23,32,.05), 0 4px 14px rgba(15,23,32,.06) !important; }
+html body #sheet .line img { border-radius: 50% !important; border: 1px solid #E6ECF2; object-fit: contain !important; }
+html body #sheet .line .nm { font-weight: 700 !important; }
+html body #sheet .line .pr { color: #8A94A3 !important; font-weight: 500 !important; }
+html body #sheet .qty { display: flex !important; align-items: center !important; gap: 0 !important; height: 38px; padding: 0 2px !important; border: 1px solid #DCE4EE !important; border-radius: 19px !important; background: #fff !important; }
+html body #sheet .qty button, html body #sheet .qty button[data-inc] { width: 32px !important; height: 32px !important; border: 0 !important; border-radius: 50% !important; background: transparent !important; color: #0F1720 !important; font-size: 19px !important; }
+html body #sheet .qty span { min-width: 26px !important; color: #0F1720 !important; font-size: 17px !important; font-weight: 800 !important; text-align: center; }
+html body #sheet-foot { font-weight: 700 !important; }
+</style>
+<script>
+/* scan v138: static STORM drop logo in the camera header (image only, no tracing) + Montserrat */
+(function () {
+  try {
+    if (!document.getElementById('cl-font')) { var l = document.createElement('link'); l.id = 'cl-font'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap'; document.head.appendChild(l); }
+    var h = document.querySelector('header'); if (!h || h.querySelector('.cl-cam-logo')) return;
+    var A = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/';
+    var d = document.createElement('div'); d.className = 'cl-cam-logo'; d.setAttribute('aria-hidden', 'true');
+    d.innerHTML = '<img class="cl-d" src="' + A + 'drop.png" alt=""><img class="cl-w" src="' + A + 'storm.png" alt="">';
+    h.insertBefore(d, h.firstChild);
+  } catch (e) {}
+})();
+</script>
 </body>
 </html>
