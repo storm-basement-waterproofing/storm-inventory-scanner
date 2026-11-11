@@ -1,3 +1,4 @@
+/* v183 (Hark, 2026-11-11): crew PIN rides on every Pull List check (setStagingCheck), incl. offline-queued taps; pairs with app v135. */
 /* v181 (Hark, 2026-11-11): separate "On hand" pill on every card + bottom sheet (Inventory mode); edits On hand only, never the order. See the v181 block at the end. */
 /* v182 (Hark, 2026-11-11): Staging in the side menu is live (opens Find a Job in the Pull List); Pull List checks take stock off On hand on the server.
    v180 (Hark, 2026-11-10): crew-phone sync - shared Pull List checks (Staging tab) and 2 s live updates; see the v180 notes in the v167 block and at the end. */
@@ -2132,23 +2133,39 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function getQ() { try { var a = JSON.parse(localStorage.getItem(QK) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
   function putQ(a) { try { localStorage.setItem(QK, JSON.stringify(a.slice(-500))); } catch (e) {} }
   function hasRun() { try { return !!(window.google && google.script && google.script.run); } catch (e) { return false; } }
+  /* v183 (Hark, 2026-11-11): crew PIN. Every send carries this phone's saved crew PIN (window.stormCrewPin, Index.html v135), read at
+     send time so taps queued offline go out with the PIN entered later. A PIN_REQUIRED answer keeps the tap queued, opens the PIN
+     sheet once, and pauses background resends (poller / 'online') until a PIN is saved or the next tap. */
+  var pinWait = false;
+  function pinNow() { try { return window.stormCrewPin ? window.stormCrewPin.get() : ''; } catch (e) { return ''; } }
+  window.addEventListener('stormpin', function () { pinWait = false; flush(true); });
   function enqueue(op) {
     var q = getQ().filter(function (o) { return !(o.k === op.k && o.bin === op.bin); }); /* newest tap per line wins */
-    q.push(op); putQ(q); flush();
+    q.push(op); putQ(q); flush(true);
+    try { if (window.stormCrewPin) window.stormCrewPin.offerSet(); } catch (e) {}
   }
   var flushing = false;
-  function flush() {
+  function flush(userTap) {
     if (flushing || !hasRun()) return;
+    if (pinWait && userTap !== true) return;
     var q = getQ(); if (!q.length) return;
     var op = q[0]; flushing = true;
     google.script.run
       .withSuccessHandler(function () {
-        flushing = false;
+        flushing = false; pinWait = false;
         putQ(getQ().filter(function (o) { return !(o.k === op.k && o.bin === op.bin && o.t === op.t); }));
-        flush();
+        flush(true);
       })
-      .withFailureHandler(function () { flushing = false; /* stays queued; retried by the poller, 'online', or the next tap */ })
-      .setStagingCheck(op.k, op.cust, op.bin, op.name, op.qty, op.on, op.by);
+      .withFailureHandler(function (err) {
+        flushing = false; /* stays queued; retried by the poller, 'online', or the next tap */
+        try {
+          if (window.stormCrewPin && window.stormCrewPin.isPinErr(err)) {
+            pinWait = true;
+            window.stormCrewPin.ask(function (ok) { if (ok) { pinWait = false; flush(true); } });
+          } else if (window.stormCrewPin && window.stormCrewPin.isLocked(err)) { pinWait = true; try { showToast('Too many wrong PINs — wait 10 minutes', true); } catch (x) {} }
+        } catch (e) {}
+      })
+      .setStagingCheck(op.k, op.cust, op.bin, op.name, op.qty, op.on, op.by, pinNow());
   }
   /* server rows + this phone's unsent taps -> checked bins for this job */
   function mergeServer(k, rows) {
