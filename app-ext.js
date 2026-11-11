@@ -1,3 +1,4 @@
+/* v195 (Hark, 2026-11-11 12:35, Dave): pairs with app v147. Customer Search always in the + dock (crew + manager, first open); guide Next lands exactly on the next chapter; printed Pull List / Print Preview carry the main-screen STORM logo centered (app side); Pull List progress ring follows you as a slim bar while you scroll; Categories are a closed dropdown on the main screen and a collapsed section in the side menu. See the v195 block at the end. */
 /* v194 (Hark, 2026-11-11 11:28, Dave): pairs with app v146 (Manager Login in place: no reload, video or picker). Side menu bottom rows spaced out (Jobber | CompanyCam, then Manager Login and How to Use the App as full rows; safe area from the wrapper); Insurance Certificates pages show the main-screen STORM logo centered at the top; help guide bottom spacing + new app-specific explainer. See the v194 block at the end. */
 /* v193 (Hark, 2026-11-11, Dave approved): pairs with app v145 (Crew view by default, manager code). Side menu gets "Manager Login" ("Manager · Log out" once logged in); Resource Center gets Insurance Certificates (Lindsey, Suzanne: contact pages with tap-to-email); cart RichTech button is one "Order on RichTech" (copies the list, opens RichTech sign-in); guide's PIN chapter now explains the crew view and Manager Login. See the v193 block at the end. */
 /* v192 (Hark, 2026-11-11, Dave): "How to Use the App" row at the bottom of the side menu opens a full-screen crew guide (numbered chapters, looping phone animation, reduced-motion frames). See the v192 block at the end. */
@@ -4020,7 +4021,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
 /* v187 (Hark, 2026-11-11, Dave): small version tag, bottom right, so everyone can see which version is running. */
 (function () {
-  var EXT = 'v194';
+  var EXT = 'v195';
   function put() {
     var f = document.querySelector('.foot'), m = f && (f.textContent || '').match(/Inventory\s*\u00b7\s*(v\d+)/);
     var vb = document.getElementById('ver-badge'); if (vb) { if (m) vb.textContent = m[1]; return; } /* v188: the app's own bottom-right badge was hard-coded v130; it now shows the live footer version */
@@ -4343,7 +4344,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     { t: 'Getting around', s: 'Getting around', h:
       '<ol class="sh-steps">'
       + '<li><b>Top switch: ' + k('Stage Job') + ' | ' + k('Inventory') + '.</b> Stage Job = getting material ready for a customer\'s job. Inventory = counting what\'s on the shelf and ordering more (managers only: tapping ' + k('Inventory') + ' asks for the manager code, then switches right there).</li>'
-      + '<li><b>White round ' + k('+') + ' bottom right.</b> Tap it and the buttons pop out: Camera, Cart, ' + k('Customer Search') + ' (clipboard, Stage Job only) and ' + k('Quote') + '. Tap it again (it turns into an X) to tuck them away.</li>'
+      + '<li><b>White round ' + k('+') + ' bottom right.</b> Tap it and the buttons pop out: Camera, Cart, ' + k('Customer Search') + ' (clipboard, always there) and ' + k('Quote') + '. Tap it again (it turns into an X) to tuck them away.</li>'
       + '<li><b>Menu ' + k('&#9776;') + ' top left.</b> Products by store, Quote Templates, Resources (Checklists, Bin Labels and more), Staging, Open Jobber app, CompanyCam, and this guide at the bottom.</li>'
       + '</ol><div class="sh-tip">Lost? Close what\'s open with the X in its corner. You\'re back on the main list.</div>' },
     { t: 'Staging a job', s: 'Staging', h:
@@ -4415,15 +4416,23 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     body.addEventListener('scroll', track, { passive: true });
     return el;
   }
+  /* v195 (Dave): Next lands exactly on the next chapter. offsetTop counted from the whole guide (sticky title bar + chapter chips
+     included), so it overshot by that much; measure the card against the scrolling body instead, and settle again after the smooth scroll. */
+  var GAP = 12, goT = 0;
+  function topIn(c) { return Math.round(c.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop); }
   function go(i) {
     var c = document.getElementById('sh-ch' + i); if (!c) return;
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    body.scrollTo({ top: c.offsetTop - 10, behavior: reduce ? 'auto' : 'smooth' });
+    var y = Math.max(0, Math.min(topIn(c) - GAP, body.scrollHeight - body.clientHeight));
+    body.scrollTo({ top: y, behavior: reduce ? 'auto' : 'smooth' });
+    clearTimeout(goT);
+    var settle = function (n) { goT = setTimeout(function () { var y2 = Math.max(0, Math.min(topIn(c) - GAP, body.scrollHeight - body.clientHeight)); if (Math.abs(body.scrollTop - y2) > 1) { if (n > 0 && Math.abs(body.scrollTop - y2) > 40) { settle(n - 1); return; } body.scrollTop = y2; } }, reduce ? 30 : 650); };
+    settle(3);
   }
   function track() {
     var max = body.scrollHeight - body.clientHeight, y = body.scrollTop;
     bar.style.width = (max > 0 ? Math.min(100, y / max * 100) : 100) + '%';
-    var cur = 0; for (var i = 0; i < CH.length; i++) { var c = document.getElementById('sh-ch' + i); if (c && c.offsetTop - 60 <= y) cur = i; }
+    var cur = 0; for (var i = 0; i < CH.length; i++) { var c = document.getElementById('sh-ch' + i); if (c && topIn(c) - GAP - 40 <= y) cur = i; }
     if (y >= max - 4) cur = CH.length - 1;
     chips.forEach(function (ch, i) { ch.classList.toggle('on', i === cur); ch.classList.toggle('seen', i < cur); });
     var on = chips[cur]; if (on && on.scrollIntoView && on.dataset.cur !== '1') { chips.forEach(function (c) { c.dataset.cur = ''; }); on.dataset.cur = '1'; try { on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (x) {} }
@@ -4829,4 +4838,228 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var strip = '<div class="xa-strip">' + S.map(function (h, i) { return '<figure><div class="xa-ph"><div class="xa-scr"><div class="xa-sc">' + h + '</div></div></div><figcaption>' + (i + 1) + '. ' + CAPS_SHORT[i] + '</figcaption></figure>'; }).join('') + '</div>';
     return '<div class="sh-card sh-anim xa" role="img" aria-label="Short animation of the app: the main screen in Stage Job, tap the plus then Customer Search, pick the job, items fill the Pull List, check each box, Print Preview, load the STORM truck">' + live + strip + '</div>';
   };
+})();
+
+/* v195 (Hark, 2026-11-11 12:35, Dave): pairs with app v147.
+   1. Customer Search (clipboard + blue label) is always one of the buttons that fly out of the "+", crew and manager, first open included
+      (app v147 shows it in both modes; from Inventory it flips to Stage Job first). The dock re-measures each time it opens.
+   2. How to Use the App: Next lands with the next chapter's heading right under the chapter chips (v192 go()/track() measure against the
+      scrolling body now).
+   3. Printed Pull List + Print Preview: main-screen STORM logo centered at the top (app v147; assets/storm-black.png + sub-print.png so it
+      prints clearly on white, B&W too).
+   4. Pull List: once the big "3/6 LOADED" ring scrolls away, a slim bar with a small ring, "3 of 6 loaded" and the customer stays at the top
+      of the sheet (tap it to jump back up). It never sits over the check boxes or quantities of the line you are looking at: lines scroll under it.
+   5. Categories: main screen gets one closed "Category" dropdown under the store chips (tap to open, tap a category or anywhere else to close,
+      the closed control shows the pick). Side menu CATEGORIES is a collapsible section, closed each time the menu opens. */
+(function () {
+  if (window.__stormV195) return; window.__stormV195 = 1;
+  var BL = '#29ABE2', INK = '#0F1720', MUTE = '#6B7280', LINE = '#E3E8EF';
+  var FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  var reduce = false; try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+  var LAYERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 8 12 13l9.5-5z"/><path d="m2.5 12.5 9.5 5 9.5-5"/><path d="m2.5 17 9.5 5 9.5-5"/></svg>';
+  var GRID = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>';
+  var D = 'html body #fab-dock.fab-dock';
+  var css = ''
+    /* 1. Customer Search always in the dock */
+    + D + ' > #pull-fab { display: flex !important; visibility: visible !important; }'
+    /* 4. Pull List progress bar */
+    + '#st-pbar { position: fixed; z-index: 104; display: flex; align-items: center; gap: 10px; box-sizing: border-box; height: 52px; padding: 0 14px 0 10px; background: rgba(255,255,255,.94);'
+    + ' -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3); box-shadow: 0 1px 0 ' + LINE + ', 0 6px 16px rgba(15,23,32,.08); border-radius: 18px 18px 0 0;'
+    + ' font-family: inherit; color: ' + INK + '; opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity .2s ease, transform .25s cubic-bezier(.3,1.2,.5,1); cursor: pointer; -webkit-tap-highlight-color: transparent; }'
+    + '#st-pbar.on { opacity: 1; transform: none; pointer-events: auto; }'
+    + '#st-pbar .pb-r { flex: none; width: 36px; height: 36px; } #st-pbar .pb-r svg { display: block; width: 36px; height: 36px; }'
+    + '#st-pbar .pb-r circle.a { transition: stroke-dasharray .35s ease; }'
+    + '#st-pbar .pb-t { flex: 1 1 auto; min-width: 0; line-height: 1.2; }'
+    + '#st-pbar .pb-t b { display: block; font-size: 14.5px; font-weight: 800; white-space: nowrap; }'
+    + '#st-pbar .pb-t span { display: block; font-size: 12px; font-weight: 600; color: ' + MUTE + '; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + '#st-pbar .pb-up { flex: none; width: 30px; height: 30px; border-radius: 50%; background: #F1F4F8; color: ' + INK + '; display: flex; align-items: center; justify-content: center; }'
+    + '#st-pbar .pb-up svg { width: 18px; height: 18px; transform: rotate(180deg); }'
+    + '#st-pbar.done .pb-t b { color: #0B7FB3; }'
+    + '@media (prefers-reduced-motion: reduce) { #st-pbar { transition: opacity .15s ease; transform: none; } }'
+    + '@media print { #st-pbar, #st-catdd { display: none !important; } }'
+    /* 5a. main-screen Category dropdown */
+    + '#st-catdd { position: relative; margin: 10px 14px 0; z-index: 30; font-family: inherit; }'
+    + 'body.st-cd-open #fab-dock, body.st-cd-open #ver-badge { opacity: 0 !important; pointer-events: none !important; transition: opacity .18s ease; }'
+    + '#st-catdd .cd-btn { display: flex; align-items: center; gap: 10px; width: 100%; height: 44px; padding: 0 12px 0 14px; box-sizing: border-box; border: 1px solid ' + LINE + '; border-radius: 14px; background: #fff; color: ' + INK + ';'
+    + ' font-family: inherit; font-size: 14.5px; font-weight: 600; line-height: 1; text-align: left; box-shadow: 0 1px 3px rgba(15,23,32,.06); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: border-color .2s ease, box-shadow .2s ease; }'
+    + '#st-catdd .cd-btn .cd-ic { flex: none; width: 20px; height: 20px; color: ' + BL + '; } #st-catdd .cd-btn .cd-ic svg { width: 20px; height: 20px; display: block; }'
+    + '#st-catdd .cd-btn .cd-k { flex: none; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: ' + MUTE + '; }'
+    + '#st-catdd .cd-btn .cd-v { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }'
+    + '#st-catdd .cd-btn .cd-v.pick { color: #0B7FB3; }'
+    + '#st-catdd .cd-btn .cd-ch { flex: none; width: 22px; height: 22px; color: ' + MUTE + '; transition: transform .3s cubic-bezier(.3,1.3,.5,1); } #st-catdd .cd-btn .cd-ch svg { width: 22px; height: 22px; display: block; }'
+    + '#st-catdd.open .cd-btn { border-color: ' + BL + '; box-shadow: 0 0 0 3px rgba(41,171,226,.15); } #st-catdd.open .cd-ch { transform: rotate(180deg); }'
+    + '#st-catdd .cd-pop { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(58vh, 460px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;'
+    + ' background: #fff; border-radius: 16px; box-shadow: 0 14px 40px rgba(15,23,32,.20), 0 0 0 1px rgba(15,23,32,.04); padding: 6px 0;'
+    + ' opacity: 0; transform: translateY(-6px) scale(.98); transform-origin: 50% 0; visibility: hidden; pointer-events: none; transition: opacity .18s ease, transform .24s cubic-bezier(.3,1.2,.5,1), visibility 0s linear .24s; }'
+    + '#st-catdd.open .cd-pop { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition: opacity .18s ease, transform .24s cubic-bezier(.3,1.2,.5,1), visibility 0s; }'
+    + '#st-catdd .cd-o { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 16px; box-sizing: border-box; border: 0; background: transparent; color: ' + INK + '; font-family: inherit; font-size: 14.5px; font-weight: 600; line-height: 1.25; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }'
+    + '#st-catdd .cd-o + .cd-o { border-top: 1px solid #EEF2F6; }'
+    + '#st-catdd .cd-o span:first-child { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }'
+    + '#st-catdd .cd-o .cd-n { flex: none; color: ' + MUTE + '; font-size: 13px; }'
+    + '#st-catdd .cd-o.on { color: #0B7FB3; background: #EAF7FD; } #st-catdd .cd-o.on .cd-n { color: #0B7FB3; }'
+    + '#st-catdd .cd-o:active { background: #F1F4F8; }'
+    + '@media (min-width: 700px) { #st-catdd { max-width: 420px; } }'
+    + '@media (prefers-reduced-motion: reduce) { #st-catdd .cd-pop, #st-catdd.open .cd-pop { transform: none; } #st-catdd .cd-ch { transition: none; } }'
+    /* 5b. side menu: CATEGORIES collapsible */
+    + 'html body #cl-menu .cl-lbl.st-cat-h { display: flex !important; align-items: center; gap: 12px; width: auto; margin: 14px 0 0 !important; padding: 0 14px; min-height: 46px; border-radius: 14px; background: transparent;'
+    + ' color: ' + INK + ' !important; font-size: 17px !important; font-weight: 700 !important; letter-spacing: 0 !important; text-transform: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }'
+    + 'html body #cl-menu .cl-lbl.st-cat-h:active { background: #F1F4F8; }'
+    + 'html body #cl-menu .st-cat-h .ch-ic { flex: none; width: 24px; height: 24px; color: ' + BL + '; } html body #cl-menu .st-cat-h .ch-ic svg { width: 24px; height: 24px; display: block; }'
+    + 'html body #cl-menu .st-cat-h .ch-t { flex: none; }'
+    + 'html body #cl-menu .st-cat-h .ch-v { flex: 1 1 auto; min-width: 0; text-align: right; font-size: 13px; font-weight: 600; color: #0B7FB3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }'
+    + 'html body #cl-menu .st-cat-h .ch-ch { flex: none; width: 20px; height: 20px; color: ' + MUTE + '; transition: transform .3s cubic-bezier(.3,1.3,.5,1); } html body #cl-menu .st-cat-h .ch-ch svg { width: 20px; height: 20px; display: block; }'
+    + 'html body #cl-menu.st-cats-open .st-cat-h .ch-ch { transform: rotate(180deg); }'
+    + 'html body #cl-menu .cl-cats.st-cat-b { overflow: hidden !important; transition: max-height .32s cubic-bezier(.4,0,.2,1), opacity .22s ease, margin .32s ease, padding .32s ease; margin-top: 6px; }'
+    + 'html body #cl-menu:not(.st-cats-open) .cl-cats.st-cat-b { max-height: 0 !important; opacity: 0; padding-top: 0 !important; padding-bottom: 0 !important; margin-top: 0; box-shadow: none !important; pointer-events: none; }'
+    + 'html body #cl-menu.st-cats-open .cl-cats.st-cat-b { opacity: 1; }'
+    + '@media (prefers-reduced-motion: reduce) { html body #cl-menu .cl-cats.st-cat-b { transition: none; } }';
+  var st = document.createElement('style'); st.id = 'storm-v195-css'; st.textContent = css;
+  function put() { (document.head || document.documentElement).appendChild(st); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+  window.addEventListener('load', put); setTimeout(put, 1800); setTimeout(put, 4300);
+
+  /* ---- 1. dock: re-measure when the + opens so Customer Search flies out to its own spot ---- */
+  document.addEventListener('click', function (e) {
+    if (!(e.target && e.target.closest && e.target.closest('#st-plus'))) return;
+    var pf = document.getElementById('pull-fab'); if (pf && getComputedStyle(pf).display === 'none') pf.style.setProperty('display', 'flex', 'important');
+    try { window.dispatchEvent(new Event('resize')); } catch (x) {} /* v191 layout() listens to resize */
+  }, true);
+
+  /* ---- 4. Pull List progress bar ---- */
+  var bar = null, barKey = '';
+  function mini(done, tot) {
+    var s = 36, w = 4.5, r = (s - w) / 2, c = 2 * Math.PI * r, f = tot ? Math.max(0, Math.min(1, done / tot)) : 0, on = f * c;
+    return '<svg viewBox="0 0 ' + s + ' ' + s + '" aria-hidden="true"><circle cx="18" cy="18" r="' + r + '" fill="#fff" stroke="#E3E8EF" stroke-width="' + w + '"/>'
+      + (on > 0.5 ? '<circle class="a" cx="18" cy="18" r="' + r + '" fill="none" stroke="' + BL + '" stroke-width="' + w + '" stroke-linecap="round" stroke-dasharray="' + on.toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 18 18)"/>' : '')
+      + '<text x="18" y="19" text-anchor="middle" dominant-baseline="middle" font-family="' + FONT.replace(/"/g, '') + '" font-weight="800" font-size="' + (String(done).length + String(tot).length > 3 ? 8.5 : 10) + '" fill="' + INK + '">' + done + '/' + tot + '</text></svg>';
+  }
+  function ensureBar() {
+    if (bar) return bar;
+    bar = document.createElement('div'); bar.id = 'st-pbar'; bar.setAttribute('role', 'status'); bar.setAttribute('aria-live', 'polite');
+    bar.innerHTML = '<div class="pb-r"></div><div class="pb-t"><b></b><span></span></div><div class="pb-up" aria-hidden="true">' + CHEV + '</div>';
+    bar.addEventListener('click', function () { var sh = document.getElementById('pull-sheet'); if (sh) { try { sh.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }); } catch (x) { sh.scrollTop = 0; } } });
+    document.body.appendChild(bar); return bar;
+  }
+  function counts(sh) {
+    var n = sh.querySelector('.tc-prog-n'), m = n ? /(\d+)\D+(\d+)/.exec(n.textContent) : null;
+    if (m) return [+m[1], +m[2]];
+    var all = sh.querySelectorAll('.pick-lines .pick-line'), d = sh.querySelectorAll('.pick-lines .pick-line.tc-done');
+    return [d.length, all.length];
+  }
+  function upd() {
+    var sh = document.getElementById('pull-sheet');
+    var ok = sh && sh.classList.contains('open') && !sh.classList.contains('tc-empty') && !document.getElementById('pull-peek') && !document.getElementById('st-pv')
+      && !document.querySelector('#st-help.open') && sh.querySelector('.pick-lines .pick-line');
+    var rg = ok ? (sh.querySelector('.gd-pring') || sh.querySelector('.tc-top')) : null;
+    if (!rg) { if (bar) bar.classList.remove('on'); return; }
+    var sr = sh.getBoundingClientRect(), rr = rg.getBoundingClientRect();
+    var show = rr.bottom < sr.top + 34 && sh.scrollTop > 20;
+    var b = ensureBar();
+    var z = parseInt(getComputedStyle(sh).zIndex, 10); if (!isNaN(z) && b.style.zIndex !== String(z + 1)) b.style.zIndex = z + 1;
+    var top = Math.max(0, sr.top), left = sr.left, width = sr.width;
+    var pos = top + '|' + left + '|' + width;
+    if (b.__pos !== pos) { b.__pos = pos; b.style.top = top + 'px'; b.style.left = left + 'px'; b.style.width = width + 'px'; b.style.borderRadius = sr.top <= 2 ? '0' : ''; }
+    var c = counts(sh), nm = sh.querySelector('.tc-name'), name = nm && !nm.classList.contains('tc-none') ? nm.textContent.trim() : '';
+    var key = c[0] + '/' + c[1] + '|' + name;
+    if (key !== barKey) {
+      barKey = key;
+      b.querySelector('.pb-r').innerHTML = mini(c[0], c[1]);
+      b.querySelector('.pb-t b').textContent = c[1] && c[0] >= c[1] ? 'All ' + c[1] + ' loaded' : c[0] + ' of ' + c[1] + ' loaded';
+      b.querySelector('.pb-t span').textContent = name || 'Pull List';
+      b.classList.toggle('done', !!c[1] && c[0] >= c[1]);
+      b.setAttribute('aria-label', c[0] + ' of ' + c[1] + ' lines loaded. Tap to go back to the top.');
+    }
+    b.classList.toggle('on', show);
+  }
+  var raf = 0; function soon() { if (raf) return; raf = requestAnimationFrame(function () { raf = 0; upd(); }); }
+  document.addEventListener('scroll', function (e) { if (e.target && e.target.id === 'pull-sheet') soon(); }, true);
+  window.addEventListener('resize', soon);
+  (function watch(n) {
+    var sh = document.getElementById('pull-sheet');
+    if (sh) {
+      new MutationObserver(soon).observe(sh, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
+      new MutationObserver(soon).observe(document.body, { childList: true });
+      setInterval(upd, 1000); return;
+    }
+    if (n < 300) setTimeout(function () { watch(n + 1); }, 150);
+  })(0);
+  window.stormPullBarUpdate = upd;
+
+  /* ---- 5a. main-screen Category dropdown ---- */
+  function its() { try { return (typeof items !== 'undefined' && items && items.length) ? items : []; } catch (e) { return []; } }
+  function curCat() { try { return category; } catch (e) { return 'All'; } }
+  function curSup() { try { return supplier; } catch (e) { return 'All'; } }
+  var dd = null, ddKey = '';
+  function catList() {
+    var s = curSup(), counts = {}, seen = {};
+    its().forEach(function (it) { if (!it || seen[it.bin]) return; if (s !== 'All' && it.supplier !== s) return; seen[it.bin] = 1; var c = it.category || 'Other'; counts[c] = (counts[c] || 0) + 1; });
+    return { counts: counts, cats: Object.keys(counts).sort(function (a, b) { return a.localeCompare(b); }) };
+  }
+  function close() { document.body.classList.remove('st-cd-open'); if (dd && dd.classList.contains('open')) { dd.classList.remove('open'); dd.querySelector('.cd-btn').setAttribute('aria-expanded', 'false'); } }
+  function paintDD() {
+    var chips = document.getElementById('gd-chips'), list = document.getElementById('list');
+    if (!chips || !list || !its().length) return;
+    if (!dd) {
+      dd = document.createElement('div'); dd.id = 'st-catdd';
+      dd.innerHTML = '<button type="button" class="cd-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cd-ic">' + LAYERS + '</span><span class="cd-k">Category</span><span class="cd-v"></span><span class="cd-ch">' + CHEV + '</span></button><div class="cd-pop" role="listbox" aria-label="Categories"></div>';
+      dd.querySelector('.cd-btn').addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        var o = !dd.classList.contains('open'); paintDD(); dd.classList.toggle('open', o); document.body.classList.toggle('st-cd-open', o); this.setAttribute('aria-expanded', o ? 'true' : 'false');
+        if (o) { var on = dd.querySelector('.cd-o.on'), pop = dd.querySelector('.cd-pop'); pop.scrollTop = on ? Math.max(0, on.offsetTop - 60) : 0;
+          var r = dd.getBoundingClientRect(), need = r.bottom + Math.min(pop.scrollHeight, 460) + 20 - window.innerHeight; if (need > 0) { try { window.scrollBy({ top: need, behavior: reduce ? 'auto' : 'smooth' }); } catch (x) {} } }
+      });
+      dd.querySelector('.cd-pop').addEventListener('click', function (e) {
+        var o = e.target.closest && e.target.closest('[data-cd-cat]'); if (!o) return;
+        e.preventDefault(); e.stopPropagation();
+        var c = o.getAttribute('data-cd-cat');
+        close();
+        setTimeout(function () { try { setSupplierCategory(curSup(), c); } catch (x) {} paintDD(); }, reduce ? 0 : 140);
+      });
+    }
+    if (dd.previousElementSibling !== chips) chips.insertAdjacentElement('afterend', dd);
+    var L = catList(), cc = curCat(), key = curSup() + '|' + cc + '|' + L.cats.map(function (c) { return c + ':' + L.counts[c]; }).join(',');
+    if (key === ddKey) return; ddKey = key;
+    var tot = 0; L.cats.forEach(function (c) { tot += L.counts[c]; });
+    var v = dd.querySelector('.cd-v'); v.textContent = cc === 'All' ? 'All categories' : cc; v.classList.toggle('pick', cc !== 'All');
+    dd.querySelector('.cd-pop').innerHTML = '<button type="button" class="cd-o' + (cc === 'All' ? ' on' : '') + '" role="option" data-cd-cat="All"><span>All categories</span><span class="cd-n">' + tot + '</span></button>'
+      + L.cats.map(function (c) { return '<button type="button" class="cd-o' + (cc === c ? ' on' : '') + '" role="option" data-cd-cat="' + esc(c) + '"><span>' + esc(c) + '</span><span class="cd-n">' + L.counts[c] + '</span></button>'; }).join('');
+  }
+  document.addEventListener('click', function (e) { if (dd && dd.classList.contains('open') && !(e.target && e.target.closest && e.target.closest('#st-catdd'))) close(); }, true);
+  document.addEventListener('touchstart', function (e) { if (dd && dd.classList.contains('open') && !(e.target && e.target.closest && e.target.closest('#st-catdd'))) close(); }, { capture: true, passive: true });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+
+  /* ---- 5b. side menu CATEGORIES: collapsible, closed by default ---- */
+  function paintMenu() {
+    var mn = document.getElementById('cl-menu'); if (!mn) return;
+    var box = mn.querySelector('.cl-cats'); if (!box) return;
+    var lb = box.previousElementSibling; if (!lb || !lb.classList.contains('cl-lbl')) return;
+    if (!lb.classList.contains('st-cat-h')) {
+      lb.classList.add('st-cat-h'); lb.setAttribute('role', 'button'); lb.setAttribute('tabindex', '0'); lb.setAttribute('aria-expanded', 'false');
+      lb.innerHTML = '<span class="ch-ic">' + LAYERS + '</span><span class="ch-t">Categories</span><span class="ch-v"></span><span class="ch-ch">' + CHEV + '</span>';
+      box.classList.add('st-cat-b');
+    }
+    var cc = curCat(), v = lb.querySelector('.ch-v'), t = cc === 'All' ? '' : cc; if (v.textContent !== t) v.textContent = t;
+    if (mn.classList.contains('st-cats-open')) box.style.maxHeight = box.scrollHeight + 'px';
+  }
+  function setMenu(o) {
+    var mn = document.getElementById('cl-menu'); if (!mn) return; paintMenu();
+    var box = mn.querySelector('.cl-cats.st-cat-b'), lb = mn.querySelector('.st-cat-h'); if (!box || !lb) return;
+    if (o) box.style.maxHeight = box.scrollHeight + 'px';
+    mn.classList.toggle('st-cats-open', o); lb.setAttribute('aria-expanded', o ? 'true' : 'false');
+    if (o) setTimeout(function () { var dr = document.getElementById('drawer'); if (!dr) return; var r = lb.getBoundingClientRect(), dh = dr.getBoundingClientRect().bottom; if (r.top > dh - 220) { try { dr.scrollBy({ top: r.top - (dh - 360), behavior: reduce ? 'auto' : 'smooth' }); } catch (x) {} } }, 60);
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var h = t.closest('#cl-menu .st-cat-h');
+    if (h) { e.preventDefault(); e.stopPropagation(); var mn = document.getElementById('cl-menu'); setMenu(!mn.classList.contains('st-cats-open')); return; }
+    if (t.closest('#hamburger')) { setTimeout(function () { setMenu(false); }, 0); setTimeout(paintMenu, 120); }
+  }, true);
+  document.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.classList && e.target.classList.contains('st-cat-h')) { e.preventDefault(); e.target.click(); } });
+
+  function tick() { try { paintDD(); } catch (x) {} try { paintMenu(); } catch (x) {} }
+  (function go(n) { tick(); if (n < 40) setTimeout(function () { go(n + 1); }, 250); })(0);
+  setInterval(tick, 1200);
+  (function watchList(n) { var l = document.getElementById('list'); if (l) { new MutationObserver(function () { setTimeout(tick, 0); }).observe(l, { childList: true }); return; } if (n < 200) setTimeout(function () { watchList(n + 1); }, 150); })(0);
 })();
