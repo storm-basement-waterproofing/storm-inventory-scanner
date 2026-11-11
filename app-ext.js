@@ -2417,3 +2417,125 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     openDetail = function () { var r = _o.apply(this, arguments); try { dress(); } catch (e) {} return r; };
   }
 })();
+
+/* v171 (Hark, 2026-11-10, Dave): Order cart (#pick-sheet) in the Truck Check look. Same lines, -/+ (hold-to-repeat untouched), remove X,
+   subtotals, Copy / Open supplier buttons, Home Depot chunk counter, Total, Clear all, close wash and photo peek.
+   Dark sheet with the blue-to-dark header: STORM logo + X, "Order Cart" big, "N lines . M suppliers", and a "Reviewed  N of M" bar.
+   Each supplier is a grey caps title; each line is a dark rounded card with a check box on the left: tap it to mark the line reviewed
+   (blue check, line dimmed, name struck through). Review checks are kept on this phone only (localStorage, per item) and drop off when
+   the item leaves the cart; nothing goes to the sheet or the server. The app has no single "Send Order" button, so each supplier's
+   send action (Copy & open Home Depot, Open RichTech order page) is the blue primary and the Copy buttons are ghost. The footer
+   (Total + Clear all) is pinned at the bottom. */
+(function () {
+  var KEY = 'stormCartReviewV1';
+  var LOGO = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/logos/STORM-logo-color-transparent.svg';
+  var S = 'html body #pick-sheet.tk';
+  var st = document.createElement('style'); st.id = 'storm-v171-css';
+  st.textContent = ''
+    + S + ' { background: #0E1621 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-top: 1px solid #1F3246 !important; border-radius: 22px 22px 0 0 !important; box-shadow: 0 -10px 34px rgba(0,0,0,.45) !important; color: #fff !important; max-height: 88vh !important; max-height: 88dvh !important; }'
+    + S + ' > .pick-sheet-head { display: block !important; padding: 0 18px 12px !important; border: 0 !important; background: linear-gradient(180deg, #14324A 0%, #0E1621 100%) !important; border-radius: 22px 22px 0 0; }'
+    + S + ' .tk-grab { width: 42px; height: 5px; border-radius: 3px; margin: 8px auto 0; background: rgba(159,179,200,.35); }'
+    + S + ' .tk-headrow { display: flex; align-items: center; justify-content: space-between; padding-top: 10px; }'
+    + S + ' .tk-logo { display: block; height: 22px; width: auto; }'
+    + S + ' .pick-sheet-head .pick-sheet-close { color: #9FB3C8 !important; font-size: 30px !important; padding: 2px 4px 2px 12px !important; background: transparent !important; border: 0 !important; }'
+    + S + ' .pick-sheet-head h2 { margin: 14px 0 0 !important; font-size: 26px !important; font-weight: 800 !important; line-height: 1.2 !important; color: #fff !important; }'
+    + S + ' .tk-sub { margin-top: 4px; font-size: 13px; color: #9FB3C8; }'
+    + S + ' .tk-prog { margin-top: 12px; display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: #9FB3C8; }'
+    + S + ' .tk-prog b { color: #29ABE2; font-weight: 800; }'
+    + S + ' .tk-bar { height: 8px; margin-top: 6px; border-radius: 4px; background: #1E2C3B; overflow: hidden; }'
+    + S + ' .tk-bar i { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #29ABE2, #5FD3FF); transition: width .25s ease; }'
+    + S + '.tk-none .tk-sub, ' + S + '.tk-none .tk-prog, ' + S + '.tk-none .tk-bar { display: none; }'
+    /* supplier sections */
+    + S + ' > .pick-sheet-head + div { padding: 0 14px !important; }'
+    + S + ' > .pick-sheet-head + div > div { border-bottom: 0 !important; padding: 2px 0 12px !important; }'
+    + S + ' > .pick-sheet-head + div > div > h3 { margin: 16px 4px 2px !important; font-size: 12px !important; font-weight: 800 !important; letter-spacing: .1em !important; text-transform: uppercase !important; color: #7E93A8 !important; }'
+    + S + ' > .pick-sheet-head + div > div > div:not(.pick-line) { color: #C9D6E3 !important; font-size: 14.5px !important; margin: 10px 4px 10px !important; }'
+    + S + ' #hd-copy-counter { display: block; margin: 6px 4px 0; font-size: 12px; color: #7E93A8 !important; }'
+    /* lines */
+    + S + ' .pick-line { gap: 10px !important; padding: 10px !important; margin-top: 8px; border: 1px solid #1F3246 !important; border-radius: 14px !important; background: #152231 !important; transition: opacity .2s ease; }'
+    + S + ' .pick-line { flex-wrap: wrap !important; align-items: center !important; row-gap: 8px !important; }'
+    + S + ' .pick-line img { width: 46px !important; height: 46px !important; flex: 0 0 46px !important; border-radius: 10px !important; background: #fff !important; }'
+    + S + ' .pick-line .pick-line-info { flex: 1 1 0 !important; min-width: calc(100% - 106px) !important; }'
+    + S + ' .pick-line .pick-stepper { margin-left: 96px !important; }'
+    + S + ' .pick-line .pick-remove { margin-left: auto !important; }'
+    + S + ' .pick-line-name { font-size: 15px !important; font-weight: 700 !important; line-height: 1.25 !important; color: #fff !important; overflow-wrap: anywhere; }'
+    + S + ' .pick-line-code { font-size: 12px !important; margin-top: 3px !important; color: #7E93A8 !important; }'
+    + S + ' .tk-ck { flex: 0 0 30px; width: 30px; height: 30px; margin: 0; padding: 0; border-radius: 9px; border: 2px solid #3B536B; background: transparent; color: #04121D; font-size: 17px; font-weight: 900; line-height: 26px; text-align: center; font-family: inherit; -webkit-tap-highlight-color: transparent; position: relative; }'
+    + S + ' .tk-ck::after { content: ""; position: absolute; inset: -9px; }'
+    + S + ' .pick-line.tk-done { opacity: .6; }'
+    + S + ' .pick-line.tk-done .tk-ck { background: #29ABE2; border-color: #29ABE2; }'
+    + S + ' .pick-line.tk-done .pick-line-name { text-decoration: line-through; text-decoration-thickness: 2px; }'
+    + S + ' .pick-stepper { gap: 4px !important; border: 0 !important; background: transparent !important; overflow: visible !important; }'
+    + S + ' .pick-step { width: 34px !important; height: 34px !important; min-height: 0 !important; padding: 0 !important; border-radius: 50% !important; border: 1.5px solid #3B536B !important; background: transparent !important; color: #E6F4FC !important; font-size: 20px !important; line-height: 1 !important; box-shadow: none !important; }'
+    + S + ' .pick-step[data-pick-inc] { border-color: #29ABE2 !important; color: #29ABE2 !important; }'
+    + S + ' .pick-stepper .pick-qty { min-width: 34px !important; padding: 0 4px !important; color: #29ABE2 !important; font-size: 20px !important; font-weight: 800 !important; background: transparent !important; }'
+    + S + ' .pick-remove { color: #7E93A8 !important; background: transparent !important; }'
+    /* supplier buttons */
+    + S + ' .pick-copy, ' + S + ' .pick-open-rt, ' + S + ' .pick-open-hi { min-height: 50px !important; border-radius: 14px !important; background: transparent !important; border: 1.5px solid #3B536B !important; color: #fff !important; font-weight: 700 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }'
+    + S + ' #hd-copy-btn.pick-copy, ' + S + ' .pick-open-rt, ' + S + ' .pick-open-hi { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; border: 0 !important; color: #04121D !important; font-weight: 800 !important; }'
+    /* footer */
+    + S + ' .pick-sheet-foot { display: flex !important; align-items: center; gap: 12px; padding: 12px 16px calc(18px + env(safe-area-inset-bottom)) !important; background: #0E1621 !important; border-top: 1px solid #1F3246 !important; }'
+    + S + ' .pick-sheet-foot > div { flex: 1 1 auto; margin: 0 !important; text-align: left !important; color: #fff !important; font-size: 20px !important; }'
+    + S + ' .pick-sheet-foot .pick-clear { flex: none; width: auto !important; min-height: 50px !important; padding: 0 18px !important; margin: 0 !important; border-radius: 14px !important; background: transparent !important; border: 1.5px solid rgba(239,68,68,.6) !important; color: #F87171 !important; font-weight: 700 !important; }'
+    + S + ' .pick-empty { color: #9FB3C8 !important; }';
+  document.head.appendChild(st);
+
+  function sheet() { return document.getElementById('pick-sheet'); }
+  function get() { try { var a = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function put(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) {} }
+  function binOf(ln) { var b = ln.querySelector('[data-pick-remove],[data-pick-inc]'); return b ? (b.getAttribute('data-pick-remove') || b.getAttribute('data-pick-inc')) : ''; }
+  function paint(sh) {
+    var lines = [].slice.call(sh.querySelectorAll('.pick-line')).filter(function (l) { return binOf(l); });
+    var bins = lines.map(binOf), on = get().filter(function (b) { return bins.indexOf(b) >= 0; }), done = 0;
+    if (lines.length) put(on); /* drop checks for items no longer in the cart */
+    lines.forEach(function (ln) {
+      var d = on.indexOf(binOf(ln)) >= 0; if (d) done++;
+      ln.classList.toggle('tk-done', d);
+      var b = ln.querySelector('.tk-ck'); if (b) { b.textContent = d ? '\u2713' : ''; b.setAttribute('aria-pressed', d ? 'true' : 'false'); }
+    });
+    var sups = sh.querySelectorAll(':scope > .pick-sheet-head + div > div > h3').length;
+    var sub = sh.querySelector('.tk-sub'); if (sub) sub.textContent = lines.length + ' line' + (lines.length === 1 ? '' : 's') + ' \u00b7 ' + sups + ' supplier' + (sups === 1 ? '' : 's');
+    var p = sh.querySelector('.tk-prog-n'), bar = sh.querySelector('.tk-bar i');
+    if (p) p.innerHTML = '<b>' + done + '</b> of ' + lines.length;
+    if (bar) bar.style.width = (lines.length ? Math.round(done / lines.length * 100) : 0) + '%';
+    sh.classList.toggle('tk-none', !lines.length);
+  }
+  function decorate() {
+    var sh = sheet(); if (!sh) return;
+    sh.classList.add('tk');
+    var head = sh.querySelector(':scope > .pick-sheet-head'); if (!head) return;
+    if (!head.querySelector('.tk-grab')) {
+      var h2 = head.querySelector('h2'), x = head.querySelector('.pick-sheet-close');
+      if (h2) h2.textContent = 'Order Cart';
+      var g = document.createElement('div'); g.className = 'tk-grab'; g.setAttribute('aria-hidden', 'true');
+      var row = document.createElement('div'); row.className = 'tk-headrow';
+      var lg = document.createElement('img'); lg.className = 'tk-logo'; lg.alt = 'STORM'; lg.src = LOGO; row.appendChild(lg);
+      if (x) row.appendChild(x);
+      head.insertBefore(row, head.firstChild); head.insertBefore(g, row);
+      var m = document.createElement('div');
+      m.innerHTML = '<div class="tk-sub"></div><div class="tk-prog"><span>Reviewed</span><span class="tk-prog-n"></span></div><div class="tk-bar"><i></i></div>';
+      while (m.firstChild) head.appendChild(m.firstChild);
+    }
+    sh.querySelectorAll('.pick-line').forEach(function (ln) {
+      if (!binOf(ln) || ln.querySelector('.tk-ck')) return;
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'tk-ck'; b.setAttribute('aria-label', 'Reviewed'); ln.insertBefore(b, ln.firstChild);
+    });
+    paint(sh);
+  }
+  function attach() {
+    var sh = sheet(); if (!sh || sh.__tk171) return !!sh;
+    sh.__tk171 = true;
+    new MutationObserver(function () { try { decorate(); } catch (e) {} }).observe(sh, { childList: true });
+    try { decorate(); } catch (e) {}
+    return true;
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('#pick-sheet .tk-ck'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    var ln = b.closest('.pick-line'), sh = sheet(); if (!ln || !sh) return;
+    var bin = binOf(ln), on = get(), i = on.indexOf(bin);
+    if (i >= 0) on.splice(i, 1); else on.push(bin);
+    put(on); paint(sh);
+  }, true);
+  if (!attach()) { var tries = 0; (function poll() { if (attach() || ++tries > 60) return; setTimeout(poll, 250); })(); }
+})();
