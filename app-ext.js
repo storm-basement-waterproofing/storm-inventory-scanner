@@ -2624,3 +2624,41 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   new MutationObserver(function () { if (document.getElementById('job-find')) watch(); }).observe(document.body, { childList: true });
 })();
+
+/* v173 (Hark, 2026-11-10, Dave): Jobber jobs and the Jobber quote in the Truck Check look. Same Jobber data, Connect / Try again,
+   Load into Pull List, quote pull, close and scroll (v114) as before.
+   In Find a Job, From Jobber cards get a blue edge and a blue-tinted JOB pill; the Jobber job detail has the blue Load into Pull List,
+   ghost Back. Connect to Jobber and Try again are blue. The Jobber quote is a solid dark sheet (#0E1621) with the blue-to-dark top,
+   the white Jobber logo, a dark close tile, the customer big, "Pulled N items" as a green line and "Couldn't find" in amber, the
+   blue Pull items button, every quote line a dark card with its photo on a light tile, and the quote total pinned as the last row. */
+(function () {
+  var J = 'html body #job-find', Q = 'html body #quote-sheet.quote-sheet';
+  var st = document.createElement('style'); st.id = 'storm-v173-css';
+  st.textContent = ''
+    + J + ' .jf-item[data-jf-jb] { box-shadow: inset 4px 0 0 #29ABE2 !important; }'
+    + J + ' .jf-tag { background: rgba(41,171,226,.15) !important; color: #5FD3FF !important; border-radius: 7px !important; padding: 2px 8px !important; font-size: 10.5px !important; vertical-align: 2px; margin-left: 8px !important; }'
+    + J + ' .jf-btn[data-jf-jb-load], ' + J + ' .jf-btn[data-jf-connect], ' + J + ' .jf-btn[data-jf-jb-retry] { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; border: 0 !important; color: #04121D !important; font-weight: 800 !important; }'
+    + J + ' .jf-line b { white-space: nowrap; }'
+    /* quote sheet */
+    + Q + ' { background: #0E1621 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-top: 1px solid #1F3246 !important; border-radius: 22px 22px 0 0 !important; box-shadow: 0 -10px 34px rgba(0,0,0,.45) !important; padding: 0 16px calc(18px + env(safe-area-inset-bottom)) !important; max-height: 88vh !important; max-height: 88dvh !important; }'
+    + Q + ' .qs-logo { margin: 0 -16px !important; padding: 16px 16px 4px; background: linear-gradient(180deg, #14324A 0%, #0E1621 100%); border-radius: 22px 22px 0 0; }'
+    + Q + ' .qs-head { color: #7E93A8 !important; letter-spacing: .1em !important; }'
+    + Q + ' .qs-head > span:first-child { color: #5FD3FF !important; }'
+    + Q + ' .qs-job { color: #9FB3C8 !important; }'
+    + Q + ' .qs-x { width: 40px !important; height: 40px !important; border-radius: 12px !important; background: #152231 !important; border: 1px solid #1F3246 !important; color: #E6F4FC !important; }'
+    + Q + ' .qs-cust { font-size: 24px !important; font-weight: 800 !important; color: #fff !important; margin-top: 8px !important; }'
+    + Q + ' .qs-sum { color: #9FB3C8 !important; }'
+    + Q + ' .qs-pull { display: inline-block; padding: 3px 10px; border-radius: 8px; background: rgba(34,197,94,.14); color: #22C55E !important; font-weight: 700; }'
+    + Q + ' .qs-miss { color: #F59E0B !important; }'
+    + Q + ' .qs-note { color: #C9D6E3 !important; }'
+    + Q + ' .qs-btn { min-height: 52px !important; border: 0 !important; border-radius: 14px !important; background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; color: #04121D !important; font-weight: 800 !important; box-shadow: none !important; }'
+    + Q + ' .qs-lines { border-top: 0 !important; margin-top: 12px !important; }'
+    + Q + ' .qs-line { margin-top: 8px; padding: 12px !important; background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 14px !important; }'
+    + Q + ' .qs-photo { background: #fff !important; border-radius: 10px !important; object-fit: contain !important; }'
+    + Q + ' .qs-name { color: #fff !important; }'
+    + Q + ' .qs-desc { color: #7E93A8 !important; }'
+    + Q + ' .qs-qty { color: #29ABE2 !important; font-weight: 700; }'
+    + Q + ' .qs-total { position: sticky; bottom: calc(-18px - env(safe-area-inset-bottom)); margin: 12px -16px 0 !important; padding: 14px 16px calc(18px + env(safe-area-inset-bottom)) !important; background: #0E1621 !important; border-top: 1px solid #1F3246 !important; color: #9FB3C8 !important; }'
+    + Q + ' .qs-total b { color: #fff !important; font-size: 20px; }';
+  document.head.appendChild(st);
+})();
