@@ -20,7 +20,7 @@ header span { color: #29ABE2; } header .hdr-logo { height: 30px; width: auto; ma
 #foot button { flex: 1; padding: 12px; font-size: 16px; border-radius: 8px; }
 #cancel { background: #222; color: #fff; border: 1px solid #555; }
 #done { background: #29ABE2; color: #fff; border: 1px solid #29ABE2; font-weight: 700; }
-#pop { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 10; display: flex; align-items: center; gap: 12px; background: #0F1720; color: #fff; border: 1px solid #29ABE2; border-radius: 12px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.45); transform: translateY(130%); opacity: 0; transition: transform .28s ease, opacity .28s ease; pointer-events: none; }
+#pop { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 10; display: flex; align-items: center; gap: 12px; background: #16212E; color: #fff; border: 1px solid #29ABE2; border-radius: 12px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.45); transform: translateY(130%); opacity: 0; transition: transform .28s ease, opacity .28s ease; pointer-events: none; }
 #pop.show { transform: translateY(0); opacity: 1; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 #pop.show:active { transform: translateY(2px) scale(.98); filter: brightness(.92); }
 #pop img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; background: #222; flex: 0 0 auto; }
@@ -106,7 +106,7 @@ video { image-rendering: auto; }
 #lens-bar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 11; display: none; gap: 6px; padding: 5px; border-radius: 999px; background: rgba(15,23,32,.42); -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4); border: 1px solid rgba(255,255,255,.28); }
 #lens-bar.on { display: flex; }
 #lens-bar button { min-width: 42px; height: 34px; padding: 0 10px; border-radius: 999px; border: 0; background: transparent; color: #fff; font: 700 13px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-#lens-bar button.sel { background: #fff; color: #0F1720; }
+#lens-bar button.sel { background: #fff; color: #16212E; }
 #lens-bar button:active { transform: scale(.94); }
 #lens-bar { background: rgba(217,217,222,.92) !important; border: 1.5px solid rgba(255,255,255,.85) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; padding: 3px !important; }
 #lens-bar .lens-chips { position: relative; display: flex; gap: 6px; z-index: 1; }
@@ -116,20 +116,20 @@ video { image-rendering: auto; }
 @media (max-width: 420px) { #lens-bar { left: 12px; transform: none; } }
 
 /* v130 (Hark, 2026-11-09): in-camera cart matches the main-screen cart (same font, sizes and stepper), on see-through frosted white instead of dark blue */
-#sheet { background: rgba(255,255,255,.72) !important; -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); border: 1px solid rgba(255,255,255,.85) !important; color: #111827; box-shadow: 0 12px 40px rgba(0,0,0,.35) !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+#sheet { background: rgba(255,255,255,.72) !important; -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); border: 1px solid rgba(255,255,255,.85) !important; color: #172135; box-shadow: 0 12px 40px rgba(0,0,0,.35) !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 #sheet-head { padding: 14px 12px 8px 16px; border-bottom: 1px solid rgba(17,24,39,.12); }
-#sheet-head h2 { font-size: 19px; font-weight: 700; color: #111827; }
-#sheet-head button { border: 0; background: none; color: #0F1720; font-size: 30px; width: 40px; }
+#sheet-head h2 { font-size: 19px; font-weight: 700; color: #172135; }
+#sheet-head button { border: 0; background: none; color: #16212E; font-size: 30px; width: 40px; }
 #sheet-list { padding: 0 16px; }
 .line { gap: 10px; padding: 12px 0; border-bottom: 0; border-top: 1px solid rgba(17,24,39,.12); }
 .line:first-child { border-top: 0; }
-.line .nm { font-size: 16px; font-weight: 700; line-height: 1.3; color: #111827; }
+.line .nm { font-size: 16px; font-weight: 700; line-height: 1.3; color: #172135; }
 .line .pr { font-size: 13px; color: #6B7280; margin-top: 2px; }
 .line img { background: #F3F4F6; }
 .qty { border: 1px solid #D1D5DB; border-radius: 10px; background: #fff; }
-.qty button { width: 44px; height: 44px; font-size: 24px; font-weight: 700; background: #F3F4F6; color: #0F1720; }
-.qty span { min-width: 44px; font-size: 18px; color: #111827; }
-#sheet-foot { border-top: 1px solid rgba(17,24,39,.12); color: #111827; font-size: 19px; font-weight: 800; }
+.qty button { width: 44px; height: 44px; font-size: 24px; font-weight: 700; background: #F3F4F6; color: #16212E; }
+.qty span { min-width: 44px; font-size: 18px; color: #172135; }
+#sheet-foot { border-top: 1px solid rgba(17,24,39,.12); color: #172135; font-size: 19px; font-weight: 800; }
 #sheet .empty { color: #6B7280; }
 /* v131 (Hark, 2026-11-09): camera cart button is the same tile as the main screen cart: 44 px frosted square, cart icon, blue count badge, total chip under it */
 #cart-pill { width: 44px; height: 44px; padding: 0 !important; gap: 0 !important; justify-content: center; border-radius: 12px !important; background: rgba(15,23,32,.38) !important; -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4); border: 1px solid rgba(255,255,255,.5) !important; box-shadow: 0 2px 10px rgba(0,0,0,.2) !important; color: #fff; overflow: visible; bottom: calc(40px + env(safe-area-inset-bottom)) !important; right: 14px !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -990,13 +990,13 @@ header .hdr-logo, header .storm-logo-lit, .storm-logo-lit, .sll-trace { display:
 </script>
 <style id="scan-v136-css">
 /* scan v136 (Hark, 2026-11-10, Dave): scanner in the Truck Check look. Same camera, lenses, tap-to-focus, code tracing, beep, popup and
-   in-camera cart; only the look changes. Dark page (#0E1621) and bar, camera dimmed around a blue rounded framing box with a soft scan
+   in-camera cart; only the look changes. Dark page (#14202F) and bar, camera dimmed around a blue rounded framing box with a soft scan
    line (visual guide only: codes anywhere in the picture still scan), "Looking for a code" in grey, the scan result as a dark card with
    the photo on a light tile and a green check line, the lens picker as dark chips with a blue pill, dark close and cart tiles, Cancel
    ghost + Done blue, and the in-camera cart as a dark sheet with round -/+. Still no STORM logo in the camera (v134). */
-html body { background: #0E1621 !important; }
-html body header { background: linear-gradient(180deg, #14324A 0%, #0E1621 100%) !important; }
-html body #cam-close { background: #152231 !important; border: 1px solid #1F3246 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: #E6F4FC !important; }
+html body { background: #14202F !important; }
+html body header { background: linear-gradient(180deg, #183D5A 0%, #14202F 100%) !important; }
+html body #cam-close { background: #1B2C3F !important; border: 1px solid #253C54 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: #E6F4FC !important; }
 html body #view { background: #000 !important; }
 html body #view::after { content: ""; position: absolute; left: 50%; top: 46%; width: min(68vw, 62vh, 300px); aspect-ratio: 1; transform: translate(-50%, -50%); border: 3px solid #29ABE2; border-radius: 26px; box-shadow: 0 0 0 200vmax rgba(14,22,33,.45); pointer-events: none; z-index: 3;
   background: linear-gradient(90deg, transparent 6%, #5FD3FF 6%, #5FD3FF 94%, transparent 94%) 0 50% / 100% 3px no-repeat; animation: tkScanLine 2.4s ease-in-out infinite; }
@@ -1004,33 +1004,33 @@ html body #view::after { content: ""; position: absolute; left: 50%; top: 46%; w
 html body #msg { color: #9FB3C8 !important; background: transparent !important; }
 html body #msg.err { color: #F87171 !important; }
 html body #foot button { min-height: 54px; border-radius: 14px !important; font-weight: 800 !important; }
-html body #cancel { background: transparent !important; border: 1.5px solid #3B536B !important; color: #fff !important; }
+html body #cancel { background: transparent !important; border: 1.5px solid #425D78 !important; color: #fff !important; }
 html body #done { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; border: 0 !important; color: #04121D !important; }
-html body #pop { background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 16px !important; padding: 12px !important; box-shadow: 0 10px 30px rgba(0,0,0,.5) !important; }
+html body #pop { background: #1B2C3F !important; border: 1px solid #253C54 !important; border-radius: 16px !important; padding: 12px !important; box-shadow: 0 10px 30px rgba(0,0,0,.5) !important; }
 html body #pop img { background: #fff !important; border-radius: 12px !important; object-fit: contain !important; }
 html body #pop-name { color: #fff !important; font-size: 17px !important; font-weight: 800 !important; }
 html body #pop-sub { display: inline-block; margin-top: 4px !important; padding: 2px 9px; border-radius: 8px; background: rgba(34,197,94,.14); color: #22C55E !important; font-size: 12px !important; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
 html body #pop-sub::before { content: "\2713  "; }
-html body #lens-bar { background: #152231 !important; border: 1px solid #1F3246 !important; }
+html body #lens-bar { background: #1B2C3F !important; border: 1px solid #253C54 !important; }
 html body #lens-bar .lens-thumb { background: #29ABE2 !important; box-shadow: none !important; }
 html body #lens-bar button, html body #lens-bar button.sel { color: #C9D6E3 !important; }
 html body #lens-bar button.sel { color: #04121D !important; }
 html body #cart-pill { background: linear-gradient(135deg, #29ABE2, #5FD3FF) !important; border: 0 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: #04121D !important; box-shadow: 0 6px 20px rgba(41,171,226,.35) !important; }
 html body #cart-pill .cnt { background: #04121D !important; color: #5FD3FF !important; }
-html body #cart-pill #cart-tot { background: #152231 !important; border: 1px solid #1F3246; color: #fff !important; }
-html body #sheet { background: #0E1621 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border: 1px solid #1F3246 !important; border-radius: 22px !important; box-shadow: 0 14px 40px rgba(0,0,0,.55) !important; }
-html body #sheet-head { background: linear-gradient(180deg, #14324A 0%, #0E1621 100%) !important; border-bottom: 1px solid #1F3246 !important; border-radius: 22px 22px 0 0; }
+html body #cart-pill #cart-tot { background: #1B2C3F !important; border: 1px solid #253C54; color: #fff !important; }
+html body #sheet { background: #14202F !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border: 1px solid #253C54 !important; border-radius: 22px !important; box-shadow: 0 14px 40px rgba(0,0,0,.55) !important; }
+html body #sheet-head { background: linear-gradient(180deg, #183D5A 0%, #14202F 100%) !important; border-bottom: 1px solid #253C54 !important; border-radius: 22px 22px 0 0; }
 html body #sheet-head h2 { color: #fff !important; font-size: 22px !important; font-weight: 800 !important; }
 html body #sheet-head button { color: #9FB3C8 !important; background: transparent !important; border: 0 !important; }
-html body #sheet .line { margin-top: 8px; padding: 10px !important; border: 1px solid #1F3246 !important; border-radius: 14px !important; background: #152231 !important; }
+html body #sheet .line { margin-top: 8px; padding: 10px !important; border: 1px solid #253C54 !important; border-radius: 14px !important; background: #1B2C3F !important; }
 html body #sheet .line img { background: #fff !important; border-radius: 10px !important; }
 html body #sheet .line .nm { color: #fff !important; }
 html body #sheet .line .pr { color: #7E93A8 !important; }
 html body #sheet .qty { gap: 4px; border: 0 !important; background: transparent !important; overflow: visible !important; }
-html body #sheet .qty button { width: 36px !important; height: 36px !important; border-radius: 50% !important; border: 1.5px solid #3B536B !important; background: transparent !important; color: #E6F4FC !important; font-size: 20px !important; }
+html body #sheet .qty button { width: 36px !important; height: 36px !important; border-radius: 50% !important; border: 1.5px solid #425D78 !important; background: transparent !important; color: #E6F4FC !important; font-size: 20px !important; }
 html body #sheet .qty button[data-inc] { border-color: #29ABE2 !important; color: #29ABE2 !important; }
 html body #sheet .qty span { min-width: 30px !important; color: #29ABE2 !important; font-size: 19px !important; font-weight: 800; }
-html body #sheet-foot { color: #fff !important; border-top: 1px solid #1F3246 !important; }
+html body #sheet-foot { color: #fff !important; border-top: 1px solid #253C54 !important; }
 html body #sheet .empty { color: #9FB3C8 !important; }
 </style>
 </body>
