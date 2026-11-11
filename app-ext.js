@@ -4098,9 +4098,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '@keyframes stPlusFade { from { opacity: 0; } to { opacity: 1; } }'
     + '@media print { #st-plus, #st-pv { display: none !important; } }'
     /* Print Preview */
-    + 'html body #pull-sheet .pick-sheet-foot .pull-print { order: 1 !important; }'
-    + 'html body #pull-sheet .pick-sheet-foot .pull-save { order: 3 !important; flex: 1 1 100% !important; }'
-    + 'html body #pull-sheet .pick-sheet-foot .pull-print.st-pvb { order: 0 !important; }'
+    + 'html body #pull-sheet.pick-sheet .pick-sheet-foot > button.pull-print { order: 1 !important; flex: 1 1 0 !important; min-width: 0; }'
+    + 'html body #pull-sheet.pick-sheet .pick-sheet-foot > button.pull-print.st-pvb { order: 0 !important; }'
+    + 'html body #pull-sheet.pick-sheet .pick-sheet-foot > button.pull-save { order: 3 !important; flex: 1 1 100% !important; }'
+    + 'html body #pull-sheet.pick-sheet .pick-sheet-foot > button.pull-print, html body #pull-sheet.pick-sheet .pick-sheet-foot > button.pull-save { white-space: nowrap; }'
     + 'html body #pull-sheet .pull-print.st-pvb .st-pvi { width: 20px; height: 20px; flex: none; }'
     + '#st-pv { position: fixed; inset: 0; z-index: 2147483100; display: flex; flex-direction: column; background: #E9EEF3; opacity: 0; transition: opacity .22s ease; -webkit-text-size-adjust: 100%; }'
     + '#st-pv.on { opacity: 1; }'
