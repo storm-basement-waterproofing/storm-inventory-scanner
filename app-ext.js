@@ -5026,8 +5026,15 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     dd.querySelector('.cd-pop').innerHTML = '<button type="button" class="cd-o' + (cc === 'All' ? ' on' : '') + '" role="option" data-cd-cat="All"><span>All categories</span><span class="cd-n">' + tot + '</span></button>'
       + L.cats.map(function (c) { return '<button type="button" class="cd-o' + (cc === c ? ' on' : '') + '" role="option" data-cd-cat="' + esc(c) + '"><span>' + esc(c) + '</span><span class="cd-n">' + L.counts[c] + '</span></button>'; }).join('');
   }
-  document.addEventListener('click', function (e) { if (dd && dd.classList.contains('open') && !(e.target && e.target.closest && e.target.closest('#st-catdd'))) close(); }, true);
-  document.addEventListener('touchstart', function (e) { if (dd && dd.classList.contains('open') && !(e.target && e.target.closest && e.target.closest('#st-catdd'))) close(); }, { capture: true, passive: true });
+  /* a tap outside only closes the dropdown (it does not also press whatever was under it) */
+  var swallow = 0;
+  function outside(e) { return !(e.target && e.target.closest && e.target.closest('#st-catdd')); }
+  document.addEventListener('click', function (e) {
+    if (dd && dd.classList.contains('open') && outside(e)) { e.preventDefault(); e.stopPropagation(); close(); return; }
+    if (swallow > Date.now() && outside(e)) { swallow = 0; e.preventDefault(); e.stopPropagation(); }
+  }, true);
+  document.addEventListener('touchstart', function (e) { if (dd && dd.classList.contains('open') && outside(e)) { swallow = Date.now() + 700; close(); } }, { capture: true, passive: true });
+  document.addEventListener('touchmove', function () { if (swallow) swallow = 0; }, { capture: true, passive: true });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
 
   /* ---- 5b. side menu CATEGORIES: collapsible, closed by default ---- */
