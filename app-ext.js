@@ -1,3 +1,4 @@
+/* v180 (Hark, 2026-11-10): crew-phone sync - shared Pull List checks (Staging tab) and 2 s live updates; see the v180 notes in the v167 block and at the end. */
 /* v175 (Hark, 2026-11-10, Dave: "lighten up the theme just a little"): every Truck Check navy (bg, cards, borders, header) raised about 4% lightness, e.g. #0E1621 -> #14202F, #152231 -> #1B2C3F, #1F3246 -> #253C54. Same in scan.html. */
 /* EDITORS (any Hark chat or AI tool): this file is edited from more than one place. Before every save, download the newest app-ext.js from GitHub main, add your change on top of it, and keep every existing vNNN block. Never save from an older copy. */
 /* STORM app extensions v1 (Hark): bin label viewer + print list, Jobber/CompanyCam app launch */
@@ -2107,13 +2108,86 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function jobKey() { var c = cust(); return 'c:' + norm(c.first) + '|' + norm(c.last) + '|' + norm(c.address); }
   function allChecks() { try { return JSON.parse(localStorage.getItem(CK) || '{}') || {}; } catch (e) { return {}; } }
   function checked() { var a = allChecks()[jobKey()]; return (a && Array.isArray(a.bins)) ? a.bins : []; }
-  function saveChecked(bins) {
-    var all = allChecks(), k = jobKey();
+  function saveChecked(bins, k) {
+    var all = allChecks(); k = k || jobKey();
     if (bins.length) all[k] = { bins: bins, t: Date.now() }; else delete all[k];
     var keys = Object.keys(all).sort(function (a, b) { return (all[b].t || 0) - (all[a].t || 0); });
     keys.slice(40).forEach(function (x) { delete all[x]; }); /* keep the 40 most recent jobs */
     try { localStorage.setItem(CK, JSON.stringify(all)); } catch (e) {}
   }
+
+  /* v180 (Hark, 2026-11-10, Dave approved 22:47): Pull List checks are shared by every crew phone.
+     Each tap is written to the "Staging" tab on the server (setStagingCheck); this phone's localStorage stays as the
+     offline cache, and taps made offline wait in a queue (stormStagingQueueV1) that is sent in order when the server
+     answers again. Opening the Pull List (or switching job) loads its checks from the server; while it is open the
+     live-sync poller (v180 block at the end of this file) reloads them whenever the change stamp moves.
+     Server job key: "jb:<Jobber job id>" when the list came from Jobber, otherwise the same per-customer key used
+     on this phone ("c:first|last|address"). A list with no customer stays on this phone only. */
+  var QK = 'stormStagingQueueV1', DEV = 'stormDeviceNameV1';
+  function srvKey() { var c = cust(); if (c.jobberJobId) return 'jb:' + String(c.jobberJobId); var k = jobKey(); return k === 'c:||' ? '' : k; }
+  function custLabel() { var c = cust(); return [String(c.first || '').trim(), String(c.last || '').trim()].filter(Boolean).join(' ') + (String(c.address || '').trim() ? ' · ' + String(c.address).trim() : ''); }
+  function devName() { try { return String(localStorage.getItem(DEV) || '').slice(0, 60); } catch (e) { return ''; } }
+  function getQ() { try { var a = JSON.parse(localStorage.getItem(QK) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function putQ(a) { try { localStorage.setItem(QK, JSON.stringify(a.slice(-500))); } catch (e) {} }
+  function hasRun() { try { return !!(window.google && google.script && google.script.run); } catch (e) { return false; } }
+  function enqueue(op) {
+    var q = getQ().filter(function (o) { return !(o.k === op.k && o.bin === op.bin); }); /* newest tap per line wins */
+    q.push(op); putQ(q); flush();
+  }
+  var flushing = false;
+  function flush() {
+    if (flushing || !hasRun()) return;
+    var q = getQ(); if (!q.length) return;
+    var op = q[0]; flushing = true;
+    google.script.run
+      .withSuccessHandler(function () {
+        flushing = false;
+        putQ(getQ().filter(function (o) { return !(o.k === op.k && o.bin === op.bin && o.t === op.t); }));
+        flush();
+      })
+      .withFailureHandler(function () { flushing = false; /* stays queued; retried by the poller, 'online', or the next tap */ })
+      .setStagingCheck(op.k, op.cust, op.bin, op.name, op.qty, op.on, op.by);
+  }
+  /* server rows + this phone's unsent taps -> checked bins for this job */
+  function mergeServer(k, rows) {
+    var on = {};
+    (rows || []).forEach(function (r) { if (r && r.itemBin) on[r.itemBin] = !!r.checked; });
+    getQ().forEach(function (o) { if (o.k === k) on[o.bin] = !!o.on; });
+    return Object.keys(on).filter(function (b) { return on[b]; });
+  }
+  var loadSeq = 0, loading = false, againAfter = false;
+  function loadFromServer() {
+    var k = srvKey(); if (!k || !hasRun()) return;
+    if (loading) { againAfter = true; return; }
+    loading = true; var my = ++loadSeq;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        loading = false;
+        if (my === loadSeq && res && res.jobKey === k && srvKey() === k) {
+          var cur = checked(), bins;
+          if (!(res.rows && res.rows.length) && cur.length && !getQ().some(function (o) { return o.k === k; })) {
+            /* first sync for a job checked before v180: send this phone's checks up instead of clearing them */
+            var nmOf = {}, sh0 = sheet();
+            if (sh0) sh0.querySelectorAll('.pick-line[data-pull-bin]').forEach(function (ln) { var n = ln.querySelector('.pick-line-name'), b = ln.querySelector('.pull-qty b'); nmOf[ln.getAttribute('data-pull-bin')] = [n ? n.textContent.trim() : '', b ? (parseInt(b.textContent, 10) || '') : '']; });
+            var q0 = getQ(), now = Date.now();
+            cur.forEach(function (b) { var m = nmOf[b] || ['', '']; q0.push({ k: k, cust: custLabel(), bin: b, name: m[0], qty: m[1], on: true, by: devName(), t: now }); });
+            putQ(q0); flush(); bins = cur;
+          } else bins = mergeServer(k, res.rows);
+          if (bins.slice().sort().join('|') !== cur.slice().sort().join('|')) {
+            saveChecked(bins);
+            var sh = sheet(); if (sh && sh.querySelector('.tc-top')) paintChecks(sh);
+          }
+        }
+        if (againAfter) { againAfter = false; loadFromServer(); }
+      })
+      .withFailureHandler(function () { loading = false; if (againAfter) { againAfter = false; } /* offline: keep the local copy */ })
+      .getStaging(k);
+  }
+  function pullOpenNow() { var sh = sheet(); return !!(sh && sh.classList.contains('open')); }
+  window.stormStagingFlush = flush;
+  window.stormStagingRefresh = function () { if (pullOpenNow()) loadFromServer(); };
+  window.addEventListener('online', function () { flush(); if (pullOpenNow()) loadFromServer(); });
+  setTimeout(flush, 1500);
   function sheet() { return document.getElementById('pull-sheet'); }
 
   function paintHead(sh) {
@@ -2169,6 +2243,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var sh = sheet(); if (!sh || sh.__tc167) return !!sh;
     sh.__tc167 = true;
     new MutationObserver(function () { try { decorate(); } catch (e) {} }).observe(sh, { childList: true });
+    /* v180: opening the Pull List loads its checks from the server */
+    var wasOpen = sh.classList.contains('open');
+    new MutationObserver(function () { var o = sh.classList.contains('open'); if (o && !wasOpen) { lastKey = srvKey(); loadFromServer(); flush(); } wasOpen = o; }).observe(sh, { attributes: true, attributeFilter: ['class'] });
+    if (wasOpen) loadFromServer();
     try { decorate(); } catch (e) {}
     return true;
   }
@@ -2180,9 +2258,16 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var bin = ln.getAttribute('data-pull-bin'), on = checked(), i = on.indexOf(bin);
     if (i >= 0) on.splice(i, 1); else on.push(bin);
     saveChecked(on); paintChecks(sh);
+    /* v180: share the tap with every phone (queued if offline) */
+    var k = srvKey();
+    if (k) {
+      var nm = ln.querySelector('.pick-line-name'), qb = ln.querySelector('.pull-qty b');
+      enqueue({ k: k, cust: custLabel(), bin: bin, name: nm ? nm.textContent.trim() : '', qty: qb ? (parseInt(qb.textContent, 10) || '') : '', on: i < 0, by: devName(), t: Date.now() });
+    }
   }, true);
   /* name / address typed, New Job, or a job loaded: header and checks follow the customer */
-  function later() { setTimeout(function () { var sh = sheet(); if (sh && sh.querySelector('.tc-top')) { paintHead(sh); paintChecks(sh); } }, 0); }
+  var lastKey = null;
+  function later() { setTimeout(function () { var sh = sheet(); if (sh && sh.querySelector('.tc-top')) { paintHead(sh); paintChecks(sh); } var k = srvKey(); if (k !== lastKey) { lastKey = k; clearTimeout(later.t); later.t = setTimeout(function () { if (pullOpenNow()) loadFromServer(); }, 600); } }, 0); }
   document.addEventListener('input', function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute('data-jc')) later(); }, true);
   document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('[data-jc-clear], #job-find')) later(); }, true);
   if (!attach()) { var tries = 0; (function poll() { if (attach() || ++tries > 60) return; setTimeout(poll, 250); })(); }
@@ -3627,4 +3712,92 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   if (!attach()) { var tries = 0; (function poll() { if (attach() || ++tries > 120) return; setTimeout(poll, 250); })(); }
   document.addEventListener('input', function (e) { if (e.target && e.target.matches && e.target.matches('#list input.count, #detail input.count')) soon(); }, true);
   window.addEventListener('load', soon);
+})();
+
+/* v180 (Hark, 2026-11-10, Dave approved 22:47/22:48): live updates across crew phones.
+   While the app is on screen (document.visibilityState 'visible') it asks the server for the change stamp (getStamp, which
+   never opens the sheet) every 2 s, one call at a time. When the stamp moves (a count, a par, or a Pull List check changed on
+   any phone), it pulls the items (getItems(false); the server cache is keyed by the stamp, so it is always fresh) and patches
+   the changed cards in place with applyUpdate (no re-render, no scroll jump), and reloads the open Pull List's checks.
+   A line the user is editing right now (focused count, open par box, a save still in flight, or touched in the last 4 s) is
+   left alone. Paused while the app is hidden. Errors back off 2 s -> 5 -> 10 -> 30 s and drop back to 2 s after a success.
+   Also sends any queued offline Pull List taps. */
+(function () {
+  if (window.__stormLive180) return; window.__stormLive180 = true;
+  var DELAYS = [2000, 5000, 10000, 30000];
+  var last = null, inFlight = false, timer = 0, err = 0, pulling = false, pullAgain = false, retry = false;
+  var touched = {};
+  function hasRun() { try { return !!(window.google && google.script && google.script.run); } catch (e) { return false; } }
+  function visible() { return document.visibilityState === 'visible'; }
+  function binOf(el) {
+    if (!el || !el.closest) return null;
+    var c = el.closest('[data-bin]'); if (c) return c.getAttribute('data-bin');
+    if (el.closest('#detail')) { try { return currentDetailBin || null; } catch (e) { return null; } }
+    return null;
+  }
+  function mark(e) { var b = binOf(e.target); if (b) touched[b] = Date.now(); }
+  ['pointerdown', 'input', 'change', 'keydown', 'focusin'].forEach(function (t) { document.addEventListener(t, mark, true); });
+  function busy(bin) {
+    if (Date.now() - (touched[bin] || 0) < 4000) return true;
+    try { var q = saveQueues && saveQueues[bin]; if (q && (q.busy || q.pending !== null)) return true; } catch (e) {}
+    var ae = document.activeElement;
+    if (ae && ae.matches && ae.matches('input, textarea, select') && binOf(ae) === bin) return true;
+    var card = document.querySelector('.card[data-bin="' + bin + '"]');
+    if (card && card.querySelector('.par-input')) return true;
+    return false;
+  }
+  function same(a, b) { return a === b || (a == null && b == null); }
+  function pullItems() {
+    if (pulling) { pullAgain = true; return; }
+    pulling = true;
+    google.script.run
+      .withSuccessHandler(function (data) {
+        pulling = false;
+        try {
+          (data || []).forEach(function (n) {
+            if (!n || !n.bin) return;
+            var cur = null; try { cur = findItem(n.bin); } catch (e) {}
+            if (!cur) return; /* new rows show on the next full load */
+            if (same(cur.onHand, n.onHand) && same(cur.par, n.par) && same(cur.need, n.need)) return;
+            if (busy(n.bin)) return;
+            applyUpdate({ bin: n.bin, onHand: n.onHand, par: n.par, need: n.need });
+            try { syncDetailStepper(n.bin); } catch (e) {}
+          });
+        } catch (e) {}
+        if (pullAgain) { pullAgain = false; pullItems(); }
+      })
+      .withFailureHandler(function () { pulling = false; pullAgain = false; retry = true; /* retried on the next stamp check */ })
+      .getItems(false);
+  }
+  function changed() {
+    pullItems();
+    try { if (window.stormStagingRefresh) window.stormStagingRefresh(); } catch (e) {}
+  }
+  function schedule(ms) { clearTimeout(timer); timer = 0; if (visible()) timer = setTimeout(tick, ms); }
+  function tick() {
+    timer = 0;
+    if (!visible() || inFlight || !hasRun()) { if (!hasRun()) schedule(DELAYS[DELAYS.length - 1]); return; }
+    inFlight = true;
+    google.script.run
+      .withSuccessHandler(function (stamp) {
+        inFlight = false; err = 0;
+        stamp = String(stamp);
+        if (retry || (last !== null && stamp !== last)) { retry = false; changed(); }
+        last = stamp;
+        try { if (window.stormStagingFlush) window.stormStagingFlush(); } catch (e) {}
+        schedule(DELAYS[0]);
+      })
+      .withFailureHandler(function () {
+        inFlight = false; err = Math.min(err + 1, DELAYS.length - 1);
+        schedule(DELAYS[err]);
+      })
+      .getStamp();
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (visible()) { if (!timer && !inFlight) schedule(0); }
+    else { clearTimeout(timer); timer = 0; }
+  });
+  window.addEventListener('online', function () { if (visible() && !inFlight) { err = 0; schedule(0); } });
+  /* start once the item list has loaded */
+  (function start(n) { var ok = false; try { ok = Array.isArray(items) && items.length > 0; } catch (e) {} if (ok || n > 120) schedule(DELAYS[0]); else setTimeout(function () { start(n + 1); }, 500); })(0);
 })();
