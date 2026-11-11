@@ -1,3 +1,4 @@
+/* v196 (Hark, 2026-11-11 15:10, Dave approved): pairs with app v148. "Pull List" reads "Customer Search" (printout: "Staging List"), top switch "Staging Job | Inventory". Checks only track the staging cart (shared + offline queue, no stock change). Big "Staged Job Complete" button at the bottom of Customer Search -> confirm sheet -> completeStaging; staged banner, checks locked, unchecked lines flagged Not staged; manager-only Unstage. How to Use guide + explainer rewritten for the new flow. See the v196 block at the end. */
 /* v195 (Hark, 2026-11-11 12:35, Dave): pairs with app v147. Customer Search always in the + dock (crew + manager, first open); guide Next lands exactly on the next chapter; printed Pull List / Print Preview carry the main-screen STORM logo centered (app side); Pull List progress ring follows you as a slim bar while you scroll; Categories are a closed dropdown on the main screen and a collapsed section in the side menu. See the v195 block at the end. */
 /* v194 (Hark, 2026-11-11 11:28, Dave): pairs with app v146 (Manager Login in place: no reload, video or picker). Side menu bottom rows spaced out (Jobber | CompanyCam, then Manager Login and How to Use the App as full rows; safe area from the wrapper); Insurance Certificates pages show the main-screen STORM logo centered at the top; help guide bottom spacing + new app-specific explainer. See the v194 block at the end. */
 /* v193 (Hark, 2026-11-11, Dave approved): pairs with app v145 (Crew view by default, manager code). Side menu gets "Manager Login" ("Manager · Log out" once logged in); Resource Center gets Insurance Certificates (Lindsey, Suzanne: contact pages with tap-to-email); cart RichTech button is one "Order on RichTech" (copies the list, opens RichTech sign-in); guide's PIN chapter now explains the crew view and Manager Login. See the v193 block at the end. */
@@ -2170,6 +2171,8 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       })
       .withFailureHandler(function (err) {
         flushing = false; /* stays queued; retried by the poller, 'online', or the next tap */
+        /* v196: the job was staged meanwhile - this tap can never land; drop it and reload the job's marks */
+        if (/STAGED_LOCKED/.test(String(err && (err.message || err)))) { putQ(getQ().filter(function (o) { return !(o.k === op.k && o.bin === op.bin && o.t === op.t); })); if (op.k === srvKey()) loadFromServer(); flush(); return; }
         try {
           if (window.stormCrewPin && window.stormCrewPin.isPinErr(err)) {
             pinWait = true;
@@ -2194,6 +2197,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     google.script.run
       .withSuccessHandler(function (res) {
         loading = false;
+        if (res && res.jobKey) setStaged(res.jobKey, res.staged || null, res.rows); /* v196 */
         if (my === loadSeq && res && res.jobKey === k && srvKey() === k) {
           var cur = checked(), bins;
           if (!(res.rows && res.rows.length) && cur.length && !getQ().some(function (o) { return o.k === k; })) {
@@ -2215,6 +2219,23 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       .getStaging(k);
   }
   function pullOpenNow() { var sh = sheet(); return !!(sh && sh.classList.contains('open')); }
+  /* v196 (Hark, 2026-11-11, Dave approved): staged state per server job key, from getStaging / completeStaging / unstageJob.
+     A staged job's boxes are locked; the v196 block at the end paints the banner, the button and the Not staged flags. */
+  var STAGED = {};
+  function setStaged(k, st, rows) {
+    var prev = JSON.stringify(STAGED[k] || null); STAGED[k] = st ? { at: st.at, by: st.by || '', rows: rows || (STAGED[k] && STAGED[k].rows) || null } : null;
+    if (st && rows) { /* the server's marks win on a staged job: drop this phone's unsent taps for it */
+      var q = getQ(), q2 = q.filter(function (o) { return o.k !== k; }); if (q2.length !== q.length) putQ(q2);
+      if (k === srvKey()) { var on = rows.filter(function (r) { return r.checked; }).map(function (r) { return r.itemBin; }); saveChecked(on, jobKey()); var sh = sheet(); if (sh && sh.querySelector('.tc-top')) paintChecks(sh); }
+    }
+    if (prev !== JSON.stringify(STAGED[k] || null)) { try { window.dispatchEvent(new Event('stormstaged')); } catch (e) {} }
+  }
+  window.stormStagingApi = {
+    key: srvKey, cust: custLabel, dev: devName, checked: checked, flush: flush, reload: loadFromServer, hasRun: hasRun,
+    pending: function (k) { return getQ().filter(function (o) { return o.k === k; }).length; },
+    staged: function (k) { k = k == null ? srvKey() : k; return k ? (STAGED[k] || null) : null; },
+    setStaged: setStaged, units: function (bin, n) { return stUnits(bin, n); }
+  };
   window.stormStagingFlush = flush;
   window.stormStagingRefresh = function () { if (pullOpenNow()) loadFromServer(); };
   window.addEventListener('online', function () { flush(); if (pullOpenNow()) loadFromServer(); });
@@ -2243,7 +2264,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   function fixLabels(sh) {
     var sv = sh.querySelector('.pull-save'); if (sv && sv.textContent === 'Save Job to Sheet') sv.textContent = 'Save Job';
-    var pr = sh.querySelector('.pull-print'); if (pr && pr.textContent === 'Print Pull List') pr.textContent = 'Print';
+    var pr = sh.querySelector('.pull-print'); if (pr && (pr.textContent === 'Print Pull List' || pr.textContent === 'Print Staging List')) pr.textContent = 'Print';
   }
   function decorate() {
     var sh = sheet(); if (!sh) return;
@@ -2258,13 +2279,13 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var sumEl = sh.querySelector('.pick-sheet-foot > div'), sum = sumEl ? sumEl.textContent : '';
     var x = document.createElement('div');
     x.innerHTML = '<div class="tc-name"></div><div class="tc-addr"></div>'
-      + '<div class="tc-prog"><span>Loaded on truck</span><span class="tc-prog-n"></span></div><div class="tc-bar"><i></i></div>'
+      + '<div class="tc-prog"><span>On the staging cart</span><span class="tc-prog-n"></span></div><div class="tc-bar"><i></i></div>'
       + '<div class="tc-sum">' + esc(sum) + '</div>';
     while (x.firstChild) top.appendChild(x.firstChild);
     sh.querySelectorAll('.pick-line[data-pull-bin]').forEach(function (ln) {
       var code = ln.querySelector('.pick-line-code');
       if (code) { var keep = code.textContent.split(' · ').filter(function (s) { return /^Bin /.test(s) || /^\d+ [a-z]+$/i.test(s) || /^(Job|Grab) /.test(s); }); if (keep.length) code.textContent = keep.join(' · '); }
-      if (!ln.querySelector('.tc-ck')) { var b = document.createElement('button'); b.type = 'button'; b.className = 'tc-ck'; b.setAttribute('aria-label', 'Loaded on truck'); ln.insertBefore(b, ln.firstChild); }
+      if (!ln.querySelector('.tc-ck')) { var b = document.createElement('button'); b.type = 'button'; b.className = 'tc-ck'; b.setAttribute('aria-label', 'On the staging cart'); ln.insertBefore(b, ln.firstChild); }
     });
     fixLabels(sh); paintHead(sh); paintChecks(sh);
     var sv = sh.querySelector('.pull-save');
@@ -2274,7 +2295,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var sh = sheet(); if (!sh || sh.__tc167) return !!sh;
     sh.__tc167 = true;
     new MutationObserver(function () { try { decorate(); } catch (e) {} }).observe(sh, { childList: true });
-    /* v180: opening the Pull List loads its checks from the server */
+    /* v180: opening the Pull List (v196: Customer Search) loads its checks from the server */
     var wasOpen = sh.classList.contains('open');
     new MutationObserver(function () { var o = sh.classList.contains('open'); if (o && !wasOpen) { lastKey = srvKey(); loadFromServer(); flush(); } wasOpen = o; }).observe(sh, { attributes: true, attributeFilter: ['class'] });
     if (wasOpen) loadFromServer();
@@ -2286,6 +2307,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var b = e.target && e.target.closest && e.target.closest('#pull-sheet .tc-ck'); if (!b) return;
     e.preventDefault(); e.stopPropagation();
     var ln = b.closest('[data-pull-bin]'), sh = sheet(); if (!ln || !sh) return;
+    if (STAGED[srvKey()]) { try { showToast('Job already staged — boxes are locked'); } catch (x) {} return; } /* v196 */
     var bin = ln.getAttribute('data-pull-bin'), on = checked(), i = on.indexOf(bin);
     if (i >= 0) on.splice(i, 1); else on.push(bin);
     saveChecked(on); paintChecks(sh);
@@ -2724,7 +2746,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       var lm = me && /(\d+) lines?/.exec(me.textContent), tot = lm ? +lm[1] : 0, done = Math.min(tot, checksFor(name, addr));
       if (tot && done) {
         var p = document.createElement('div'); p.className = 'tk-jp';
-        p.innerHTML = '<div class="tk-row"><span>Loaded on truck</span><span><b>' + done + '</b> of ' + tot + '</span></div><div class="tk-bar"><i style="width:' + Math.round(done / tot * 100) + '%"></i></div>';
+        p.innerHTML = '<div class="tk-row"><span>On the staging cart</span><span><b>' + done + '</b> of ' + tot + '</span></div><div class="tk-bar"><i style="width:' + Math.round(done / tot * 100) + '%"></i></div>';
         b.appendChild(p);
         if (nm) { var s = document.createElement('span'); s.className = 'tk-st ' + (done >= tot ? 'done' : 'prog'); s.textContent = done >= tot ? 'LOADED' : 'IN PROGRESS'; nm.appendChild(s); }
       }
@@ -3476,7 +3498,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   /* ---- header: segmented Job | Inventory on the existing switch (same button, same tap) ---- */
   function seg() {
     var m = document.getElementById('mode-switch'); if (!m || m.querySelector('.cl-seg')) return !!m;
-    var a = document.createElement('span'); a.className = 'cl-seg cl-seg-job'; a.textContent = 'Stage Job'; /* v191 (Dave): was "Job" */
+    var a = document.createElement('span'); a.className = 'cl-seg cl-seg-job'; a.textContent = 'Staging Job'; /* v196 (Dave): was "Stage Job" (v191), "Job" before */
     var b = document.createElement('span'); b.className = 'cl-seg cl-seg-inv'; b.textContent = 'Inventory';
     m.appendChild(a); m.appendChild(b);
     return true;
@@ -3518,7 +3540,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       mn.innerHTML = '<div class="cl-brand"><div class="cl-lock"><img class="cl-drop" src="' + A + 'drop.png" alt=""><img class="cl-word" src="' + A + 'storm.png" alt="STORM"></div><div class="cl-brand-sub">Inventory</div></div>'
         + '<div class="cl-par" hidden><div class="cl-pring"></div><div><div class="cl-par-t1">Stocked to par</div><div class="cl-par-t2"></div><div class="cl-par-t3"></div></div></div>'
         + '<button type="button" class="cl-row cl-on" data-cl-go="home">' + ico('home') + '<span class="cl-name">Home</span></button>'
-        + '<button type="button" class="cl-row" data-cl-go="pull">' + ico('pull') + '<span class="cl-name">Pull List</span></button>'
+        + '<button type="button" class="cl-row" data-cl-go="pull">' + ico('pull') + '<span class="cl-name">Customer Search</span></button>'
         + '<button type="button" class="cl-row" data-cl-go="staging">' + ico('staging') + '<span class="cl-name">Staging</span></button>' /* v182: live (was a Soon placeholder) */
         + SOON.map(function (x) { return '<div class="cl-row cl-soon" aria-disabled="true">' + ico(x[0]) + '<span class="cl-name">' + x[1] + '</span><span class="cl-tag">Soon</span></div>'; }).join('')
         + '<div class="cl-lbl">CATEGORIES</div><div class="cl-cats"></div>'
@@ -3585,7 +3607,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       if (w === 'home') { try { setSupplier('All'); } catch (x) {} try { var q = document.getElementById('search'); if (q && q.value) { q.value = ''; q.dispatchEvent(new Event('input', { bubbles: true })); } } catch (x) {} window.scrollTo(0, 0); }
       if (w === 'pull' || w === 'staging') {
         /* v182 (Hark, 2026-11-11, Dave): Staging = Job mode, Pull List open, then Find a Job, so the crew picks a job and checks
-           its lines; each check takes that quantity off On hand on the server (setStagingCheck v134), and unchecking puts it back. */
+           its lines. v196: checks only track the staging cart; Staged Job Complete takes the stock (completeStaging, app v148). */
         var stg = w === 'staging';
         var open = function () {
           var pf = document.getElementById('pull-fab'); if (pf) pf.click();
@@ -4021,7 +4043,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
 /* v187 (Hark, 2026-11-11, Dave): small version tag, bottom right, so everyone can see which version is running. */
 (function () {
-  var EXT = 'v195';
+  var EXT = 'v196';
   function put() {
     var f = document.querySelector('.foot'), m = f && (f.textContent || '').match(/Inventory\s*\u00b7\s*(v\d+)/);
     var vb = document.getElementById('ver-badge'); if (vb) { if (m) vb.textContent = m[1]; return; } /* v188: the app's own bottom-right badge was hard-coded v130; it now shows the live footer version */
@@ -4198,7 +4220,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var doc = null; try { doc = window.stormPullDoc(); } catch (e) {} if (!doc) return;
     if (pv) pv.remove();
     pv = document.createElement('div'); pv.id = 'st-pv'; pv.setAttribute('role', 'dialog'); pv.setAttribute('aria-label', 'Print preview');
-    pv.innerHTML = '<div class="st-pv-bar"><button class="st-pv-x" type="button" aria-label="Close preview">\u00d7</button><div class="st-pv-t">Print Preview<span>Pull List \u00b7 Letter</span></div>'
+    pv.innerHTML = '<div class="st-pv-bar"><button class="st-pv-x" type="button" aria-label="Close preview">\u00d7</button><div class="st-pv-t">Print Preview<span>Staging List \u00b7 Letter</span></div>'
       + '<button class="st-pv-p" type="button">' + PRN + 'Print</button></div><div class="st-pv-scroll"><div class="st-pv-fit"><div class="st-pv-host"></div></div></div>';
     var host = pv.querySelector('.st-pv-host'), root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
     var css = String(doc.css || '').replace(/@page\{[^}]*\}/g, '').replace(/(^|\})body\{/g, '$1.st-paper{');
@@ -4322,54 +4344,65 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var LINES = ['Sump pump', 'Drain tile · 1 roll', 'Gravel · 12 bags', 'Vapor barrier'];
   function lines() { return LINES.map(function (n, i) { return '<div class="m-line m-l' + (i + 1) + '"><i></i><span>' + n + '</span><b class="m-box"></b></div>'; }).join(''); }
   var SCENES = [
-    '<div class="m-tog"><span>Stage Job</span><span>Inventory</span></div><div class="m-grid"><i></i><i></i><i></i><i></i><i></i><i></i></div>'
+    '<div class="m-tog"><span>Staging Job</span><span>Inventory</span></div><div class="m-grid"><i></i><i></i><i></i><i></i><i></i><i></i></div>'
       + '<div class="m-dock"><div class="m-btn">' + ICO_CAM + '</div><div class="m-btn">' + ICO_CART + '</div><div class="m-btn m-cs">' + ICO_CLIP + '<span class="m-lbl">Customer Search</span></div><div class="m-plus">&times;</div></div>'
       + '<span class="m-tap" style="right:10px;bottom:80px"></span>',
     '<div class="m-h">Find a Job</div><div class="m-job pick">Smith<small>12 Elm St · Tue</small></div><div class="m-job">Garcia<em>Not scheduled</em><small>40 Oak Ave</small></div><div class="m-job">Lee<em>Past</em><small>7 Pine Rd</small></div>'
       + '<span class="m-tap" style="left:60px;top:34px;animation-delay:2s"></span>',
-    '<div class="m-h">Pull List · Smith</div>' + lines(),
-    '<div class="m-h">Pull List · Smith</div>' + lines(),
-    '<div class="m-done">&#10003; All loaded</div><div class="m-road"></div><div class="m-truck">' + TRUCK + '</div>'
+    '<div class="m-h">Customer Search · Smith</div>' + lines(),
+    '<div class="m-h">Customer Search · Smith</div>' + lines(),
+    '<div class="m-done">&#10003; Staged Job Complete</div><div class="m-road"></div><div class="m-truck">' + TRUCK + '</div>'
   ];
-  var CAPS = ['1. Tap Customer Search', '2. Pick the job', '3. Items fill the Pull List', '4. Check each box', '5. Load the truck'];
+  var CAPS = ['1. Tap Customer Search', '2. Pick the job', '3. Load items', '4. Check each box onto the cart', '5. Staged Job Complete'];
   function anim() {
     try { if (window.stormHelpAnim) { var nx = window.stormHelpAnim(); if (nx) return nx; } } catch (e) {} /* v194: app-specific explainer */
     var live = '<div class="sh-ph sh-live"><div class="sh-scr">' + SCENES.map(function (s) { return '<div class="sh-sc">' + s + '</div>'; }).join('') + '</div></div>'
       + '<div class="sh-cap">' + CAPS.map(function (c) { return '<span>' + c + '</span>'; }).join('') + '</div>';
     var strip = '<div class="sh-strip">' + SCENES.map(function (s, i) { return '<figure class="sh-f' + (i + 1) + '"><div class="sh-ph"><div class="sh-scr"><div class="sh-sc">' + s + '</div></div></div><figcaption>' + CAPS[i] + '</figcaption></figure>'; }).join('') + '</div>';
-    return '<div class="sh-card sh-anim" aria-label="Short animation: tap Customer Search, pick the job, items fill the Pull List, check each box, load the truck">' + live + strip + '</div>';
+    return '<div class="sh-card sh-anim" aria-label="Short animation: tap Customer Search, pick the job, load items, check each box as it goes on the staging cart, tap Staged Job Complete">' + live + strip + '</div>';
   }
 
+  /* v196 (Hark, 2026-11-11, Dave approved): chapters rewritten for the new flow: Customer Search -> load items -> check as they go on
+     the staging cart -> Staged Job Complete (that is the only step that takes stock out of inventory). */
   var CH = [
     { t: 'Getting around', s: 'Getting around', h:
       '<ol class="sh-steps">'
-      + '<li><b>Top switch: ' + k('Stage Job') + ' | ' + k('Inventory') + '.</b> Stage Job = getting material ready for a customer\'s job. Inventory = counting what\'s on the shelf and ordering more (managers only: tapping ' + k('Inventory') + ' asks for the manager code, then switches right there).</li>'
+      + '<li><b>Top switch: ' + k('Staging Job') + ' | ' + k('Inventory') + '.</b> Staging Job = getting material ready for a customer\'s job. Inventory = counting what\'s on the shelf and ordering more (managers only: tapping ' + k('Inventory') + ' asks for the manager code, then switches right there).</li>'
       + '<li><b>White round ' + k('+') + ' bottom right.</b> Tap it and the buttons pop out: Camera, Cart, ' + k('Customer Search') + ' (clipboard, always there) and ' + k('Quote') + '. Tap it again (it turns into an X) to tuck them away.</li>'
-      + '<li><b>Menu ' + k('&#9776;') + ' top left.</b> Products by store, Quote Templates, Resources (Checklists, Bin Labels and more), Staging, Open Jobber app, CompanyCam, and this guide at the bottom.</li>'
+      + '<li><b>Menu ' + k('&#9776;') + ' top left.</b> Customer Search, Staging, Products by store, Quote Templates, Resources (Checklists, Bin Labels and more), Open Jobber app, CompanyCam, and this guide at the bottom.</li>'
       + '</ol><div class="sh-tip">Lost? Close what\'s open with the X in its corner. You\'re back on the main list.</div>' },
-    { t: 'Staging a job', s: 'Staging', h:
-      '<p>Get material ready for an upcoming job. This builds the Pull List.</p><ol class="sh-steps">'
-      + '<li>Flip the top switch to ' + k('Stage Job') + '.</li>'
-      + '<li>Tap ' + k('+') + ', then ' + k('Customer Search') + ' (clipboard). The Pull List opens.</li>'
+    { t: 'Customer Search: load the job', s: 'Customer Search', h:
+      '<p>Pick the customer and load what the job needs. Nothing comes out of inventory here.</p><ol class="sh-steps">'
+      + '<li>Flip the top switch to ' + k('Staging Job') + '.</li>'
+      + '<li>Tap ' + k('+') + ', then ' + k('Customer Search') + ' (clipboard).</li>'
       + '<li>Tap ' + k('Find a Job') + '. Jobber jobs are listed, upcoming first. ' + k('Not scheduled') + ' = signed, no date yet. ' + k('Past') + ' = last 7 days. Or type the customer name or address.</li>'
-      + '<li>Tap the job, then ' + k('Load into Pull List') + '. (Not in Jobber? Tap ' + k('New Job') + ' and type the name and address.)</li>'
-      + '<li>Add items: tap ' + k('+ Add to order') + ' on each item you need. They go on the Pull List. If the job has a Jobber quote, ' + k('Quote') + ' &rarr; ' + k('Pull items into Pull List') + ' does it for you.</li>'
+      + '<li>Tap the job, then ' + k('Load items') + '. (Not in Jobber? Tap ' + k('New Job') + ' and type the name and address.)</li>'
+      + '<li>Add items: tap ' + k('+ Add to order') + ' on each item you need. They go on Customer Search. If the job has a Jobber quote, ' + k('Quote') + ' &rarr; ' + k('Load items') + ' does it for you.</li>'
       + '<li>Tap ' + k('Save Job') + '.</li>'
-      + '<li>Tap ' + k('Print Preview') + ' to check the sheet, then ' + k('Print') + '.</li>'
+      + '<li>Want paper? ' + k('Print Preview') + ' shows the Staging List, then ' + k('Print') + '.</li>'
       + '</ol>' },
-    { t: 'Pulling items', s: 'Pulling', h:
+    { t: 'Check items onto the cart', s: 'Staging cart', h:
       '<ol class="sh-steps">'
       + '<li>Open the job: ' + k('+') + ' &rarr; ' + k('Customer Search') + ' &rarr; ' + k('Find a Job') + ', tap the saved job, ' + k('Edit list') + '. (Or menu &rarr; Staging.)</li>'
-      + '<li>Grab each line on the Pull List.</li>'
-      + '<li>Check its box when it goes in the truck. Checking takes that amount off ' + k('On hand') + ' (once the list has a customer). Unchecking puts it back.</li>'
+      + '<li>Grab each line and put it on the staging cart.</li>'
+      + '<li>Check its box when it\'s <b>on the cart</b>. The ring at the top counts what\'s on. Checking does <b>not</b> change inventory. Uncheck if it comes back off.</li>'
       + '<li>Footage items read like <b>Job 99 ft &middot; Grab 1 roll (100 ft)</b>. Grab whole rolls and sticks, never cut on the shelf.</li>'
-      + '</ol><div class="sh-tip">Checks show up on the rest of the crew\'s phones too, so two people can pull the same job.</div>' },
+      + '</ol><div class="sh-tip">Checks show up on the rest of the crew\'s phones too, so two people can stage the same job. No signal? Checks wait on the phone and send when it\'s back.</div>' },
+    { t: 'Staged Job Complete', s: 'Complete', h:
+      '<p>This is the step that takes the stock out of inventory. Do it once the cart is done.</p><ol class="sh-steps">'
+      + '<li>Scroll to the bottom of Customer Search and tap the big green ' + k('Staged Job Complete') + '.</li>'
+      + '<li>Check the list: every checked item and how many (footage says <b>Grab 2 rolls</b>). If some lines aren\'t checked it tells you, e.g. <b>3 items not on the cart</b>. Those don\'t come out of inventory.</li>'
+      + '<li>Tap ' + k('Stage') + '. The checked items come off ' + k('On hand') + ', once.</li>'
+      + '<li>The job now shows a green <b>Staged &middot; date and time</b> banner. The boxes lock, and lines that weren\'t checked say <b>Not staged</b>.</li>'
+      + '<li>A job can only be staged once. Made a mistake? A manager taps ' + k('Unstage') + ' on the banner; that puts back exactly what came out.</li>'
+      + '</ol><div class="sh-tip">No customer on the list? The button reads <b>Pick a customer to stage</b>. Find or type the customer first.</div>' },
     { t: 'The screens, in order', s: 'Screens', h:
       '<ol class="sh-steps">'
       + '<li><b>Find a Job</b>: pick the customer.</li>'
-      + '<li><b>Pull List</b>: what to grab for that job, with a box to check for each line.</li>'
+      + '<li><b>Customer Search</b>: what to grab for that job, a box to check for each line as it goes on the cart, and ' + k('Staged Job Complete') + ' at the bottom.</li>'
       + '<li><b>Item photo &amp; details</b>: tap an item to see what it looks like. Tap or X to go back.</li>'
-      + '<li><b>Print Preview</b>: the printed sheet on screen. ' + k('Print') + ' prints it, X goes back.</li>'
+      + '<li><b>Staged Job Complete?</b>: the confirm list. ' + k('Stage') + ' takes the checked items out of inventory, ' + k('Cancel') + ' goes back.</li>'
+      + '<li><b>Print Preview</b>: the printed Staging List on screen. ' + k('Print') + ' prints it, X goes back.</li>'
       + '<li><b>Back</b>: X closes each screen, one at a time, back to the main list.</li>'
       + '</ol>' },
     { t: 'Camera & QR codes', s: 'Camera', h:
@@ -4379,19 +4412,19 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       + '<li>Scan the same label again to add one more. Tap the pop-up to see the cart and change amounts.</li>'
       + '<li>Tap the X at the top. What you scanned is in the app\'s cart.</li>'
       + '</ol><div class="sh-tip">Bin label stickers: menu &rarr; Resources &rarr; Bin Labels, pick the store, print. One label per bin. If a code isn\'t a STORM label, the camera says so. Nothing gets added.</div>' },
-    { t: 'Crew view & Manager Login', s: 'Manager', h: /* v193: was "Counts & crew PIN" */
+    { t: 'Crew view & Manager Login', s: 'Manager', h:
       '<ol class="sh-steps">'
       + '<li>The app opens in the <b>crew view</b>: no prices, no ordering, no count changes. No code needed.</li>'
-      + '<li>Crew can browse items, Find a Job / Customer Search, stage and print Pull Lists, scan labels, and <b>check Pull List boxes</b> (that takes the stock off On hand).</li>'
-      + '<li>Prices, ' + k('On hand') + ' counts, ' + k('Keep on hand') + ', Needs Ordering, the cart and ordering are for Dave and the main guy: tap ' + k('Inventory') + ' on the top switch (or menu &rarr; ' + k('Manager Login') + '), type the manager code, and the app switches to Inventory with prices right there.</li>'
+      + '<li>Crew can browse items, use Customer Search / Find a Job, print the Staging List, scan labels, <b>check boxes as items go on the cart</b> and tap ' + k('Staged Job Complete') + ' (that takes the checked items out of inventory).</li>'
+      + '<li>Prices, ' + k('On hand') + ' counts, ' + k('Keep on hand') + ', Needs Ordering, the cart, ordering and ' + k('Unstage') + ' are for Dave and the main guy: tap ' + k('Inventory') + ' on the top switch (or menu &rarr; ' + k('Manager Login') + '), type the manager code, and the app switches to Inventory with prices right there.</li>'
       + '<li>A manager phone stays logged in for 30 days. Menu &rarr; ' + k('Manager \u00b7 Log out') + ' goes straight back to the crew view (prices hidden).</li>'
       + '<li>Too many wrong codes locks it for 10 minutes.</li>'
       + '</ol>' },
     { t: 'Do & Don\'t', s: 'Do / Don\'t', h:
       '<div class="sh-two"><div><h4>Do</h4><ol class="sh-steps sh-do">'
-      + '<li>Check a box only when it\'s in the truck.</li><li>Uncheck if it comes back off the truck.</li><li>Grab whole rolls and sticks.</li><li>Save Job before you print.</li><li>Fix a count right away if the shelf doesn\'t match.</li></ol></div>'
+      + '<li>Check a box only when it\'s on the staging cart.</li><li>Uncheck if it comes back off the cart.</li><li>Tap Staged Job Complete once the cart is done.</li><li>Grab whole rolls and sticks.</li><li>Save Job before you print.</li><li>Fix a count right away if the shelf doesn\'t match.</li></ol></div>'
       + '<div><h4>Don\'t</h4><ol class="sh-steps sh-dont">'
-      + '<li>Don\'t check boxes ahead of time.</li><li>Don\'t share the manager code.</li><li>Don\'t guess counts. Count the bin.</li><li>Don\'t take stuff without it being on a Pull List.</li></ol></div></div>' }
+      + '<li>Don\'t check boxes ahead of time.</li><li>Don\'t tap Staged Job Complete before the cart is loaded.</li><li>Don\'t share the manager code.</li><li>Don\'t guess counts. Count the bin.</li><li>Don\'t take stuff without it being on Customer Search.</li></ol></div></div>' }
   ];
 
   var el = null, body = null, chips = null, bar = null;
@@ -4729,6 +4762,19 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + H + ' .xa-strip .xa-tap { opacity: 1; } ' + H + ' .xa-strip .xa-job.pick { background: #EAF6FC; border-color: ' + BL + '; }'
     + H + ' .xa-strip .xa-chk .xa-box { background: #16A34A; border-color: #16A34A; } ' + H + ' .xa-strip .xa-chk .xa-box::after { transform: rotate(45deg) scale(1); }'
     + H + ' .xa-strip .xa-truck { transform: none; }'
+    /* v196: Staged Job Complete scenes */
+    + H + ' .xa-sj { margin-top: 8px; text-align: center; font-size: 8.5px; font-weight: 800; padding: 8px 0; border-radius: 9px; background: #15803D; color: #fff; box-shadow: 0 3px 8px rgba(21,128,61,.3); }'
+    + H + ' .xa-chk .xa-box.xa-nobox, ' + H + ' .xa-strip .xa-chk .xa-box.xa-nobox { animation: none !important; background: transparent !important; border-color: #B8C4D0 !important; } ' + H + ' .xa-chk .xa-box.xa-nobox::after, ' + H + ' .xa-strip .xa-chk .xa-box.xa-nobox::after { animation: none !important; transform: rotate(45deg) scale(0) !important; }'
+    + H + ' .xa-chk-done .xa-box:not(.xa-nobox) { background: #16A34A; border-color: #16A34A; } ' + H + ' .xa-chk-done .xa-box:not(.xa-nobox)::after { transform: rotate(45deg) scale(1); }'
+    + H + ' .xa-staged .xa-box { opacity: .75; } ' + H + ' .xa-ns { display: inline-block; font-style: normal; margin-left: 3px; padding: 0 4px; border-radius: 6px; background: #FEF3C7; color: #92400E; font-size: 5.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }'
+    + H + ' .xa-cfd { position: absolute; inset: 0; background: rgba(15,23,32,.4); z-index: 5; }'
+    + H + ' .xa-cf { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; background: #EEF2F7; border-radius: 16px 16px 0 0; padding: 11px 9px 10px; box-sizing: border-box; }'
+    + H + ' .xa-cf > b { display: block; font-size: 11px; font-weight: 800; } ' + H + ' .xa-cf > small { display: block; font-size: 7px; color: ' + MUTE + '; font-weight: 600; margin: 1px 0 6px; }'
+    + H + ' .xa-cfr { display: flex; align-items: center; gap: 5px; padding: 4px 6px; margin-bottom: 3px; border-radius: 7px; background: #fff; font-size: 7px; font-weight: 700; } ' + H + ' .xa-cfr i { flex: none; width: 10px; height: 10px; border-radius: 3px; background: ' + BL + '; color: #fff; font-style: normal; font-size: 7px; line-height: 10px; text-align: center; } ' + H + ' .xa-cfr span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } ' + H + ' .xa-cfr em { font-style: normal; color: ' + BL + '; font-weight: 800; font-size: 8px; }'
+    + H + ' .xa-cfw { margin-top: 5px; padding: 5px 6px; border-radius: 7px; background: #FEF3C7; color: #92400E; font-size: 6.5px; font-weight: 700; line-height: 1.3; }'
+    + H + ' .xa-cfb { display: flex; gap: 5px; margin-top: 7px; } ' + H + ' .xa-cfb span { flex: 1; text-align: center; font-size: 8px; font-weight: 800; padding: 7px 0; border-radius: 9px; border: 1px solid #D5DCE5; } ' + H + ' .xa-cfb span.go { flex: 1.5; background: #15803D; border-color: #15803D; color: #fff; }'
+    + H + ' .xa-ban { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 6px 7px; border-radius: 9px; background: #DCFCE7; border: 1px solid #86EFAC; color: #14532D; } ' + H + ' .xa-ban i { flex: none; width: 15px; height: 15px; border-radius: 50%; background: #16A34A; color: #fff; font-style: normal; font-size: 9px; font-weight: 900; line-height: 15px; text-align: center; } ' + H + ' .xa-ban b { display: block; font-size: 8px; font-weight: 800; } ' + H + ' .xa-ban small { display: block; font-size: 6px; font-weight: 600; color: #166534; }'
+    + H + ' .xa-truck.xa-truck-sm { left: 40px; bottom: 6px; width: 92px; z-index: 7; }'
     + '@media (prefers-reduced-motion: reduce) { ' + H + ' .xa-live, ' + H + ' .xa-cap { display: none !important; } ' + H + ' .xa-strip { display: flex; } }';
   var st = document.createElement('style'); st.id = 'storm-v194-css'; st.textContent = css;
   function put() { (document.head || document.documentElement).appendChild(st); }
@@ -4790,14 +4836,15 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var TRUCK = '<svg viewBox="0 0 128 64" aria-hidden="true"><rect x="2" y="8" width="80" height="40" rx="5" fill="' + BL + '"/><path d="M82 20h22l18 16v12H82z" fill="' + INK + '"/><path d="M88 24h13l11 10H88z" fill="#BFE9FA"/><image href="' + A + 'drop.png" x="8" y="15" width="12" height="27"/><text x="23" y="33" font-size="13" font-weight="900" fill="#fff" font-family="Montserrat,Arial,sans-serif" textLength="52" lengthAdjust="spacingAndGlyphs">STORM</text><text x="23" y="41" font-size="4.4" font-weight="700" fill="#fff" font-family="Montserrat,Arial,sans-serif" textLength="52" lengthAdjust="spacingAndGlyphs">BASEMENT WATERPROOFING</text><circle cx="24" cy="52" r="9" fill="' + INK + '"/><circle cx="24" cy="52" r="3.6" fill="#CBD5E1"/><circle cx="102" cy="52" r="9" fill="' + INK + '"/><circle cx="102" cy="52" r="3.6" fill="#CBD5E1"/></svg>';
 
   function logo() { return '<div class="xa-logo">' + window.stormBrandLogoHTML(false) + '</div>'; }
-  function header() { return '<div class="xa-hd"><span class="xa-ham"><i></i><i></i><i></i></span>' + logo() + '<span class="xa-srch">' + I_SRCH + '</span></div><div class="xa-tog"><span class="on">Stage Job</span><span>Inventory</span></div>'; }
+  function header() { return '<div class="xa-hd"><span class="xa-ham"><i></i><i></i><i></i></span>' + logo() + '<span class="xa-srch">' + I_SRCH + '</span></div><div class="xa-tog"><span class="on">Staging Job</span><span>Inventory</span></div>'; }
   function main(d) {
     return header() + '<div class="xa-sbar">Search items, SKU, bin\u2026</div><div class="xa-chips"><span class="on">All</span><span>Home Depot</span><span>RichTech</span><span>Hilti</span></div>'
-      + '<div class="xa-sec">STAGE A JOB</div><div class="xa-grid">' + d.slice(0, 4).map(function (x, i) {
+      + '<div class="xa-sec">STAGING JOB</div><div class="xa-grid">' + d.slice(0, 4).map(function (x, i) {
         return '<div class="xa-card"><div class="xa-im"' + bg(x.img) + '></div><b>' + esc(x.name) + '</b><small>SKU: ' + esc(x.sku) + '</small><span class="xa-oh' + (x.oh < 5 ? ' lo' : '') + '">On hand ' + x.oh + '</span><div class="xa-add">+ Add to order</div></div>';
       }).join('') + '</div>';
   }
-  function rows(d, cls) { return d.map(function (x) { return '<div class="xa-row"><i class="xa-ri"' + bg(x.img) + '></i><span>' + esc(x.name) + '<small>SKU ' + esc(x.sku) + '</small></span><b class="xa-q">x' + x.q + '</b>' + (cls === 'nobox' ? '' : '<b class="xa-box"></b>') + '</div>'; }).join(''); }
+  /* v196: the last demo line stays off the cart (cls 'last-off' also tags it "Not staged") */
+  function rows(d, cls) { return d.map(function (x, i) { var off = i === d.length - 1 && cls !== 'nobox'; return '<div class="xa-row' + (off ? ' xa-off' : '') + '"><i class="xa-ri"' + bg(x.img) + '></i><span>' + esc(x.name) + '<small>SKU ' + esc(x.sku) + (off && cls === 'last-off' ? ' <em class="xa-ns">Not staged</em>' : '') + '</small></span><b class="xa-q">x' + x.q + '</b>' + (cls === 'nobox' ? '' : '<b class="xa-box' + (off ? ' xa-nobox' : '') + '"></b>') + '</div>'; }).join(''); }
   function scenes() {
     var d = demo();
     var dock = function (open) {
@@ -4817,22 +4864,29 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
         + '<div class="xa-job">Lee<small>7 Pine Rd \u00b7 Spencerport</small><span class="xa-tag past">Past \u00b7 Nov 9</span></div>'
         + '<div class="xa-job">Brown<small>88 Lake Rd \u00b7 Brockport</small><span class="xa-tag">Thu Nov 19</span></div></div>'
         + '<span class="xa-tap" style="left:60px;top:126px;animation-delay:4.85s"></span>',
-      main(d) + '<div class="xa-sheet xa-fill"><div class="xa-st">Pull List<i>&times;</i></div><div class="xa-cust">Smith \u00b7 12 Elm St</div>' + rows(d)
-        + '<div class="xa-btns"><span>Print Preview</span><span>Print</span></div><div class="xa-save">Save Job</div></div>',
-      main(d) + '<div class="xa-sheet xa-chk"><div class="xa-st">Pull List<i>&times;</i></div><div class="xa-cust">Smith \u00b7 12 Elm St</div>' + rows(d)
-        + '<div class="xa-btns"><span>Print Preview</span><span>Print</span></div><div class="xa-save">Save Job</div></div>',
-      '<div class="xa-pv"><div class="xa-pvb"><i>&times;</i>Print Preview<b>Print</b></div><div class="xa-paper">' + logo() + '<div class="xa-ph1">Pull List \u00b7 Smith</div><div class="xa-ph2">12 Elm St, Hilton \u00b7 Tue Nov 17</div>' + rows(d, 'nobox') + '<div class="xa-pf">STORM BASEMENT WATERPROOFING</div></div></div>'
-        + '<span class="xa-tap" style="right:22px;left:auto;top:40px;margin:0;animation-delay:11.1s"></span>',
-      '<div class="xa-sky"></div><div class="xa-done">&#10003; All loaded<small>Pull List checked \u00b7 On hand updated</small></div><div class="xa-road"></div><div class="xa-truck">' + TRUCK + '</div>'
+      /* v196: Customer Search -> load items -> check onto the staging cart -> Staged Job Complete -> Staged */
+      main(d) + '<div class="xa-sheet xa-fill"><div class="xa-st">Customer Search<i>&times;</i></div><div class="xa-cust">Smith \u00b7 12 Elm St</div>' + rows(d)
+        + '<div class="xa-sj">Staged Job Complete</div><div class="xa-btns"><span>Print Preview</span><span>Print</span></div></div>',
+      main(d) + '<div class="xa-sheet xa-chk"><div class="xa-st">Customer Search<i>&times;</i></div><div class="xa-cust">Smith \u00b7 12 Elm St \u00b7 on the cart</div>' + rows(d)
+        + '<div class="xa-sj">Staged Job Complete</div><div class="xa-btns"><span>Print Preview</span><span>Print</span></div></div>'
+        + '<span class="xa-tap" style="left:98px;top:316px;animation-delay:9.7s"></span>',
+      main(d) + '<div class="xa-sheet xa-chk-done"><div class="xa-st">Customer Search<i>&times;</i></div><div class="xa-cust">Smith \u00b7 12 Elm St</div>' + rows(d) + '</div>'
+        + '<div class="xa-cfd"></div><div class="xa-cf"><b>Staged Job Complete?</b><small>Smith \u00b7 12 Elm St</small>'
+        + d.slice(0, 5).map(function (x) { return '<div class="xa-cfr"><i>\u2713</i><span>' + esc(x.name) + '</span><em>x' + x.q + '</em></div>'; }).join('')
+        + '<div class="xa-cfw">1 item not on the cart \u2014 it won\u2019t come out of inventory</div><div class="xa-cfb"><span>Cancel</span><span class="go">Stage 5 items</span></div></div>'
+        + '<span class="xa-tap" style="right:44px;left:auto;bottom:22px;top:auto;margin:0;animation-delay:11.1s"></span>',
+      main(d) + '<div class="xa-sheet xa-chk-done xa-staged"><div class="xa-st">Customer Search<i>&times;</i></div><div class="xa-cust">Smith \u00b7 12 Elm St</div>'
+        + '<div class="xa-ban"><i>\u2713</i><span><b>Staged \u00b7 Tue Nov 17, 7:05 AM</b><small>Checked items came out of inventory</small></span></div>' + rows(d, 'last-off') + '</div>'
+        + '<div class="xa-truck xa-truck-sm">' + TRUCK + '</div>'
     ];
   }
-  var CAPS = ['1. Main screen: Stage Job', '2. Tap + \u2192 Customer Search', '3. Pick the job', '4. Items fill the Pull List', '5. Check each box as it loads', '6. Print Preview \u2192 Print', '7. Load the truck'];
-  var CAPS_SHORT = ['Main screen', 'Tap + \u2192 Customer Search', 'Pick the job', 'Items fill the Pull List', 'Check each box', 'Print Preview', 'Load the truck'];
+  var CAPS = ['1. Main screen: Staging Job', '2. Tap + \u2192 Customer Search', '3. Pick the job', '4. Load items', '5. Check each box as it goes on the cart', '6. Staged Job Complete \u2192 Stage', '7. Staged \u00b7 out of inventory'];
+  var CAPS_SHORT = ['Main screen', 'Tap + \u2192 Customer Search', 'Pick the job', 'Load items', 'Check onto the cart', 'Staged Job Complete', 'Staged'];
   function sc(i, h) {
     /* scene i shows from 2i s; rows and boxes carry their own delays on the same 14 s clock */
     var k = 0;
     if (i === 3) h = h.replace(/<div class="xa-row">/g, function () { k++; return '<div class="xa-row" style="animation-delay:' + (6.15 + (k - 1) * 0.3).toFixed(2) + 's">'; });
-    if (i === 4) h = h.replace(/<b class="xa-box"><\/b>/g, function () { k++; return '<b class="xa-box" style="animation-delay:' + (8.35 + (k - 1) * 0.4).toFixed(2) + 's"></b>'; });
+    if (i === 4) h = h.replace(/<b class="xa-box"><\/b>/g, function () { k++; return '<b class="xa-box" style="animation-delay:' + (8.3 + (k - 1) * 0.28).toFixed(2) + 's"></b>'; }); /* v196: 5 of 6 go on the cart */
     return '<div class="xa-sc" style="animation-delay:' + (i * 2) + 's">' + h + '</div>';
   }
   window.stormHelpAnim = function () {
@@ -4840,7 +4894,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var live = '<div class="xa-ph xa-live"><div class="xa-scr">' + S.map(function (h, i) { return sc(i, h); }).join('') + '</div></div>'
       + '<div class="xa-cap">' + CAPS.map(function (c, i) { return '<span style="animation-delay:' + (i * 2) + 's">' + c + '</span>'; }).join('') + '</div>';
     var strip = '<div class="xa-strip">' + S.map(function (h, i) { return '<figure><div class="xa-ph"><div class="xa-scr"><div class="xa-sc">' + h + '</div></div></div><figcaption>' + (i + 1) + '. ' + CAPS_SHORT[i] + '</figcaption></figure>'; }).join('') + '</div>';
-    return '<div class="sh-card sh-anim xa" role="img" aria-label="Short animation of the app: the main screen in Stage Job, tap the plus then Customer Search, pick the job, items fill the Pull List, check each box, Print Preview, load the STORM truck">' + live + strip + '</div>';
+    return '<div class="sh-card sh-anim xa" role="img" aria-label="Short animation of the app: the main screen in Staging Job, tap the plus then Customer Search, pick the job, load items, check each box as it goes on the staging cart, tap Staged Job Complete and Stage, the job shows Staged">' + live + strip + '</div>';
   };
 })();
 
@@ -4971,7 +5025,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       barKey = key;
       b.querySelector('.pb-r').innerHTML = mini(c[0], c[1]);
       b.querySelector('.pb-t b').textContent = c[1] && c[0] >= c[1] ? 'All ' + c[1] + ' loaded' : c[0] + ' of ' + c[1] + ' loaded';
-      b.querySelector('.pb-t span').textContent = name || 'Pull List';
+      b.querySelector('.pb-t span').textContent = name || 'Customer Search';
       b.classList.toggle('done', !!c[1] && c[0] >= c[1]);
       b.setAttribute('aria-label', c[0] + ' of ' + c[1] + ' lines loaded. Tap to go back to the top.');
     }
@@ -5073,4 +5127,198 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   (function go(n) { tick(); if (n < 40) setTimeout(function () { go(n + 1); }, 250); })(0);
   setInterval(tick, 1200);
   (function watchList(n) { var l = document.getElementById('list'); if (l) { new MutationObserver(function () { setTimeout(tick, 0); }).observe(l, { childList: true }); return; } if (n < 200) setTimeout(function () { watchList(n + 1); }, 150); })(0);
+})();
+
+/* v196 (Hark, 2026-11-11 15:10, Dave approved): pairs with app v148. "Staged Job Complete".
+   Customer Search checks only track what is on the staging cart (shared across phones, offline queue kept, no stock change).
+   At the bottom of the Customer Search list a big "Staged Job Complete" button opens a confirm sheet: the checked items with their qty
+   (footage lines read "Grab N roll(s)" / "stick(s)", the same whole units as before) and how many lines are not on the cart. Confirm ->
+   completeStaging(jobKey, customer, lines, device) on the server (no code needed): it takes the checked lines off On hand once, stamps
+   the job staged and refuses a second run. After that the sheet shows a green "Staged · date time" banner, the boxes are locked and
+   unchecked lines carry a "Not staged" tag. Managers (stormAccess.isMgr) get "Unstage" in the banner (unstageJob + manager token puts
+   back exactly what was taken). A list with no customer can't be staged: the button is disabled with "Pick a customer to stage". */
+(function () {
+  var S = 'html body #pull-sheet';
+  var css = ''
+    + S + ' .sj-wrap { padding: 6px 16px 18px; }'
+    + S + ' .sj-go { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 64px; margin: 0; border: 0; border-radius: 16px; background: #15803D; color: #fff; font-family: inherit; font-size: 18px; font-weight: 800; letter-spacing: .01em; box-shadow: 0 8px 20px rgba(21,128,61,.28); -webkit-tap-highlight-color: transparent; }'
+    + S + ' .sj-go svg { width: 24px; height: 24px; flex: none; }'
+    + S + ' .sj-go:active { transform: scale(.985); }'
+    + S + ' .sj-go:disabled { background: #B8C4D0 !important; box-shadow: none; opacity: 1 !important; }'
+    + S + ' .sj-note { margin-top: 8px; text-align: center; font-size: 13px; font-weight: 600; color: #6B7280; }'
+    + S + ' .sj-banner { margin: 12px 0 2px; text-align: left; display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 14px; background: #DCFCE7; border: 1.5px solid #86EFAC; color: #14532D; }'
+    + S + ' .sj-banner > i { flex: none; width: 30px; height: 30px; border-radius: 50%; background: #16A34A; color: #fff; font-style: normal; font-weight: 900; font-size: 17px; line-height: 30px; text-align: center; }'
+    + S + ' .sj-banner b { display: block; font-size: 15.5px; font-weight: 800; }'
+    + S + ' .sj-banner small { display: block; font-size: 12px; font-weight: 600; color: #166534; margin-top: 1px; }'
+    + S + ' .sj-banner > div { flex: 1; min-width: 0; }'
+    + S + ' .sj-un { flex: none; min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1.5px solid #15803D; background: #fff; color: #15803D; font-family: inherit; font-size: 13px; font-weight: 800; }'
+    + S + ' .sj-un.sj-sure { background: #B91C1C; border-color: #B91C1C; color: #fff; }'
+    + S + '.sj-locked .tc-ck { cursor: default; border-style: solid; }'
+    + S + '.sj-locked .pick-line:not(.tc-done) .tc-ck { background: #F1F5F9; border-color: #E2E8F0; }'
+    + S + ' .sj-not { display: inline-block; margin-top: 5px; padding: 2px 8px; border-radius: 999px; background: #FEF3C7; color: #92400E; font-size: 11px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }'
+    + S + '.sj-locked .pick-line.sj-off { opacity: 1 !important; }'
+    /* confirm sheet */
+    + '#sj-cf { position: fixed; inset: 0; z-index: 400; display: flex; align-items: flex-end; justify-content: center; background: rgba(15,23,32,.42); opacity: 0; transition: opacity .2s; }'
+    + '#sj-cf.on { opacity: 1; }'
+    + '#sj-cf .sj-card { width: min(100%, 560px); max-height: 88vh; max-height: 88dvh; display: flex; flex-direction: column; background: #EEF2F7; border-radius: 22px 22px 0 0; box-shadow: 0 -10px 34px rgba(15,23,32,.2); transform: translateY(30px); transition: transform .22s; font-family: inherit; color: #0F1720; }'
+    + '#sj-cf.on .sj-card { transform: none; }'
+    + '@media (min-width: 700px) { #sj-cf { align-items: center; } #sj-cf .sj-card { border-radius: 22px; } }'
+    + '#sj-cf .sj-hd { padding: 18px 18px 8px; } #sj-cf .sj-hd h3 { margin: 0; font-size: 21px; font-weight: 800; } #sj-cf .sj-hd p { margin: 4px 0 0; font-size: 14px; color: #6B7280; font-weight: 600; }'
+    + '#sj-cf .sj-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 16px 6px; }'
+    + '#sj-cf .sj-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin: 0 0 7px; border-radius: 12px; background: #fff; }'
+    + '#sj-cf .sj-row i { flex: none; width: 22px; height: 22px; border-radius: 7px; background: #29ABE2; color: #fff; font-style: normal; font-weight: 900; font-size: 13px; line-height: 22px; text-align: center; }'
+    + '#sj-cf .sj-row span { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }'
+    + '#sj-cf .sj-row b { flex: none; font-size: 15px; font-weight: 800; color: #1FA3DC; white-space: nowrap; }'
+    + '#sj-cf .sj-warn { margin: 4px 16px 0; padding: 10px 12px; border-radius: 12px; background: #FEF3C7; color: #92400E; font-size: 13.5px; font-weight: 700; }'
+    + '#sj-cf .sj-err { margin: 6px 16px 0; color: #B91C1C; font-size: 13.5px; font-weight: 700; min-height: 0; }'
+    + '#sj-cf .sj-ft { display: flex; gap: 10px; padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); }'
+    + '#sj-cf .sj-ft button { flex: 1; min-height: 54px; border-radius: 14px; font-family: inherit; font-size: 16px; font-weight: 800; }'
+    + '#sj-cf .sj-no { background: transparent; border: 1.5px solid #D5DCE5; color: #0F1720; }'
+    + '#sj-cf .sj-yes { flex: 1.5 !important; background: #15803D; border: 0; color: #fff; }'
+    + '#sj-cf .sj-yes:disabled { opacity: .6; }';
+  var st = document.createElement('style'); st.id = 'storm-v196-css'; st.textContent = css;
+  (document.head || document.documentElement).appendChild(st);
+
+  var CHK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 12.5l3 3 5-6"/></svg>';
+  function api() { return window.stormStagingApi || null; }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function toast(m, bad) { try { showToast(m, !!bad, 2600); } catch (e) {} }
+  function isMgr() { try { return !!(window.stormAccess && window.stormAccess.isMgr()); } catch (e) { return false; } }
+  function tok() { try { return window.stormAccess ? window.stormAccess.token() : ''; } catch (e) { return ''; } }
+  function sheet() { return document.getElementById('pull-sheet'); }
+  function when(ms) {
+    var d = new Date(Number(ms) || Date.now());
+    try { return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return d.toString(); }
+  }
+  function ft(bin) { try { return window.FT_ITEMS && window.FT_ITEMS[bin] ? window.FT_ITEMS[bin] : null; } catch (e) { return null; } }
+  /* each line on the sheet: { bin, name, qty (whole units, as the server takes them), label, checked } */
+  function lines(sh) {
+    var a = api(), on = a ? a.checked() : [];
+    return [].slice.call(sh.querySelectorAll('.pick-line[data-pull-bin]')).map(function (ln) {
+      var bin = ln.getAttribute('data-pull-bin'), nm = ln.querySelector('.pick-line-name'), qb = ln.querySelector('.pull-qty b');
+      var n = qb ? parseInt(qb.textContent, 10) || 0 : 0, f = ft(bin), units = a ? a.units(bin, n) : n;
+      units = Number(units) || 0;
+      var label = f ? 'Grab ' + units + ' ' + (units === 1 ? f.unit : f.unit + 's') : 'x' + units;
+      return { bin: bin, name: nm ? nm.textContent.trim() : bin, qty: units, label: label, checked: on.indexOf(bin) >= 0 };
+    });
+  }
+
+  /* ---- sheet: button / banner / locks ---- */
+  var lastKey = '';
+  function paint() {
+    var sh = sheet(), a = api(); if (!sh || !a) return;
+    var top = sh.querySelector('.tc-top'), list = sh.querySelector('.pick-lines');
+    var k = a.key(), stg = k ? a.staged(k) : null, ls = list ? lines(sh) : [], nOn = ls.filter(function (l) { return l.checked; }).length;
+    var mgr = isMgr();
+    var key = [k, stg ? stg.at : '', nOn, ls.length, mgr ? 1 : 0, !!list, !!top].join('|');
+    var wrap = sh.querySelector('.sj-wrap'), ban = sh.querySelector('.sj-banner');
+    if (key === lastKey && (!list || wrap) && (!stg || ban)) return;
+    lastKey = key;
+    sh.classList.toggle('sj-locked', !!stg);
+    /* banner */
+    if (stg && top) {
+      if (!ban) { ban = document.createElement('div'); ban.className = 'sj-banner'; var bar = top.querySelector('.tc-bar'); if (bar) bar.insertAdjacentElement('afterend', ban); else top.appendChild(ban); }
+      ban.innerHTML = '<i>\u2713</i><div><b>Staged \u00b7 ' + esc(when(stg.at)) + '</b><small>' + (stg.by ? 'by ' + esc(stg.by) + ' \u00b7 ' : '') + 'Checked items came out of inventory</small></div>'
+        + (mgr ? '<button type="button" class="sj-un" data-sj-un>Unstage</button>' : '');
+    } else if (ban) ban.remove();
+    /* Not staged tags */
+    sh.querySelectorAll('.pick-line[data-pull-bin]').forEach(function (ln) {
+      var off = !!stg && !ln.classList.contains('tc-done'), tag = ln.querySelector('.sj-not');
+      ln.classList.toggle('sj-off', off);
+      if (off && !tag) { var info = ln.querySelector('.pick-line-info'); if (info) info.insertAdjacentHTML('beforeend', '<span class="sj-not">Not staged</span>'); }
+      else if (!off && tag) tag.remove();
+    });
+    /* bottom button */
+    if (!list) { if (wrap) wrap.remove(); return; }
+    if (!wrap) { wrap = document.createElement('div'); wrap.className = 'sj-wrap'; list.insertAdjacentElement('afterend', wrap); }
+    else if (wrap.previousElementSibling !== list) list.insertAdjacentElement('afterend', wrap);
+    if (stg) { wrap.innerHTML = '<div class="sj-note">Staged ' + esc(when(stg.at)) + '. ' + (mgr ? 'Unstage (top) to change it.' : 'A manager can unstage it.') + '</div>'; return; }
+    var dis = !k || !nOn, note = !k ? 'Pick a customer to stage' : (!nOn ? 'Check what\u2019s on the cart first' : nOn + ' of ' + ls.length + ' on the cart \u00b7 takes them out of inventory');
+    wrap.innerHTML = '<button type="button" class="sj-go" data-sj-go' + (dis ? ' disabled' : '') + '>' + CHK + 'Staged Job Complete</button><div class="sj-note">' + esc(note) + '</div>';
+  }
+  function soon() { clearTimeout(soon.t); soon.t = setTimeout(paint, 30); }
+  window.addEventListener('stormstaged', soon);
+  window.addEventListener('stormaccess', function () { lastKey = ''; soon(); });
+  document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('#pull-sheet .tc-ck')) setTimeout(paint, 60); });
+  (function watch(n) {
+    var sh = sheet();
+    if (sh) {
+      new MutationObserver(function () { lastKey = ''; soon(); }).observe(sh, { childList: true });
+      new MutationObserver(soon).observe(sh, { attributes: true, attributeFilter: ['class'] });
+      setInterval(function () { var s = sheet(); if (s && s.classList.contains('open')) paint(); }, 800);
+      paint(); return;
+    }
+    if (n < 200) setTimeout(function () { watch(n + 1); }, 150);
+  })(0);
+
+  /* ---- confirm sheet ---- */
+  var cf = null, busy = false;
+  function closeCf() { if (!cf || busy) return; var c = cf; cf = null; c.classList.remove('on'); setTimeout(function () { if (c.parentNode) c.remove(); }, 220); }
+  function openCf() {
+    var sh = sheet(), a = api(); if (!sh || !a) return;
+    var k = a.key(); if (!k) { toast('Pick a customer to stage', true); return; }
+    if (a.staged(k)) { toast('This job is already staged'); return; }
+    var ls = lines(sh), on = ls.filter(function (l) { return l.checked; }), off = ls.length - on.length;
+    if (!on.length) { toast('Check what\u2019s on the cart first', true); return; }
+    if (cf) cf.remove();
+    cf = document.createElement('div'); cf.id = 'sj-cf'; cf.setAttribute('role', 'dialog'); cf.setAttribute('aria-modal', 'true'); cf.setAttribute('aria-label', 'Staged Job Complete');
+    var who = a.cust();
+    cf.innerHTML = '<div class="sj-card"><div class="sj-hd"><h3>Staged Job Complete?</h3><p>' + esc(who || 'This job') + '</p></div>'
+      + '<div class="sj-list">' + on.map(function (l) { return '<div class="sj-row"><i>\u2713</i><span>' + esc(l.name) + '</span><b>' + esc(l.label) + '</b></div>'; }).join('') + '</div>'
+      + (off ? '<div class="sj-warn">' + off + ' item' + (off === 1 ? '' : 's') + ' not on the cart \u2014 ' + (off === 1 ? 'it won\u2019t' : 'they won\u2019t') + ' come out of inventory</div>' : '')
+      + '<div class="sj-err" data-sj-err></div>'
+      + '<div class="sj-ft"><button type="button" class="sj-no" data-sj-no>Cancel</button><button type="button" class="sj-yes" data-sj-yes>Stage ' + on.length + ' item' + (on.length === 1 ? '' : 's') + '</button></div></div>';
+    cf.__job = { k: k, cust: who, lines: ls.map(function (l) { return { bin: l.bin, name: l.name, qty: l.qty, checked: l.checked }; }) };
+    document.body.appendChild(cf); void cf.offsetWidth; cf.classList.add('on');
+  }
+  function errText(e) { return String(e && (e.message || e) || ''); }
+  function confirmCf() {
+    var a = api(); if (!cf || busy || !a) return;
+    var job = cf.__job, yes = cf.querySelector('[data-sj-yes]'), er = cf.querySelector('[data-sj-err]');
+    if (!a.hasRun()) { er.textContent = 'No connection. Try again when you have signal.'; return; }
+    busy = true; yes.disabled = true; yes.textContent = 'Staging\u2026'; er.textContent = '';
+    google.script.run
+      .withSuccessHandler(function (res) {
+        busy = false;
+        var rows = (res && res.lines || []).map(function (l) { return { itemBin: l.bin, checked: !!l.checked, taken: l.taken }; });
+        a.setStaged(job.k, (res && res.staged) || { at: Date.now(), by: a.dev() }, rows);
+        lastKey = ''; closeCf(); paint();
+        toast('Job staged \u2014 inventory updated');
+      })
+      .withFailureHandler(function (e) {
+        busy = false; var m = errText(e);
+        if (/STAGED_ALREADY/.test(m)) { closeCf(); a.reload(); toast('This job was already staged', true); return; }
+        yes.disabled = false; yes.textContent = 'Try again';
+        er.textContent = /NOTHING_CHECKED/.test(m) ? 'Nothing is checked yet.' : 'Couldn\u2019t stage the job. Check your signal and try again.';
+      })
+      .completeStaging(job.k, job.cust, job.lines, a.dev());
+  }
+  /* ---- Unstage (manager) ---- */
+  var unBusy = false;
+  function unstage(b) {
+    var a = api(); if (!a || unBusy) return;
+    if (!isMgr()) { try { window.stormAccess.ask(function () { lastKey = ''; paint(); }, 'Only a manager can unstage a job.'); } catch (e) {} return; }
+    if (!b.classList.contains('sj-sure')) { b.classList.add('sj-sure'); b.textContent = 'Tap to confirm'; clearTimeout(b.__t); b.__t = setTimeout(function () { b.classList.remove('sj-sure'); b.textContent = 'Unstage'; }, 3500); return; }
+    var k = a.key(); if (!k || !a.hasRun()) return;
+    unBusy = true; b.disabled = true; b.textContent = 'Unstaging\u2026';
+    google.script.run
+      .withSuccessHandler(function () { unBusy = false; a.setStaged(k, null); lastKey = ''; paint(); a.reload(); toast('Unstaged \u2014 stock put back'); })
+      .withFailureHandler(function (e) {
+        unBusy = false; var m = errText(e); b.disabled = false; b.classList.remove('sj-sure'); b.textContent = 'Unstage';
+        if (/MANAGER_REQUIRED/.test(m)) { try { window.stormAccess.expired(); } catch (x) {} lastKey = ''; paint(); return; }
+        if (/NOT_STAGED/.test(m)) { a.setStaged(k, null); a.reload(); return; }
+        toast('Couldn\u2019t unstage. Try again.', true);
+      })
+      .unstageJob(k, a.dev(), tok());
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+    var g = t.closest('#pull-sheet [data-sj-go]'); if (g) { e.preventDefault(); e.stopPropagation(); if (!g.disabled) openCf(); return; }
+    var u = t.closest('#pull-sheet [data-sj-un]'); if (u) { e.preventDefault(); e.stopPropagation(); unstage(u); return; }
+    if (!cf || !t.closest('#sj-cf')) return;
+    if (t.closest('[data-sj-yes]')) confirmCf();
+    else if (t.closest('[data-sj-no]') || t.id === 'sj-cf') closeCf();
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && cf) closeCf(); });
+  window.stormStagedPaint = function () { lastKey = ''; paint(); };
 })();
