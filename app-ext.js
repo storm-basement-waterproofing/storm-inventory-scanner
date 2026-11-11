@@ -4615,6 +4615,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '.st-brand .storm-logo-lit .sla-storm { filter: brightness(0) !important; }'
     + '.st-brand .storm-logo-lit .sll-trace { opacity: 0 !important; }'
     + '.st-brand .storm-logo-lit img { animation: none !important; }'
+    + '#storm-lock .st-lock-brand { margin: 0 0 16px; } #storm-lock .st-lock-brand .storm-logo-lit { width: min(56vw, 190px) !important; }'
     /* 4. guide spacing */
     + H + ' { z-index: 2147483200 !important; height: 100% !important; }'
     + H + ' .sh-top { padding-top: calc(10px + ' + SAT + ') !important; }'
@@ -4719,6 +4720,15 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var st = document.createElement('style'); st.id = 'storm-v194-css'; st.textContent = css;
   function put() { (document.head || document.documentElement).appendChild(st); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+
+  /* the manager code box shows the same STORM logo as the main screen (its old white-word logo was hard to see on the light box) */
+  function lockLogo() {
+    var im = document.querySelector('#storm-lock img.sl-logo'); if (!im) return !!document.querySelector('#storm-lock .st-brand');
+    if (!document.querySelector('header .storm-logo-lit')) return false;
+    var d = document.createElement('div'); d.className = 'st-brand st-lock-brand'; d.innerHTML = window.stormBrandLogoHTML(false);
+    im.parentNode.replaceChild(d, im); return true;
+  }
+  (function wait(n) { if (lockLogo()) return; if (n < 200) setTimeout(function () { wait(n + 1); }, 150); })(0);
 
   /* keep the footer rows in order: Jobber, CompanyCam, Manager Login, How to Use the App */
   function order() {
