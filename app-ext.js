@@ -2239,3 +2239,114 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + P + ' .drawer-foot .st164-div { flex: none; width: 0 !important; height: 26px !important; margin: 0 !important; border: 0 !important; border-left: 1px solid #2A4A66 !important; }';
   document.head.appendChild(st);
 })();
+
+/* v169 (Hark, 2026-11-10, Dave): Inventory home in the Truck Check look. Same list, search, tabs, steppers (hold-to-repeat untouched),
+   Keep on hand, Details, Add to order, Order and the Scan / Cart / Pull / Quote buttons; only the look changes.
+   Dark page (#0E1621), header fades #14324A -> #0E1621, dark search box and menu tile, All Items / Needs Ordering as a dark segmented
+   control with the active side blue, category titles as small grey caps with a blue-tinted count pill, every item a dark rounded card
+   (#152231) with the product photo on a light tile, white name, grey bin / SKU line, the existing LOW / OUT flags as amber / red pills,
+   round dark -/+ (blue +), ghost Keep on hand / Details / Add to order and a blue Order. Supplier logos on the cards use white-on-dark
+   copies (assets/supplier-dark/, no white box); Hilti keeps its own red logo. "Stocked to par  X of Y lines" bar above the list,
+   counted from the items on screen that have a par above 0 (on hand >= par); it hides itself when none of them has a par. */
+(function () {
+  var B = 'html body';
+  var D = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/supplier-dark/';
+  var st = document.createElement('style'); st.id = 'storm-v169-css';
+  st.textContent = ''
+    + B + ', html { background: #0E1621 !important; }'
+    + B + ' { color: #fff; }'
+    + B + ' .topbar { background: #0E1621 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-bottom: 1px solid #1F3246 !important; box-shadow: none !important; }'
+    + B + ' .topbar > header { background: linear-gradient(180deg, #14324A 0%, #0E1621 100%) !important; }'
+    + B + ' .toolbar { background: transparent !important; padding-bottom: 10px !important; }'
+    + B + ' #hamburger.hamburger { background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 14px !important; box-shadow: none !important; }'
+    + B + ' #hamburger.hamburger span { background: #E6F4FC !important; }'
+    + B + ' #search { background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 14px !important; color: #fff !important; box-shadow: none !important; }'
+    + B + ' #search::placeholder { color: #7E93A8 !important; }'
+    + B + ' #search:focus { border-color: #29ABE2 !important; box-shadow: 0 0 0 3px rgba(41,171,226,.22) !important; outline: none !important; }'
+    /* All Items / Needs Ordering = segmented control */
+    + B + ' .toolbar .tabs { gap: 4px !important; padding: 4px !important; background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 14px !important; }'
+    + B + ' .toolbar .tab { border: 0 !important; border-radius: 11px !important; background: transparent !important; color: #9FB3C8 !important; font-weight: 800 !important; box-shadow: none !important; }'
+    + B + ' .toolbar .tab.active { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; color: #04121D !important; }'
+    + B + ' .toolbar .tab .badge { background: rgba(41,171,226,.15) !important; color: #5FD3FF !important; }'
+    + B + ' .toolbar .tab.active .badge { background: rgba(4,18,29,.18) !important; color: #04121D !important; }'
+    /* stocked-to-par bar */
+    + B + ' #tk-par { margin: 12px 14px 0; }'
+    + B + ' #tk-par[hidden] { display: none !important; }'
+    + B + ' #tk-par .tk-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13.5px; color: #9FB3C8; }'
+    + B + ' #tk-par .tk-row b { color: #29ABE2; font-weight: 800; }'
+    + B + ' #tk-par .tk-bar { height: 8px; margin-top: 6px; border-radius: 4px; background: #1E2C3B; overflow: hidden; }'
+    + B + ' #tk-par .tk-bar i { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #29ABE2, #5FD3FF); transition: width .25s ease; }'
+    /* category titles */
+    + B + ' #list .cat-head { margin: 22px 2px 6px !important; padding: 2px 4px !important; background: transparent !important; background-image: none !important; border: 0 !important; box-shadow: none !important; }'
+    + B + ' #list .cat-head::before { display: none !important; }'
+    + B + ' #list .cat-head .cat-name { color: #7E93A8 !important; font-size: 12px !important; font-weight: 800 !important; letter-spacing: .1em !important; text-transform: uppercase !important; text-shadow: none !important; }'
+    + B + ' #list .cat-head .cat-count { padding: 3px 9px !important; border-radius: 8px !important; background: rgba(41,171,226,.15) !important; color: #5FD3FF !important; font-size: 11.5px !important; font-weight: 800 !important; border: 0 !important; }'
+    /* item cards */
+    + B + ' .card { background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 14px !important; box-shadow: none !important; color: #fff !important; }'
+    + B + ' .card.low { box-shadow: inset 4px 0 0 #F59E0B !important; }'
+    + B + ' .card.out { box-shadow: inset 4px 0 0 #EF4444 !important; }'
+    + B + ' .card .photo { background: #fff !important; border: 0 !important; border-radius: 12px !important; }'
+    + B + ' .card .bin { color: #C9D6E3 !important; text-transform: uppercase; font-weight: 800 !important; }'
+    + B + ' .card .supplier { color: #7E93A8 !important; }'
+    + B + ' .card .name { color: #fff !important; font-weight: 800 !important; }'
+    + B + ' .card .sku, ' + B + ' .card .ft-note { color: #9FB3C8 !important; }'
+    + B + ' .card .price { color: #fff !important; }'
+    + B + ' .card .ft-line { color: #5FD3FF !important; }'
+    + B + ' .card .need-qty { color: #F59E0B !important; }'
+    + B + ' .flag { padding: 3px 9px !important; border-radius: 8px !important; font-size: 11.5px !important; letter-spacing: .04em; }'
+    + B + ' .flag.low { background: rgba(245,158,11,.16) !important; color: #F59E0B !important; }'
+    + B + ' .flag.out { background: rgba(239,68,68,.16) !important; color: #EF4444 !important; }'
+    + B + ' .card .supplier-logo { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }'
+    + B + ' img.supplier-logo[src*="1DHznKkuGyRWhuFvJplltMJVokeP2eURA"], ' + B + ' img.detail-logo[src*="1DHznKkuGyRWhuFvJplltMJVokeP2eURA"] { content: url("' + D + 'rt-dark.png"); }'
+    + B + ' img.supplier-logo[src*="1il864wxNHhA_e0hf0CcbBh97LsYbWq3s"], ' + B + ' img.detail-logo[src*="1il864wxNHhA_e0hf0CcbBh97LsYbWq3s"] { content: url("' + D + 'hd-dark.png"); }'
+    + B + ' img.supplier-logo[src*="1bQxJWNeUMWHnNCqakwQFb_buDEJsMIBh"], ' + B + ' img.detail-logo[src*="1bQxJWNeUMWHnNCqakwQFb_buDEJsMIBh"] { content: url("' + D + 'az-dark.png"); }'
+    /* steppers + buttons on cards */
+    + B + ' .card .stepper { gap: 8px !important; border: 0 !important; border-radius: 0 !important; overflow: visible !important; background: transparent !important; }'
+    + B + ' .card .step { width: 46px !important; height: 46px !important; border-radius: 50% !important; border: 1.5px solid #3B536B !important; background: transparent !important; color: #E6F4FC !important; font-size: 24px !important; box-shadow: none !important; }'
+    + B + ' .card .step[data-act="plus"] { border-color: #29ABE2 !important; color: #29ABE2 !important; }'
+    + B + ' .card .step:active { background: #1B2D40 !important; }'
+    + B + ' .card .count { width: 52px !important; height: 46px !important; background: transparent !important; color: #fff !important; font-size: 22px !important; font-weight: 800 !important; border: 0 !important; }'
+    + B + ' .card .count::placeholder { color: #7E93A8 !important; }'
+    + B + ' .card .ft-tag { color: #9FB3C8 !important; }'
+    + B + ' .card .par, ' + B + ' .card .details-btn { background: transparent !important; border: 1.5px solid #3B536B !important; border-radius: 12px !important; color: #fff !important; box-shadow: none !important; }'
+    + B + ' .card .pick-add { background: transparent !important; border: 1.5px solid #29ABE2 !important; border-radius: 12px !important; color: #5FD3FF !important; box-shadow: none !important; }'
+    + B + ' .card .pick-add.in-list { background: rgba(41,171,226,.15) !important; }'
+    + B + ' .card .order { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; border: 0 !important; border-radius: 12px !important; color: #04121D !important; font-weight: 800 !important; box-shadow: none !important; }'
+    /* floating buttons: Scan / Pull / Quote dark, Cart blue */
+    + B + ' .fab-dock .scan-btn, ' + B + ' .fab-dock .pull-fab, ' + B + ' .fab-dock .quote-fab { background: #152231 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border: 1px solid #2A4A66 !important; color: #fff !important; box-shadow: 0 6px 18px rgba(0,0,0,.4) !important; }'
+    + B + ' .fab-dock #cart-fab.cart-fab { background: linear-gradient(135deg, #29ABE2, #5FD3FF) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border: 0 !important; color: #04121D !important; box-shadow: 0 6px 22px rgba(41,171,226,.4) !important; }'
+    + B + ' .fab-dock .cart-fab-total { background: #152231 !important; border: 1px solid #1F3246; color: #fff !important; }'
+    + B + ' .jobber-logo { filter: brightness(0) invert(1) !important; }'
+    + B + ' .empty, ' + B + ' .loading { color: #9FB3C8 !important; background: transparent !important; }'
+    + B + ' .foot { color: #7E93A8 !important; }'
+    + B + ' .foot #refresh { background: transparent !important; border: 1.5px solid #3B536B !important; color: #fff !important; border-radius: 12px !important; }';
+  document.head.appendChild(st);
+
+  function paint() {
+    var list = document.getElementById('list'), bar = document.getElementById('tk-par'); if (!list) return;
+    if (!bar) {
+      bar = document.createElement('div'); bar.id = 'tk-par'; bar.hidden = true;
+      bar.innerHTML = '<div class="tk-row"><span>Stocked to par</span><span class="tk-n"></span></div><div class="tk-bar"><i></i></div>';
+      list.parentNode.insertBefore(bar, list);
+    }
+    var seen = {}, tot = 0, ok = 0;
+    list.querySelectorAll('.card[data-bin]').forEach(function (c) {
+      var bin = c.getAttribute('data-bin'); if (seen[bin]) return; seen[bin] = 1;
+      var it = null; try { it = findItem(bin); } catch (e) {}
+      if (!it || it.par == null || !(Number(it.par) > 0)) return;
+      tot++; if (Number(it.onHand) >= Number(it.par)) ok++;
+    });
+    bar.hidden = !tot || list.offsetParent === null;
+    if (!tot) return;
+    bar.querySelector('.tk-n').innerHTML = '<b>' + ok + '</b> of ' + tot + ' line' + (tot === 1 ? '' : 's');
+    bar.querySelector('.tk-bar i').style.width = Math.round(ok / tot * 100) + '%';
+  }
+  var t = 0; function soon() { clearTimeout(t); t = setTimeout(function () { try { paint(); } catch (e) {} }, 120); }
+  function attach() {
+    var list = document.getElementById('list'); if (!list || list.__tk169) return !!list;
+    list.__tk169 = true;
+    new MutationObserver(soon).observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    soon(); return true;
+  }
+  if (!attach()) { var tries = 0; (function poll() { if (attach() || ++tries > 60) return; setTimeout(poll, 250); })(); }
+})();
