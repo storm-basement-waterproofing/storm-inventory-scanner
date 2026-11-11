@@ -2350,3 +2350,70 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   if (!attach()) { var tries = 0; (function poll() { if (attach() || ++tries > 60) return; setTimeout(poll, 250); })(); }
 })();
+
+/* v170 (Hark, 2026-11-10, Dave): Item details in the Truck Check look. Same contents, same order (the -/+ and Order stay right under the
+   photo, as set in v73), same swipe, close, photo ride-in, bin label tile and logo tap.
+   Dark sheet (#0E1621) with the blue-to-dark top bar and a dark rounded back tile; product photo on a light rounded tile; big white name
+   with a LOW / OUT pill (same rule as the list: par set and on hand at or below par / at zero); grey bin / SKU line; white-on-dark
+   supplier logo (from v169); the -/+ row is a dark card with large round buttons (blue +) and a blue Order button; when the item has a
+   par above 0 an "On hand X / par Y" bar sits above the count tiles (amber when low, red when out, green at or above par); count tiles,
+   Flow rate and Key features are dark. Only #detail changes; Bin Labels and other pages that share the overlay class are untouched. */
+(function () {
+  var P = 'html body #detail.detail-overlay';
+  var st = document.createElement('style'); st.id = 'storm-v170-css';
+  st.textContent = ''
+    + P + ' { background: #0E1621 !important; color: #fff !important; }'
+    + P + ' .detail-bar { background: linear-gradient(180deg, #14324A 0%, #0E1621 100%) !important; color: #fff !important; border: 0 !important; box-shadow: none !important; }'
+    + P + ' .detail-bar .detail-close.st-back { background: #152231 !important; border: 1px solid #1F3246 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: none !important; color: #E6F4FC !important; }'
+    + P + ' img.detail-photo { background: #fff !important; border: 0 !important; border-radius: 14px !important; }'
+    + P + ' .detail-name { color: #fff !important; font-size: 24px !important; font-weight: 800 !important; }'
+    + P + ' .tk-dpill { display: inline-block; vertical-align: 4px; margin-left: 8px; padding: 3px 9px; border-radius: 8px; font-size: 12px; font-weight: 800; letter-spacing: .04em; line-height: 1.3; }'
+    + P + ' .tk-dpill.low { background: rgba(245,158,11,.16); color: #F59E0B; }'
+    + P + ' .tk-dpill.out { background: rgba(239,68,68,.16); color: #EF4444; }'
+    + P + ' .detail-meta { color: #9FB3C8 !important; }'
+    + P + ' img.detail-logo { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }'
+    + P + ' .detail-price { color: #fff !important; }'
+    + P + ' .ft-line { color: #5FD3FF !important; }'
+    /* -/+ and Order */
+    + P + ' .detail-body > .controls.ctl-top { margin-top: 14px !important; padding: 12px !important; gap: 12px !important; background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 14px !important; }'
+    + P + ' .controls .stepper { gap: 10px !important; border: 0 !important; border-radius: 0 !important; overflow: visible !important; background: transparent !important; }'
+    + P + ' .controls .step { width: 56px !important; height: 56px !important; border-radius: 50% !important; border: 1.5px solid #3B536B !important; background: #0E1621 !important; color: #E6F4FC !important; font-size: 28px !important; box-shadow: none !important; }'
+    + P + ' .controls .step[data-detail-step="plus"] { background: linear-gradient(135deg, #29ABE2, #5FD3FF) !important; border: 0 !important; color: #04121D !important; }'
+    + P + ' .controls .count { width: 60px !important; height: 56px !important; background: transparent !important; border: 0 !important; color: #fff !important; font-size: 30px !important; font-weight: 800 !important; }'
+    + P + ' .controls .ft-tag { color: #9FB3C8 !important; }'
+    + P + ' .controls .order { min-height: 56px !important; border: 0 !important; border-radius: 14px !important; background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; color: #04121D !important; font-weight: 800 !important; box-shadow: none !important; }'
+    /* on hand vs par */
+    + P + ' .tk-dpar { margin-top: 14px; padding: 12px 14px; background: #152231; border: 1px solid #1F3246; border-radius: 14px; }'
+    + P + ' .tk-dpar .tk-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: #9FB3C8; }'
+    + P + ' .tk-dpar .tk-row b { font-size: 20px; font-weight: 800; color: #fff; }'
+    + P + ' .tk-dpar .tk-bar { height: 8px; margin-top: 8px; border-radius: 4px; background: #1E2C3B; overflow: hidden; }'
+    + P + ' .tk-dpar .tk-bar i { display: block; height: 100%; border-radius: 4px; background: #22C55E; }'
+    + P + ' .tk-dpar.low .tk-bar i { background: #F59E0B; } ' + P + ' .tk-dpar.out .tk-bar i { background: #EF4444; }'
+    /* count tiles, flow rate, features */
+    + P + ' .detail-count { background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 12px !important; color: #fff !important; }'
+    + P + ' .detail-count span { color: #7E93A8 !important; }'
+    + P + ' .detail-count.label-tile img { box-shadow: none !important; }'
+    + P + ' .label-add { background: #29ABE2 !important; color: #04121D !important; } ' + P + ' .label-add.in { background: #22C55E !important; color: #04121D !important; }'
+    + P + ' .detail-features h2, ' + P + ' .detail-flow h2 { color: #7E93A8 !important; border-left-color: #29ABE2 !important; }'
+    + P + ' .detail-features li, ' + P + ' .detail-flow li, ' + P + ' .detail-features p { color: #C9D6E3 !important; }'
+    + P + ' .detail-features li::marker, ' + P + ' .detail-flow li::marker { color: #29ABE2; }';
+  document.head.appendChild(st);
+
+  function dress() {
+    var d = document.getElementById('detail'); if (!d || !d.classList.contains('open')) return;
+    var it = null; try { it = findItem(currentDetailBin); } catch (e) {} if (!it) return;
+    var nm = d.querySelector('.detail-name'), cnt = d.querySelector('.detail-counts');
+    var has = it.par != null && it.onHand != null, oh = Number(it.onHand), par = Number(it.par);
+    var cls = !has ? '' : (oh === 0 ? 'out' : (oh <= par ? 'low' : ''));
+    if (nm && !nm.querySelector('.tk-dpill') && cls) { var p = document.createElement('span'); p.className = 'tk-dpill ' + cls; p.textContent = cls === 'out' ? 'OUT' : 'LOW'; nm.appendChild(p); }
+    if (cnt && !d.querySelector('.tk-dpar') && it.par != null && par > 0) {
+      var b = document.createElement('div'); b.className = 'tk-dpar' + (oh === 0 ? ' out' : (oh < par ? ' low' : ''));
+      b.innerHTML = '<div class="tk-row"><span>On hand <b>' + (it.onHand == null ? '\u2014' : oh) + '</b></span><span>Keep on hand ' + par + '</span></div><div class="tk-bar"><i style="width:' + Math.min(100, Math.round((oh || 0) / par * 100)) + '%"></i></div>';
+      cnt.parentNode.insertBefore(b, cnt);
+    }
+  }
+  if (typeof openDetail === 'function') {
+    var _o = openDetail;
+    openDetail = function () { var r = _o.apply(this, arguments); try { dress(); } catch (e) {} return r; };
+  }
+})();
