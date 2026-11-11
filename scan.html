@@ -988,5 +988,50 @@ header .hdr-logo, header .storm-logo-lit, .storm-logo-lit, .sll-trace { display:
   };
 })();
 </script>
+<style id="scan-v136-css">
+/* scan v136 (Hark, 2026-11-10, Dave): scanner in the Truck Check look. Same camera, lenses, tap-to-focus, code tracing, beep, popup and
+   in-camera cart; only the look changes. Dark page (#0E1621) and bar, camera dimmed around a blue rounded framing box with a soft scan
+   line (visual guide only: codes anywhere in the picture still scan), "Looking for a code" in grey, the scan result as a dark card with
+   the photo on a light tile and a green check line, the lens picker as dark chips with a blue pill, dark close and cart tiles, Cancel
+   ghost + Done blue, and the in-camera cart as a dark sheet with round -/+. Still no STORM logo in the camera (v134). */
+html body { background: #0E1621 !important; }
+html body header { background: linear-gradient(180deg, #14324A 0%, #0E1621 100%) !important; }
+html body #cam-close { background: #152231 !important; border: 1px solid #1F3246 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: #E6F4FC !important; }
+html body #view { background: #000 !important; }
+html body #view::after { content: ""; position: absolute; left: 50%; top: 46%; width: min(68vw, 62vh, 300px); aspect-ratio: 1; transform: translate(-50%, -50%); border: 3px solid #29ABE2; border-radius: 26px; box-shadow: 0 0 0 200vmax rgba(14,22,33,.45); pointer-events: none; z-index: 3;
+  background: linear-gradient(90deg, transparent 6%, #5FD3FF 6%, #5FD3FF 94%, transparent 94%) 0 50% / 100% 3px no-repeat; animation: tkScanLine 2.4s ease-in-out infinite; }
+@keyframes tkScanLine { 0%, 100% { background-position: 0 22%; } 50% { background-position: 0 78%; } }
+html body #msg { color: #9FB3C8 !important; background: transparent !important; }
+html body #msg.err { color: #F87171 !important; }
+html body #foot button { min-height: 54px; border-radius: 14px !important; font-weight: 800 !important; }
+html body #cancel { background: transparent !important; border: 1.5px solid #3B536B !important; color: #fff !important; }
+html body #done { background: linear-gradient(90deg, #29ABE2, #3DBDF0) !important; border: 0 !important; color: #04121D !important; }
+html body #pop { background: #152231 !important; border: 1px solid #1F3246 !important; border-radius: 16px !important; padding: 12px !important; box-shadow: 0 10px 30px rgba(0,0,0,.5) !important; }
+html body #pop img { background: #fff !important; border-radius: 12px !important; object-fit: contain !important; }
+html body #pop-name { color: #fff !important; font-size: 17px !important; font-weight: 800 !important; }
+html body #pop-sub { display: inline-block; margin-top: 4px !important; padding: 2px 9px; border-radius: 8px; background: rgba(34,197,94,.14); color: #22C55E !important; font-size: 12px !important; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+html body #pop-sub::before { content: "\2713  "; }
+html body #lens-bar { background: #152231 !important; border: 1px solid #1F3246 !important; }
+html body #lens-bar .lens-thumb { background: #29ABE2 !important; box-shadow: none !important; }
+html body #lens-bar button, html body #lens-bar button.sel { color: #C9D6E3 !important; }
+html body #lens-bar button.sel { color: #04121D !important; }
+html body #cart-pill { background: linear-gradient(135deg, #29ABE2, #5FD3FF) !important; border: 0 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: #04121D !important; box-shadow: 0 6px 20px rgba(41,171,226,.35) !important; }
+html body #cart-pill .cnt { background: #04121D !important; color: #5FD3FF !important; }
+html body #cart-pill #cart-tot { background: #152231 !important; border: 1px solid #1F3246; color: #fff !important; }
+html body #sheet { background: #0E1621 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border: 1px solid #1F3246 !important; border-radius: 22px !important; box-shadow: 0 14px 40px rgba(0,0,0,.55) !important; }
+html body #sheet-head { background: linear-gradient(180deg, #14324A 0%, #0E1621 100%) !important; border-bottom: 1px solid #1F3246 !important; border-radius: 22px 22px 0 0; }
+html body #sheet-head h2 { color: #fff !important; font-size: 22px !important; font-weight: 800 !important; }
+html body #sheet-head button { color: #9FB3C8 !important; background: transparent !important; border: 0 !important; }
+html body #sheet .line { margin-top: 8px; padding: 10px !important; border: 1px solid #1F3246 !important; border-radius: 14px !important; background: #152231 !important; }
+html body #sheet .line img { background: #fff !important; border-radius: 10px !important; }
+html body #sheet .line .nm { color: #fff !important; }
+html body #sheet .line .pr { color: #7E93A8 !important; }
+html body #sheet .qty { gap: 4px; border: 0 !important; background: transparent !important; overflow: visible !important; }
+html body #sheet .qty button { width: 36px !important; height: 36px !important; border-radius: 50% !important; border: 1.5px solid #3B536B !important; background: transparent !important; color: #E6F4FC !important; font-size: 20px !important; }
+html body #sheet .qty button[data-inc] { border-color: #29ABE2 !important; color: #29ABE2 !important; }
+html body #sheet .qty span { min-width: 30px !important; color: #29ABE2 !important; font-size: 19px !important; font-weight: 800; }
+html body #sheet-foot { color: #fff !important; border-top: 1px solid #1F3246 !important; }
+html body #sheet .empty { color: #9FB3C8 !important; }
+</style>
 </body>
 </html>
