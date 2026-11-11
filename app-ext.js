@@ -1,3 +1,4 @@
+/* v185 (Hark, 2026-11-11, Dave): Pull List keeps the footage line "Job 99 ft · Grab 1 roll (100 ft)" under the item name. */
 /* v184 (Hark, 2026-11-11, Dave): footage items (FT_ITEMS: rt-18 sticks, rt-34/35/36/41 rolls) show feet on the Pull List; a check now takes whole sticks/rolls off On hand (ceil(feet / length)), not the feet number. */
 function stUnits(bin, n) { n = Number(n) || 0; if (!n) return ''; try { var F = window.FT_ITEMS; if (F && F[bin] && F[bin].len) return Math.ceil(n / F[bin].len); } catch (e) {} return n; }
 /* v183 (Hark, 2026-11-11): crew PIN rides on every Pull List check (setStagingCheck), incl. offline-queued taps; pairs with app v135. */
@@ -2253,7 +2254,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     while (x.firstChild) top.appendChild(x.firstChild);
     sh.querySelectorAll('.pick-line[data-pull-bin]').forEach(function (ln) {
       var code = ln.querySelector('.pick-line-code');
-      if (code) { var keep = code.textContent.split(' · ').filter(function (s) { return /^Bin /.test(s) || /^\d+ [a-z]+$/i.test(s); }); if (keep.length) code.textContent = keep.join(' · '); }
+      if (code) { var keep = code.textContent.split(' · ').filter(function (s) { return /^Bin /.test(s) || /^\d+ [a-z]+$/i.test(s) || /^(Job|Grab) /.test(s); }); if (keep.length) code.textContent = keep.join(' · '); }
       if (!ln.querySelector('.tc-ck')) { var b = document.createElement('button'); b.type = 'button'; b.className = 'tc-ck'; b.setAttribute('aria-label', 'Loaded on truck'); ln.insertBefore(b, ln.firstChild); }
     });
     fixLabels(sh); paintHead(sh); paintChecks(sh);
