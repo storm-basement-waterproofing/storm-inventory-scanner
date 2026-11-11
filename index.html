@@ -394,6 +394,7 @@
       var pages = Array.prototype.filter.call(m.pages, function (u) { return typeof u === 'string' && u.indexOf(base) === 0; });
       if (!pages.length) return;
       var old = document.getElementById('print-root'); if (old) old.remove();
+      ['pull-print', 'pull-print-css'].forEach(function (id) { var x = document.getElementById(id); if (x) x.remove(); });
       var pr = document.createElement('div'); pr.id = 'print-root';
       if (!document.getElementById('print-css')) {
         var ps = document.createElement('style'); ps.id = 'print-css';
@@ -405,12 +406,13 @@
       pages.forEach(function (u) { var im = new Image(); im.onload = im.onerror = function () { if (--left === 0) go(); }; im.src = u; pr.appendChild(im); });
       document.body.appendChild(pr);
       setTimeout(go, 4000);
-      window.addEventListener('afterprint', function () { var r = document.getElementById('print-root'); if (r) r.remove(); }, { once: true });
+      /* v187: Android Chrome fires afterprint before the preview is drawn, so the page went blank. Keep it (it's hidden outside print); the next print replaces it. */
       return;
     }
     /* v130 (Hark, 2026-11-09): Pull List print. The app frame can't print, so it hands the finished page here. */
     if (m.storm === 'printPull' && typeof m.body === 'string' && (/\.googleusercontent\.com$/.test(e.origin) || /script\.google\.com$/.test(e.origin) || e.origin === location.origin)) {
       var oldP = document.getElementById('pull-print'); if (oldP) oldP.remove();
+      ['print-root', 'print-css'].forEach(function (id) { var x = document.getElementById(id); if (x) x.remove(); });
       var pp = document.createElement('div'); pp.id = 'pull-print';
       var clean = m.body.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '');
       pp.innerHTML = clean;
@@ -422,7 +424,6 @@
       function goP() { if (firedP) return; firedP = true; setTimeout(function () { try { window.focus(); window.print(); } catch (x) {} }, 80); }
       if (!leftP) goP(); Array.prototype.forEach.call(ims, function (im) { if (im.complete) { if (--leftP === 0) goP(); } else { im.onload = im.onerror = function () { if (--leftP === 0) goP(); }; } });
       setTimeout(goP, 4000);
-      window.addEventListener('afterprint', function () { var r = document.getElementById('pull-print'); if (r) r.remove(); }, { once: true });
       return;
     }
     if (m.storm === 'scanDone' && e.origin === location.origin) {
