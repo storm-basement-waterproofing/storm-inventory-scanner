@@ -1,3 +1,4 @@
+/* v190 (Hark, 2026-11-11, Dave): cart $ total pill keeps clear of the button below it (Inventory + Job, phone + iPad; big totals no longer run off the edge); "Quote" label under the quote button; blue "Customer Search" label under the Pull List / Find a Job button. See the v190 block at the end. */
 /* v189 (Hark, 2026-11-11, Dave): iPad main list no longer massive (cards ~210px+, 3-5 per row, 4:3 photos, like the Details scale; phones unchanged); cart total pill under the cart button no longer overlaps the version tag; cart line totals wrap instead of being cut off. */
 /* v188 (Hark, 2026-11-11, Dave): bottom-right version badge shows the real app version (was stuck at v130); no second tag. */
 /* v187 (Hark, 2026-11-11, Dave): version tag in the bottom-right corner of the app (app version · ext version). */
@@ -4015,7 +4016,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
 /* v187 (Hark, 2026-11-11, Dave): small version tag, bottom right, so everyone can see which version is running. */
 (function () {
-  var EXT = 'v189';
+  var EXT = 'v190';
   function put() {
     var f = document.querySelector('.foot'), m = f && (f.textContent || '').match(/Inventory\s*\u00b7\s*(v\d+)/);
     var vb = document.getElementById('ver-badge'); if (vb) { if (m) vb.textContent = m[1]; return; } /* v188: the app's own bottom-right badge was hard-coded v130; it now shows the live footer version */
@@ -4036,4 +4037,30 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function put() { (document.head || document.documentElement).appendChild(st); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
   window.addEventListener('load', put); setTimeout(put, 1500); setTimeout(put, 4000); /* stay last, after any late style tags */
+})();
+
+/* v190 (Hark, 2026-11-11, Dave): "need to get the shopping cart totals to not go over the other icon below it" -> the cart button keeps a clear gap under it for its $ total pill (Inventory and Job, phone and iPad).
+   "the lowest icon on the right to read out quote under it" -> small "Quote" label under the Jobber quote button (#quote-fab).
+   "the icon that is for finishing a job ... say under it search or customer search" -> blue "Customer Search" label under the Pull List button (#pull-fab, opens Find a Job), one gentle pulse when Job mode opens.
+   Labels are ::after on the buttons, so they move and hide with the dock (detail pages, open sheets). */
+(function () {
+  if (document.getElementById('storm-v190-css')) return;
+  var st = document.createElement('style'); st.id = 'storm-v190-css';
+  var D = 'html body #fab-dock.fab-dock', J = 'html body.job-on #fab-dock.fab-dock';
+  st.textContent = ''
+    + D + ' > * { margin-top: 0 !important; }'
+    + D + ' > #cart-fab { margin-bottom: 22px !important; }'
+    + D + ' > #cart-fab .cart-fab-total { left: auto !important; right: -5px !important; transform: none !important; }' /* big totals ($1,234.56) stayed centered and ran off the screen edge */
+    + D + ' > #pull-fab { margin-bottom: 30px !important; overflow: visible !important; }'
+    + D + ' > #quote-fab { margin-bottom: 16px !important; overflow: visible !important; }'
+    + D + ' > #pull-fab::after, ' + D + ' > #quote-fab::after { position: absolute; left: 50%; top: calc(100% + 5px); transform: translateX(-50%); pointer-events: none; white-space: pre; text-align: center; font: 700 10px/1.15 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; letter-spacing: .2px; border-radius: 7px; }'
+    + D + ' > #quote-fab::after { content: "Quote"; padding: 2px 7px; background: #fff; color: #0F1720; box-shadow: 0 1px 4px rgba(15,23,32,.16); }'
+    + D + ' > #pull-fab::after { content: "Customer\\A Search"; padding: 3px 7px; background: #29ABE2; color: #fff; box-shadow: 0 2px 8px rgba(41,171,226,.45); }'
+    + J + ' > #pull-fab::after { animation: stCsPulse 1.4s ease-out .9s 2; }'
+    + '@keyframes stCsPulse { 0% { box-shadow: 0 2px 8px rgba(41,171,226,.45), 0 0 0 0 rgba(41,171,226,.55); } 70% { box-shadow: 0 2px 8px rgba(41,171,226,.45), 0 0 0 8px rgba(41,171,226,0); } 100% { box-shadow: 0 2px 8px rgba(41,171,226,.45), 0 0 0 0 rgba(41,171,226,0); } }'
+    + '@media (prefers-reduced-motion: reduce) { ' + J + ' > #pull-fab::after { animation: none; } }'
+    + '@media print { ' + D + ' > #pull-fab::after, ' + D + ' > #quote-fab::after { display: none; } }';
+  function put() { (document.head || document.documentElement).appendChild(st); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+  window.addEventListener('load', put); setTimeout(put, 1600); setTimeout(put, 4100); /* stay last, after any late style tags */
 })();
