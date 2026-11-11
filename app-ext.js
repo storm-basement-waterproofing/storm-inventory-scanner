@@ -1,3 +1,4 @@
+/* v191 (Hark, 2026-11-11, Dave): dock buttons fold into one spinning "+" (tap to flare out / suck back in; cart count on the +); Pull List "Print Preview" shows the printed sheet on screen; mode toggle reads "Stage Job". See the v191 block at the end. */
 /* v190 (Hark, 2026-11-11, Dave): cart $ total pill keeps clear of the button below it (Inventory + Job, phone + iPad; big totals no longer run off the edge); "Quote" label under the quote button; blue "Customer Search" label under the Pull List / Find a Job button. See the v190 block at the end. */
 /* v189 (Hark, 2026-11-11, Dave): iPad main list no longer massive (cards ~210px+, 3-5 per row, 4:3 photos, like the Details scale; phones unchanged); cart total pill under the cart button no longer overlaps the version tag; cart line totals wrap instead of being cut off. */
 /* v188 (Hark, 2026-11-11, Dave): bottom-right version badge shows the real app version (was stuck at v130); no second tag. */
@@ -3471,7 +3472,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   /* ---- header: segmented Job | Inventory on the existing switch (same button, same tap) ---- */
   function seg() {
     var m = document.getElementById('mode-switch'); if (!m || m.querySelector('.cl-seg')) return !!m;
-    var a = document.createElement('span'); a.className = 'cl-seg cl-seg-job'; a.textContent = 'Job';
+    var a = document.createElement('span'); a.className = 'cl-seg cl-seg-job'; a.textContent = 'Stage Job'; /* v191 (Dave): was "Job" */
     var b = document.createElement('span'); b.className = 'cl-seg cl-seg-inv'; b.textContent = 'Inventory';
     m.appendChild(a); m.appendChild(b);
     return true;
@@ -4016,7 +4017,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
 /* v187 (Hark, 2026-11-11, Dave): small version tag, bottom right, so everyone can see which version is running. */
 (function () {
-  var EXT = 'v190';
+  var EXT = 'v191';
   function put() {
     var f = document.querySelector('.foot'), m = f && (f.textContent || '').match(/Inventory\s*\u00b7\s*(v\d+)/);
     var vb = document.getElementById('ver-badge'); if (vb) { if (m) vb.textContent = m[1]; return; } /* v188: the app's own bottom-right badge was hard-coded v130; it now shows the live footer version */
@@ -4063,4 +4064,153 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function put() { (document.head || document.documentElement).appendChild(st); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
   window.addEventListener('load', put); setTimeout(put, 1600); setTimeout(put, 4100); /* stay last, after any late style tags */
+})();
+
+/* v191 (Hark, 2026-11-11, Dave): "the icons on the right hand side should all float into one icon that is a plus symbol" -> the dock (camera, cart + $ total,
+   Customer Search, Quote) folds into one white round "+" at the bottom of the dock. It spins in collapsed on load; tap = it unscrews (counter-clockwise to an x)
+   and the buttons flare back out where they sit; tap again = clockwise spin and they get sucked back in. Cart count rides on the + while folded.
+   "a print preview button the same as the print button" -> Pull List gets "Print Preview": the exact printed sheet on screen, with X and Print. */
+(function () {
+  if (window.__stormV191) return; window.__stormV191 = 1;
+  var D = 'html body #fab-dock.fab-dock', P = D + ' > #st-plus.st-plus', K = D + ' > :not(#st-plus)';
+  var HIDE = ['body:has(.pick-sheet.open)', 'body:has(.confirm-box.open)', 'body:has(.drawer.open)', 'body:has(#lbl-sheet.open)', 'body:has(.detail-overlay.open)', 'body.st-pre'];
+  var st = document.createElement('style'); st.id = 'storm-v191-css';
+  st.textContent = ''
+    + P + ' { position: relative; flex: none; width: 44px; height: 44px; margin: 0 !important; padding: 0; border: 0 !important; border-radius: 50% !important; background: #fff !important; color: #0F1720 !important;'
+    + ' box-shadow: 0 4px 14px rgba(15,23,32,.14) !important; display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent; animation: none !important; }'
+    + P + ' svg { width: 24px; height: 24px; display: block; transition: transform .5s cubic-bezier(.34,1.4,.5,1); transform: rotate(0deg); }'
+    + D + '.st-open > #st-plus svg { transform: rotate(-135deg); }' /* counter-clockwise: unscrews to an x */
+    + D + '.st-col > #st-plus svg { transition: transform .55s cubic-bezier(.5,0,.3,1.25); }' /* back clockwise to + */
+    + P + '.st-spin { animation: stPlusIn .8s cubic-bezier(.3,1.3,.5,1) both !important; }'
+    + '@keyframes stPlusIn { 0% { opacity: 0; transform: scale(.2) rotate(-300deg); } 60% { opacity: 1; } 100% { opacity: 1; transform: none; } }'
+    + P + ' .st-plus-n { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; border: 2px solid #fff; background: #29ABE2; color: #fff;'
+    + ' font: 700 11px/16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; pointer-events: none; transition: opacity .2s ease, transform .3s cubic-bezier(.3,1.4,.5,1); }'
+    + P + ' .st-plus-n.zero, ' + D + '.st-open > #st-plus .st-plus-n { opacity: 0; transform: scale(.4); }'
+    /* buttons: out = spring back to their spot, nearest first; in = pulled into the + */
+    + K + ' { transition: transform .52s cubic-bezier(.34,1.5,.55,1) var(--st-do, 0s), opacity .22s ease var(--st-do, 0s) !important; }'
+    + D + '.st-col > :not(#st-plus) { transform: translateY(var(--st-dy, 0px)) scale(.15) rotate(90deg) !important; opacity: 0 !important; pointer-events: none !important; animation: none !important;'
+    + ' transition: transform .4s cubic-bezier(.55,0,.8,.35) var(--st-dc, 0s), opacity .3s ease-in calc(var(--st-dc, 0s) + .1s) !important; }'
+    + D + '.st-col > #pull-fab::after { animation: none !important; }' /* Customer Search pulse replays when the dock opens in Job mode */
+    + D + '.st-col { pointer-events: none !important; }'
+    + HIDE.map(function (h) { return h + ' #fab-dock > #st-plus'; }).join(', ') + ' { pointer-events: none !important; }'
+    + '@media (prefers-reduced-motion: reduce) { ' + P + ' svg { transition: none !important; } ' + P + '.st-spin { animation: stPlusFade .3s ease both !important; } '
+    + K + ', ' + D + '.st-col > :not(#st-plus) { transition: opacity .2s ease !important; } ' + D + '.st-col > :not(#st-plus) { transform: none !important; } }'
+    + '@keyframes stPlusFade { from { opacity: 0; } to { opacity: 1; } }'
+    + '@media print { #st-plus, #st-pv { display: none !important; } }'
+    /* Print Preview */
+    + 'html body #pull-sheet .pick-sheet-foot .pull-print { order: 1 !important; }'
+    + 'html body #pull-sheet .pick-sheet-foot .pull-save { order: 3 !important; flex: 1 1 100% !important; }'
+    + 'html body #pull-sheet .pick-sheet-foot .pull-print.st-pvb { order: 0 !important; }'
+    + 'html body #pull-sheet .pull-print.st-pvb .st-pvi { width: 20px; height: 20px; flex: none; }'
+    + '#st-pv { position: fixed; inset: 0; z-index: 2147483100; display: flex; flex-direction: column; background: #E9EEF3; opacity: 0; transition: opacity .22s ease; -webkit-text-size-adjust: 100%; }'
+    + '#st-pv.on { opacity: 1; }'
+    + '#st-pv .st-pv-bar { flex: none; display: flex; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top)) 12px 10px; background: #fff; box-shadow: 0 1px 6px rgba(15,23,32,.12); }'
+    + '#st-pv .st-pv-x { flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; background: #F1F4F8; color: #0F1720; font-size: 24px; line-height: 40px; padding: 0; cursor: pointer; }'
+    + '#st-pv .st-pv-t { flex: 1; min-width: 0; font: 800 17px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0F1720; }'
+    + '#st-pv .st-pv-t span { display: block; font-size: 12px; font-weight: 600; color: #6B7280; }'
+    + '#st-pv .st-pv-p { flex: none; display: flex; align-items: center; gap: 7px; height: 42px; padding: 0 18px; border: 0; border-radius: 21px; background: #29ABE2; color: #fff; font: 700 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; box-shadow: 0 4px 12px rgba(41,168,224,.28); cursor: pointer; }'
+    + '#st-pv .st-pv-p svg { width: 18px; height: 18px; }'
+    + '#st-pv .st-pv-scroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 14px 0 calc(24px + env(safe-area-inset-bottom)); }'
+    + '#st-pv .st-pv-fit { position: relative; margin: 0 auto; }'
+    + '#st-pv .st-pv-host { position: absolute; top: 0; left: 0; width: 816px; transform-origin: 0 0; }';
+  function put() { (document.head || document.documentElement).appendChild(st); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+  window.addEventListener('load', put); setTimeout(put, 1700); setTimeout(put, 4200);
+
+  var PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+  var reduce = false; try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+  var open = false, plus = null, spun = false;
+  function dock() { return document.getElementById('fab-dock'); }
+  function kids(d) { return [].slice.call(d.children).filter(function (c) { return c !== plus && c.offsetParent !== null; }); }
+  function layout() {
+    var d = dock(); if (!d || !plus) return;
+    if (d.lastElementChild !== plus) d.appendChild(plus); /* stays the bottom spot */
+    var k = kids(d), n = k.length, py = plus.offsetTop;
+    k.forEach(function (c, i) {
+      var near = n - 1 - i; /* 0 = the button right above the + */
+      var dy = (py - c.offsetTop) + 'px';
+      if (c.style.getPropertyValue('--st-dy') !== dy) c.style.setProperty('--st-dy', dy);
+      c.style.setProperty('--st-do', reduce ? '0s' : (near * 0.055) + 's');
+      c.style.setProperty('--st-dc', reduce ? '0s' : (near * 0.045) + 's');
+    });
+  }
+  function badge() {
+    if (!plus) return;
+    var c = document.getElementById('cart-fab-count'), n = c ? parseInt(c.textContent, 10) || 0 : 0, b = plus.querySelector('.st-plus-n');
+    var t = n > 99 ? '99+' : String(n); if (b.textContent !== t) b.textContent = t;
+    b.classList.toggle('zero', n <= 0);
+    plus.setAttribute('aria-label', (open ? 'Close buttons' : 'Open buttons') + (n > 0 ? ' (cart: ' + n + ')' : ''));
+  }
+  function set(o) {
+    var d = dock(); if (!d) return; open = o; layout();
+    d.classList.toggle('st-open', o); d.classList.toggle('st-col', !o);
+    plus.setAttribute('aria-expanded', o ? 'true' : 'false'); badge();
+  }
+  function spinIn() {
+    if (spun || !plus) return;
+    if (document.body.classList.contains('st-pre')) { setTimeout(spinIn, 120); return; }
+    spun = true; plus.classList.add('st-spin'); setTimeout(function () { plus.classList.remove('st-spin'); }, 1000);
+  }
+  function build() {
+    var d = dock(); if (!d) return false;
+    if (!plus) {
+      plus = document.createElement('button'); plus.type = 'button'; plus.id = 'st-plus'; plus.className = 'st-plus';
+      plus.innerHTML = PLUS + '<span class="st-plus-n zero">0</span>';
+      plus.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); set(!open); });
+      d.classList.add('st-col');
+      d.appendChild(plus); set(false);
+      new MutationObserver(function () { if (d.lastElementChild !== plus) d.appendChild(plus); layout(); }).observe(d, { childList: true });
+      var c = document.getElementById('cart-fab-count'); if (c) new MutationObserver(badge).observe(c, { childList: true, characterData: true, subtree: true });
+      new MutationObserver(function () { setTimeout(layout, 30); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      window.addEventListener('resize', layout);
+      setInterval(function () { layout(); badge(); }, 1500);
+      spinIn();
+    }
+    return true;
+  }
+  (function go(n) { if (build() || n > 200) return; setTimeout(function () { go(n + 1); }, 100); })(0);
+
+  /* ---- Print Preview ---- */
+  var EYE = '<svg class="st-pvi cl-pv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5"/><path d="M14 3v5h5"/><path d="M19 8l-5-5"/><circle cx="16.5" cy="16.5" r="3"/><path d="M21 21l-2.3-2.3"/></svg>';
+  var PRN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+  function addBtn() {
+    var sh = document.getElementById('pull-sheet'); if (!sh || typeof window.stormPullDoc !== 'function') return;
+    var pr = sh.querySelector('.pull-print[data-pull-print]'); if (!pr || sh.querySelector('.st-pvb')) return;
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'pull-print st-pvb'; b.innerHTML = EYE + 'Print Preview';
+    if (pr.disabled) { b.disabled = true; b.style.opacity = '.5'; }
+    pr.insertAdjacentElement('afterend', b); /* after: older code decorates the first .pull-print */
+  }
+  var pv = null;
+  function fit() {
+    if (!pv) return;
+    var host = pv.querySelector('.st-pv-host'), fitEl = pv.querySelector('.st-pv-fit'), sc = pv.querySelector('.st-pv-scroll');
+    var s = Math.min(1, (sc.clientWidth - 24) / 816);
+    host.style.transform = 'scale(' + s + ')';
+    fitEl.style.width = (816 * s) + 'px'; fitEl.style.height = (host.offsetHeight * s) + 'px';
+  }
+  function closePv() { if (!pv) return; var p = pv; pv = null; p.classList.remove('on'); setTimeout(function () { if (p.parentNode) p.remove(); }, 230); }
+  function openPv() {
+    var doc = null; try { doc = window.stormPullDoc(); } catch (e) {} if (!doc) return;
+    if (pv) pv.remove();
+    pv = document.createElement('div'); pv.id = 'st-pv'; pv.setAttribute('role', 'dialog'); pv.setAttribute('aria-label', 'Print preview');
+    pv.innerHTML = '<div class="st-pv-bar"><button class="st-pv-x" type="button" aria-label="Close preview">\u00d7</button><div class="st-pv-t">Print Preview<span>Pull List \u00b7 Letter</span></div>'
+      + '<button class="st-pv-p" type="button">' + PRN + 'Print</button></div><div class="st-pv-scroll"><div class="st-pv-fit"><div class="st-pv-host"></div></div></div>';
+    var host = pv.querySelector('.st-pv-host'), root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
+    var css = String(doc.css || '').replace(/@page\{[^}]*\}/g, '').replace(/(^|\})body\{/g, '$1.st-paper{');
+    root.innerHTML = '<style>' + css + '.st-paper{box-sizing:border-box;width:816px;min-height:1056px;padding:43px 48px;background:#fff;box-shadow:0 6px 24px rgba(15,23,32,.16);border-radius:4px}</style><div class="st-paper">' + doc.body + '</div>';
+    document.body.appendChild(pv);
+    pv.querySelector('.st-pv-x').addEventListener('click', closePv);
+    pv.querySelector('.st-pv-p').addEventListener('click', function () { try { window.stormPullPrintNow && window.stormPullPrintNow(); } catch (e) {} });
+    [].slice.call(root.querySelectorAll('img')).forEach(function (im) { im.addEventListener('load', fit); });
+    fit(); void pv.offsetWidth; pv.classList.add('on'); setTimeout(fit, 300);
+  }
+  window.addEventListener('resize', fit);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && pv) closePv(); });
+  document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('.st-pvb'); if (!b) return; e.preventDefault(); e.stopPropagation(); if (!b.disabled) openPv(); }, true);
+  (function watch(n) {
+    var sh = document.getElementById('pull-sheet');
+    if (sh) { addBtn(); new MutationObserver(addBtn).observe(sh, { childList: true, subtree: true }); return; }
+    if (n < 200) setTimeout(function () { watch(n + 1); }, 150);
+  })(0);
+  window.stormPrintPreview = openPv;
 })();
