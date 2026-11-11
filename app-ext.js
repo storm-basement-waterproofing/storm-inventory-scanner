@@ -1,3 +1,4 @@
+/* v189 (Hark, 2026-11-11, Dave): iPad main list no longer massive (cards ~210px+, 3-5 per row, 4:3 photos, like the Details scale; phones unchanged); cart total pill under the cart button no longer overlaps the version tag; cart line totals wrap instead of being cut off. */
 /* v188 (Hark, 2026-11-11, Dave): bottom-right version badge shows the real app version (was stuck at v130); no second tag. */
 /* v187 (Hark, 2026-11-11, Dave): version tag in the bottom-right corner of the app (app version · ext version). */
 /* v185 (Hark, 2026-11-11, Dave): Pull List keeps the footage line "Job 99 ft · Grab 1 roll (100 ft)" under the item name. */
@@ -4014,7 +4015,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
 /* v187 (Hark, 2026-11-11, Dave): small version tag, bottom right, so everyone can see which version is running. */
 (function () {
-  var EXT = 'v188';
+  var EXT = 'v189';
   function put() {
     var f = document.querySelector('.foot'), m = f && (f.textContent || '').match(/Inventory\s*\u00b7\s*(v\d+)/);
     var vb = document.getElementById('ver-badge'); if (vb) { if (m) vb.textContent = m[1]; return; } /* v188: the app's own bottom-right badge was hard-coded v130; it now shows the live footer version */
@@ -4024,4 +4025,15 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
   setTimeout(put, 1500);
+})();
+
+/* v189 (Hark, 2026-11-11, Dave): "on the iPad the items are massive" -> tablet widths (>= 700px) get smaller, more cards per row; phones keep the 2-column grid.
+   "the totals overlap when it's in the shopping cart" -> the button dock sits higher so the cart total pill clears the bottom-right version tag; cart line totals wrap. */
+(function () {
+  if (document.getElementById('storm-v189-css')) return;
+  var st = document.createElement('style'); st.id = 'storm-v189-css';
+  st.textContent = '@media (min-width: 700px) { html body #list { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important; gap: 14px !important; max-width: 1240px; margin-left: auto !important; margin-right: auto !important; box-sizing: border-box; } html body #list > .card .photo { aspect-ratio: 4 / 3 !important; } html body #list > .card .gd-badge { aspect-ratio: 4 / 3 !important; } html body #list > .card .name { font-size: 15px !important; } html body #list > .card .sku { font-size: 12.5px !important; } html body #list > .card .price { font-size: 13.5px !important; } } html body .fab-dock { bottom: calc(68px + env(safe-area-inset-bottom)) !important; } html body #pick-sheet.tk .pick-line-code { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: anywhere; }';
+  function put() { (document.head || document.documentElement).appendChild(st); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+  window.addEventListener('load', put); setTimeout(put, 1500); setTimeout(put, 4000); /* stay last, after any late style tags */
 })();
