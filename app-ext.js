@@ -1,3 +1,4 @@
+/* v181 (Hark, 2026-11-11): separate "On hand" pill on every card + bottom sheet (Inventory mode); edits On hand only, never the order. See the v181 block at the end. */
 /* v180 (Hark, 2026-11-10): crew-phone sync - shared Pull List checks (Staging tab) and 2 s live updates; see the v180 notes in the v167 block and at the end. */
 /* v175 (Hark, 2026-11-10, Dave: "lighten up the theme just a little"): every Truck Check navy (bg, cards, borders, header) raised about 4% lightness, e.g. #0E1621 -> #14202F, #152231 -> #1B2C3F, #1F3246 -> #253C54. Same in scan.html. */
 /* EDITORS (any Hark chat or AI tool): this file is edited from more than one place. Before every save, download the newest app-ext.js from GitHub main, add your change on top of it, and keep every existing vNNN block. Never save from an older copy. */
@@ -3738,6 +3739,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function mark(e) { var b = binOf(e.target); if (b) touched[b] = Date.now(); }
   ['pointerdown', 'input', 'change', 'keydown', 'focusin'].forEach(function (t) { document.addEventListener(t, mark, true); });
   function busy(bin) {
+    if (window.stormOnHandSheetBin && window.stormOnHandSheetBin === bin) return true; /* v181: the On hand sheet is open on this bin */
     if (Date.now() - (touched[bin] || 0) < 4000) return true;
     try { var q = saveQueues && saveQueues[bin]; if (q && (q.busy || q.pending !== null)) return true; } catch (e) {}
     var ae = document.activeElement;
@@ -3800,4 +3802,182 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   window.addEventListener('online', function () { if (visible() && !inFlight) { err = 0; schedule(0); } });
   /* start once the item list has loaded */
   (function start(n) { var ok = false; try { ok = Array.isArray(items) && items.length > 0; } catch (e) {} if (ok || n > 120) schedule(DELAYS[0]); else setTimeout(function () { start(n + 1); }, 500); })(0);
+})();
+
+/* v181 (Hark, 2026-11-11, Dave asked 02:05): a separate "On hand" control so the on-hand count is never mixed up with the order amount.
+   - Every item card (Inventory mode only) gets a small "On hand: N" pill ("–" when blank). Tapping it opens a bottom sheet with the
+     item photo and name, a big number with − / + and a numeric box, and Save / Cancel.
+   - Save only changes On hand: it.onHand = n, need recomputed, patchCard(it), then the existing saveCount(bin, n) -> updateCount path
+     (same 'Saved' toast, same live-sync stamp bump). The order quantity / pick list is never touched.
+   - Item details: the on-hand ring card (and an "Edit on hand" pill on it) opens the same sheet (Inventory mode only).
+   - The card number box and steppers are unchanged (they still edit the order while an item is in it).
+   - While the sheet is open its bin counts as "being edited", so the v180 live sync never overwrites it (see busy() in the v180 block). */
+(function () {
+  if (window.__stormOnHand181) return; window.__stormOnHand181 = true;
+  var BLUE = '#29A8E0', BLUED = '#1A8FC4', INK = '#0F1720', MUTE = '#6B7280', MUTE2 = '#8A94A3', LINE = '#DCE4EE', BG = '#EAF0F7', AMBER = '#D97706', RED = '#DC2626';
+  var FONT = "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  var SH = '0 1px 2px rgba(15,23,32,.05), 0 4px 14px rgba(15,23,32,.06)';
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function find(bin) { try { return findItem(bin); } catch (e) { return null; } }
+  function jobMode() { try { return typeof isJobMode === 'function' ? !!isJobMode() : false; } catch (e) { return false; } }
+  function ohText(it) { return it && it.onHand != null && it.onHand !== '' ? String(it.onHand) : '\u2013'; }
+  function btnHtml(it) { return '<button class="oh-btn" type="button" data-oh-bin="' + esc(it.bin) + '" aria-label="Edit on hand count">On hand: <b>' + esc(ohText(it)) + '</b></button>'; }
+
+  var css = document.createElement('style'); css.id = 'storm-v181-css';
+  css.textContent = ''
+    + '.card .controls .oh-btn { flex: 1 1 100%; order: -1; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 30px; margin: 0; padding: 4px 10px; border: 1px solid rgba(41,168,224,.45); border-radius: 14px; background: #fff; color: ' + BLUED + '; font-family: ' + FONT + '; font-size: 12.5px; font-weight: 600; line-height: 1.1; -webkit-tap-highlight-color: transparent; cursor: pointer; }'
+    + '.card .controls .oh-btn b { font-weight: 800; color: ' + INK + '; font-size: 13.5px; }'
+    + '.card .controls .oh-btn:active { background: rgba(41,168,224,.08); }'
+    + 'body.oh-job .oh-btn, body.oh-job #detail .oh-edit { display: none !important; }'
+    + '#detail .cl-stock.oh-tap { cursor: pointer; flex-wrap: wrap; -webkit-tap-highlight-color: transparent; }'
+    + 'body.oh-job #detail .cl-stock.oh-tap { cursor: default; }'
+    + '#detail .cl-stock .oh-edit { flex: 1 1 100%; min-height: 36px; margin: 2px 0 0; padding: 6px 12px; border: 1px solid rgba(41,168,224,.45); border-radius: 14px; background: #fff; color: ' + BLUED + '; font-family: ' + FONT + '; font-size: 14px; font-weight: 700; -webkit-tap-highlight-color: transparent; }'
+    + '#detail .cl-stock .oh-edit:active { background: rgba(41,168,224,.08); }'
+    + '#oh-scrim { position: fixed; inset: 0; z-index: 200; background: rgba(15,23,32,.42); opacity: 0; pointer-events: none; transition: opacity .25s ease; }'
+    + '#oh-scrim.open { opacity: 1; pointer-events: auto; }'
+    + '#oh-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 201; max-width: 560px; margin: 0 auto; padding: 8px 18px calc(18px + env(safe-area-inset-bottom)); background: #fff; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 24px rgba(15,23,32,.18); font-family: ' + FONT + '; color: ' + INK + '; transform: translateY(105%); transition: transform .25s ease; }'
+    + '#oh-sheet.open { transform: translateY(0); }'
+    + '#oh-sheet .oh-grab { width: 40px; height: 4px; margin: 0 auto 12px; border-radius: 2px; background: ' + LINE + '; }'
+    + '#oh-sheet .oh-head { display: flex; align-items: center; gap: 12px; }'
+    + '#oh-sheet .oh-ph { flex: none; width: 60px; height: 60px; border-radius: 10px; background: #fff; border: 1px solid #EEF2F6; object-fit: contain; }'
+    + '#oh-sheet .oh-ph.oh-none { visibility: hidden; }'
+    + '#oh-sheet .oh-nm { font-size: 16px; font-weight: 700; line-height: 1.25; }'
+    + '#oh-sheet .oh-sub { margin-top: 2px; font-size: 12.5px; font-weight: 500; color: ' + MUTE2 + '; }'
+    + '#oh-sheet .oh-lbl { margin: 18px 0 8px; text-align: center; font-size: 11.5px; font-weight: 700; letter-spacing: .1em; color: ' + MUTE2 + '; }'
+    + '#oh-sheet .oh-row { display: flex; align-items: center; justify-content: center; gap: 16px; }'
+    + '#oh-sheet .oh-step { flex: none; width: 56px; height: 56px; border: 0; border-radius: 14px; background: ' + BG + '; color: ' + INK + '; font-family: ' + FONT + '; font-size: 28px; font-weight: 600; line-height: 1; -webkit-tap-highlight-color: transparent; }'
+    + '#oh-sheet .oh-step[data-oh-step="plus"] { color: ' + BLUED + '; }'
+    + '#oh-sheet .oh-step:active { background: #DCE6F0; }'
+    + '#oh-sheet .oh-num { width: 120px; height: 64px; border: 1.5px solid ' + LINE + '; border-radius: 14px; background: #fff; color: ' + INK + '; text-align: center; font-family: ' + FONT + '; font-size: 40px; font-weight: 800; -moz-appearance: textfield; }'
+    + '#oh-sheet .oh-num::-webkit-outer-spin-button, #oh-sheet .oh-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }'
+    + '#oh-sheet .oh-num:focus { outline: none; border-color: ' + BLUE + '; }'
+    + '#oh-sheet .oh-num::placeholder { color: #C3CBD6; }'
+    + '#oh-sheet .oh-par { margin-top: 10px; min-height: 18px; text-align: center; font-size: 13px; font-weight: 600; color: ' + MUTE + '; }'
+    + '#oh-sheet .oh-par .oh-amb { color: ' + AMBER + '; } #oh-sheet .oh-par .oh-red { color: ' + RED + '; }'
+    + '#oh-sheet .oh-btns { display: flex; gap: 10px; margin-top: 18px; }'
+    + '#oh-sheet .oh-btns button { flex: 1 1 0; min-height: 50px; border-radius: 14px; font-family: ' + FONT + '; font-size: 16px; font-weight: 700; -webkit-tap-highlight-color: transparent; }'
+    + '#oh-sheet .oh-cancel { border: 1px solid ' + LINE + '; background: #fff; color: ' + INK + '; }'
+    + '#oh-sheet .oh-save { border: 0; background: ' + BLUE + '; color: #fff; }'
+    + '#oh-sheet .oh-save:active { background: ' + BLUED + '; }';
+  document.head.appendChild(css);
+
+  /* ---- the sheet ---- */
+  var scrim = document.createElement('div'); scrim.id = 'oh-scrim';
+  var sheet = document.createElement('div'); sheet.id = 'oh-sheet'; sheet.setAttribute('role', 'dialog'); sheet.setAttribute('aria-modal', 'true'); sheet.setAttribute('aria-label', 'On hand count');
+  sheet.innerHTML = '<div class="oh-grab"></div>'
+    + '<div class="oh-head"><img class="oh-ph" alt=""><div><div class="oh-nm"></div><div class="oh-sub"></div></div></div>'
+    + '<div class="oh-lbl">ON HAND</div>'
+    + '<div class="oh-row"><button class="oh-step" type="button" data-oh-step="minus" aria-label="One less">\u2212</button>'
+    + '<input class="oh-num" type="number" inputmode="numeric" pattern="[0-9]*" min="0" placeholder="\u2013" aria-label="On hand">'
+    + '<button class="oh-step" type="button" data-oh-step="plus" aria-label="One more">+</button></div>'
+    + '<div class="oh-par"></div>'
+    + '<div class="oh-btns"><button class="oh-cancel" type="button">Cancel</button><button class="oh-save" type="button">Save</button></div>';
+  function mount() { if (!scrim.parentNode) document.body.appendChild(scrim); if (!sheet.parentNode) document.body.appendChild(sheet); }
+  var num = sheet.querySelector('.oh-num');
+  window.stormOnHandSheetBin = null; /* read by the v180 live sync: this bin is being edited */
+
+  function curVal() { var v = String(num.value).trim(); if (v === '') return null; var n = Math.floor(Number(v)); return isNaN(n) || n < 0 ? 0 : n; }
+  function paintPar() {
+    var it = find(window.stormOnHandSheetBin), el = sheet.querySelector('.oh-par'); if (!it) { el.textContent = ''; return; }
+    var par = it.par != null && it.par !== '' ? Number(it.par) : null, v = curVal();
+    if (par == null) { el.textContent = 'No keep-on-hand set'; return; }
+    var need = v == null ? null : Math.max(0, par - v);
+    el.innerHTML = 'Keep on hand ' + esc(par) + (need == null ? '' : ' \u00b7 <span class="' + (need > 0 ? (v === 0 ? 'oh-red' : 'oh-amb') : '') + '">Need ' + need + '</span>');
+  }
+  function photoSrc(bin, it) {
+    var img = document.querySelector('#list .card[data-bin="' + bin + '"] img.photo');
+    if (!img) { try { if (currentDetailBin === bin) img = document.querySelector('#detail .detail-photo'); } catch (e) {} }
+    return (img && (img.currentSrc || img.getAttribute('src'))) || it.photoUrl || '';
+  }
+  function openSheet(bin) {
+    var it = find(bin); if (!it || jobMode()) return;
+    mount();
+    window.stormOnHandSheetBin = bin;
+    var ph = sheet.querySelector('.oh-ph'), src = photoSrc(bin, it);
+    if (src) { ph.src = src; ph.classList.remove('oh-none'); } else { ph.removeAttribute('src'); ph.classList.add('oh-none'); }
+    sheet.querySelector('.oh-nm').textContent = it.name || bin;
+    sheet.querySelector('.oh-sub').textContent = [String(it.bin).toUpperCase(), it.supplier || ''].filter(Boolean).join(' \u00b7 ');
+    num.value = it.onHand != null && it.onHand !== '' ? String(it.onHand) : '';
+    paintPar();
+    scrim.classList.add('open'); void sheet.offsetWidth; sheet.classList.add('open');
+  }
+  function closeSheet() {
+    sheet.classList.remove('open'); scrim.classList.remove('open');
+    try { if (document.activeElement === num) num.blur(); } catch (e) {}
+    /* keep the bin protected a moment longer so a sync landing mid-close can't flicker the old value back */
+    var b = window.stormOnHandSheetBin; setTimeout(function () { if (window.stormOnHandSheetBin === b && !sheet.classList.contains('open')) window.stormOnHandSheetBin = null; }, 600);
+  }
+  function save() {
+    var bin = window.stormOnHandSheetBin, it = find(bin); if (!it) { closeSheet(); return; }
+    var n = curVal();
+    /* On hand only - the same steps the card box takes for an unpicked item, minus the pick-list sync */
+    it.onHand = n;
+    it.need = (it.onHand == null || it.par == null || it.par === '') ? null : Math.max(0, Number(it.par) - it.onHand);
+    try { patchCard(it); } catch (e) {}
+    try { syncDetailStepper(bin); } catch (e) {}
+    closeSheet();
+    saveCount(bin, n == null ? '' : String(n));
+    nudgeDetail();
+  }
+  sheet.addEventListener('click', function (e) {
+    var t = e.target;
+    var st = t.closest && t.closest('[data-oh-step]');
+    if (st) { var v = curVal(); v = v == null ? 0 : v; v = st.getAttribute('data-oh-step') === 'plus' ? v + 1 : Math.max(0, v - 1); num.value = String(v); paintPar(); return; }
+    if (t.closest && t.closest('.oh-cancel')) { closeSheet(); return; }
+    if (t.closest && t.closest('.oh-save')) { save(); return; }
+  });
+  num.addEventListener('input', paintPar);
+  num.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+  scrim.addEventListener('click', closeSheet);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet.classList.contains('open')) closeSheet(); });
+
+  /* ---- buttons on cards ---- */
+  try { var _ch = cardHtml; cardHtml = function (it) { var h = _ch.apply(this, arguments); try { if (it && it.bin && h.indexOf('data-oh-bin') < 0) h = h.replace('<div class="controls">', '<div class="controls">' + btnHtml(it)); } catch (e) {} return h; }; } catch (e) {}
+  function refreshBtn(bin) {
+    var it = find(bin); if (!it) return;
+    var t = ohText(it);
+    document.querySelectorAll('.oh-btn[data-oh-bin="' + bin + '"] b').forEach(function (b) { if (b.textContent !== t) b.textContent = t; });
+  }
+  try { var _pc = patchCard; patchCard = function (it) { var r = _pc.apply(this, arguments); try { if (it && it.bin) refreshBtn(it.bin); } catch (e) {} return r; }; } catch (e) {}
+  function pass() {
+    var jm = jobMode();
+    if (document.body.classList.contains('oh-job') !== jm) document.body.classList.toggle('oh-job', jm);
+    document.querySelectorAll('.card[data-bin] > .controls').forEach(function (c) {
+      var card = c.parentNode; if (card.closest('#detail, #pick-sheet, #pull-sheet')) return;
+      var bin = card.getAttribute('data-bin'), it = find(bin); if (!it) return;
+      var b = c.querySelector('.oh-btn');
+      if (!b) { c.insertAdjacentHTML('afterbegin', btnHtml(it)); return; }
+      var bb = b.querySelector('b'), t = ohText(it); if (bb && bb.textContent !== t) bb.textContent = t;
+    });
+    var d = document.getElementById('detail');
+    if (d && d.classList.contains('open')) {
+      var stock = d.querySelector('.cl-stock');
+      if (stock) {
+        if (!stock.classList.contains('oh-tap')) stock.classList.add('oh-tap');
+        if (!stock.querySelector('.oh-edit')) stock.insertAdjacentHTML('beforeend', '<button class="oh-edit" type="button">Edit on hand</button>');
+      }
+    }
+  }
+  function nudgeDetail() { /* the v179 ring card repaints on a class change of #detail */ var d = document.getElementById('detail'); if (d && d.classList.contains('open')) { d.classList.add('oh-t'); setTimeout(function () { d.classList.remove('oh-t'); }, 0); } }
+  var pq = 0; function soon() { if (pq) return; pq = setTimeout(function () { pq = 0; try { pass(); } catch (e) {} }, 80); }
+
+  /* taps: capture phase so the base list handler never sees them */
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var b = t.closest('.oh-btn[data-oh-bin]');
+    if (b) { e.preventDefault(); e.stopPropagation(); openSheet(b.getAttribute('data-oh-bin')); return; }
+    var s = t.closest('#detail .cl-stock');
+    if (s && !jobMode()) { var bin = null; try { bin = currentDetailBin; } catch (x) {} if (bin) { e.preventDefault(); e.stopPropagation(); openSheet(bin); } }
+  }, true);
+
+  function attach() {
+    var ok = true;
+    ['list', 'detail'].forEach(function (id) { var el = document.getElementById(id); if (!el) { ok = false; return; } if (el.__oh181) return; el.__oh181 = 1; var o = { childList: true, subtree: true }; if (id === 'detail') { o.attributes = true; o.attributeFilter = ['class']; } new MutationObserver(soon).observe(el, o); });
+    var ms = document.getElementById('mode-switch'); if (ms && !ms.__oh181) { ms.__oh181 = 1; new MutationObserver(soon).observe(ms, { attributes: true, attributeFilter: ['class'] }); }
+    soon();
+    return ok;
+  }
+  if (!attach()) { var tries = 0; (function poll() { if (attach() || ++tries > 120) return; setTimeout(poll, 250); })(); }
+  window.addEventListener('load', soon);
+  window.stormOpenOnHand = openSheet;
 })();
