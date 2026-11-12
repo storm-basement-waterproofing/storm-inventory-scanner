@@ -1,3 +1,4 @@
+/* v205 (Hark, 2026-11-11, Dave batch H): forgiving search - typos, slang and sizes find the item; ranked best match first (flat list while searching), "Closest matches" when nothing matches; Receiving Orders add-by-search ranked the same way. See the v205 block at the end. Pairs with app v157. */
 /* v204 (Hark, 2026-11-11, Dave 21:15): Insurance Certificates > Email opens a Jobber customer search (all clients incl. quotes/leads, read-only searchJobberClients) or "Skip, continue to email"; new body with a Customer information section. Pairs with app v156. */
 /* v203 (Hark, 2026-11-11 21:23-21:48, Dave): Truck Check: the Box Truck Pre Check and Tool Checklist rows open fillable phone forms that save to the "Truck Check" tab (anyone can fill them in; live across phones); "View / print paper copy" keeps the PDFs. Item details swipe: photo box no longer shrinks after the slide. See the v203 block at the end. */
 /* v202 (Hark, 2026-11-11 20:50-21:02, Dave batch F): supplier logos in a clear strip above the product photo; manager login switches in place (no flash/jump); Staging opens only Find a Job; side-menu Customer Search row removed; nothing peeks from the closed Categories list; no blue tap highlight; faster checklist pages; Media tiles float in; Insurance Certificates + Logos manager-only; equal-height item cards; supplier logo in the Supplier tile; photos fade in once loaded; menu button morphs to an X. See the v202 block at the end. */
@@ -6655,15 +6656,30 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function norm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
   function search(v) {
     var w = norm(v).split(' ').filter(Boolean); if (!w.length) return [];
-    return all().filter(function (it) { if (!it || !it.bin) return false; var h = norm(it.name + ' ' + it.bin + ' ' + (it.sku || '') + ' ' + (it.supplier || '')); return w.every(function (x) { return h.indexOf(x) >= 0; }); })
-      .sort(byNm).slice(0, 8);
+    var sub = all().filter(function (it) { if (!it || !it.bin) return false; var h = norm(it.name + ' ' + it.bin + ' ' + (it.sku || '') + ' ' + (it.supplier || '')); return w.every(function (x) { return h.indexOf(x) >= 0; }); })
+      .sort(byNm);
+    /* v205: forgiving search ranks first (typos, slang, sizes); the old every-word match stays as the fallback */
+    try {
+      if (window.stormSearch205) {
+        var r = window.stormSearch205.rank(v), by = {}, out = [];
+        all().forEach(function (it) { if (it && it.bin) by[it.bin] = it; });
+        r.bins.forEach(function (b) { if (by[b]) out.push(by[b]); });
+        sub.forEach(function (it) { if (r.rank[it.bin] == null) out.push(it); });
+        search.near = out.length ? [] : window.stormSearch205.closest(v).map(function (b) { return by[b]; }).filter(Boolean);
+        return out.slice(0, 8);
+      }
+    } catch (e) {}
+    search.near = [];
+    return sub.slice(0, 8);
   }
   function showRes(on) { var r = q('.r-res'); if (r) r.classList.toggle('on', !!on); }
   function paintRes() {
     var v = q('.r-q').value, hits = search(v), r = q('.r-res');
     if (!norm(v)) { showRes(false); return; }
-    r.innerHTML = hits.length ? hits.map(function (it) { var src = photo(it); return '<button type="button" class="r-hit" data-r-hit="' + esc(it.bin) + '">' + (src ? '<img alt="" loading="lazy" src="' + esc(src) + '">' : '<span class="r-noimg"></span>') + '<span class="r-ht"><span class="r-hn">' + esc(it.name || it.bin) + '</span><span class="r-hm">' + esc(String(it.bin).toUpperCase()) + ' \u00b7 ' + esc(it.supplier || '') + '</span></span><span class="r-add">+ Add</span></button>'; }).join('')
-      : '<div class="r-none">No item matches \u201c' + esc(v) + '\u201d</div>';
+    function hitHtml(it) { var src = photo(it); return '<button type="button" class="r-hit" data-r-hit="' + esc(it.bin) + '">' + (src ? '<img alt="" loading="lazy" src="' + esc(src) + '">' : '<span class="r-noimg"></span>') + '<span class="r-ht"><span class="r-hn">' + esc(it.name || it.bin) + '</span><span class="r-hm">' + esc(String(it.bin).toUpperCase()) + ' \u00b7 ' + esc(it.supplier || '') + '</span></span><span class="r-add">+ Add</span></button>'; }
+    var near = (!hits.length && search.near) ? search.near : []; /* v205: closest matches when nothing matches */
+    r.innerHTML = hits.length ? hits.map(hitHtml).join('')
+      : '<div class="r-none">No item matches \u201c' + esc(v) + '\u201d' + (near.length ? '. Closest matches:' : '') + '</div>' + near.map(hitHtml).join('');
     showRes(true);
   }
   /* scan: reuse openScanner (wrapper camera). For this one scan the result is caught here: added as received, the cart stays as it was. */
@@ -8183,4 +8199,267 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       setTimeout(function () { close(true); }, 250);
     }
   }, true);
+})();
+
+/* v205 (Hark, 2026-11-11, Dave batch H): forgiving (fuzzy) search. Typos, trade slang and size spellings find the item
+   ("sump pmp", "hydralic cement", "bubbler pot", "1 1/2 pvc", "chek valve"). StormFuzzy (matcher) + STORM_SEARCH_TERMS
+   (hidden terms for 145 items, looked up by SKU first, then by bin) are inlined here. window.stormSearch205:
+     rank(q)    -> { bins: [best first], rank: { bin: i } }  threshold 0.6, relCut 0.2 (cached per query + item list)
+     closest(q) -> [bin, ...] up to 3, threshold 0.45 (the "Closest matches" row when nothing matches)
+   The index is built once and rebuilt only when a bin, name or SKU changes (not on the 2 s live-sync count patches); it is
+   pre-built when the browser is idle after load and when a search box gets focus, so the first keystroke never waits.
+   Index.html v157 filtered() keeps the old substring test as a fallback (Detail column, SEARCH_TAGS, SEARCH_TAGS_SKU) and
+   puts ranked hits first; render() shows a flat ranked list while there is a query. Receiving Orders "Add item not on the
+   list" uses the same ranking. Pairs with app v157. */
+(function () {
+  if (window.stormSearch205) return;
+
+/* STORM Inventory fuzzy search (prototype, Hark 2026-11-11). No dependencies, ~6 KB.
+ *
+ *   var idx = StormFuzzy.buildIndex(items, searchTerms);   // items: [{bin, name, sku, ...}], searchTerms: search-terms.json object
+ *   var hits = StormFuzzy.search(idx, 'sump pmp');          // [{item, bin, score}], best first, score >= 0.6
+ *
+ * Scoring: each query token is matched to its best token on the item (name, SKU, bin, hidden terms), each item token
+ * used once. Token similarity = exact 1; prefix 0.86-1 (partial words); Damerau-Levenshtein (OSA) 1 - d/len with the
+ * first letter kept; numbers match exactly. Term-only hits count 0.96 so a name hit ranks first. Item score = mean over
+ * query tokens. Kept: score >= threshold (0.6) and within relCut (0.2) of the best hit, so junk tails drop away.
+ */
+(function (root) {
+  'use strict';
+  var STOP = { 'in': 1, 'inch': 1, 'inches': 1, 'x': 1, 'the': 1, 'a': 1, 'an': 1, 'of': 1, 'for': 1, 'with': 1, 'and': 1, 'to': 1, 'w': 1, 'or': 1, 'ft': 1, 'deg': 1, 'degree': 1, 'degrees': 1 };
+  var UNIT = { ft: 'ft', feet: 'ft', foot: 'ft', lb: 'lb', lbs: 'lb', oz: 'oz', gal: 'gal', gallon: 'gal', gallons: 'gal', qt: 'qt', quart: 'qt', quarts: 'qt', hp: 'hp', tpi: 'tpi', amp: 'amp', amps: 'amp', mil: 'mil', ah: 'ah', pack: 'pk', pk: 'pk', piece: 'pk', pieces: 'pk', pc: 'pk', pcs: 'pk', count: 'pk', ct: 'pk', pair: 'pk' };
+  var DEN = { 2: 1, 3: 1, 4: 1, 8: 1, 16: 1 };
+
+  function fmt(v) { return String(Math.round(v * 1000) / 1000); }
+  function frac(n, d) { n = +n; d = +d; return (DEN[d] && n > 0 && n < d) ? n / d : null; }
+
+  function normalize(s) {
+    s = String(s == null ? '' : s).toLowerCase();
+    s = s.replace(/\u00bd/g, ' 1/2').replace(/\u00bc/g, ' 1/4').replace(/\u00be/g, ' 3/4')
+      .replace(/[\u2033\u201c\u201d]/g, '"').replace(/[\u2032\u2018\u2019`]/g, "'")
+      .replace(/\u00d7/g, ' x ').replace(/\u00b0/g, ' ');
+    s = s.replace(/\bs\s*&\s*d\b/g, ' sd ').replace(/&/g, ' and ').replace(/\bw\//g, ' with ');
+    s = s.replace(/(\d)\s*'\s*(\d)/g, '$1ft $2').replace(/(\d)\s*'/g, '$1ft ').replace(/(\d)\s*"/g, '$1 in ');
+    s = s.replace(/(^|[^\d\/])11\/2(?![\d\/])/g, '$11-1/2');                       /* "11/2" typed for 1-1/2 */
+    s = s.replace(/(\d+)[\s-]+(\d+)\/(\d+)(?![\d\/])/g, function (m, w, n, d) { var f = frac(n, d); return f == null ? m : ' ' + fmt(+w + f) + ' '; });
+    s = s.replace(/(^|[^\d.\/])(\d+)\/(\d+)(?![\d\/])/g, function (m, p, n, d) { var f = frac(n, d); return f == null ? m : p + ' ' + fmt(f) + ' '; });
+    s = s.replace(/(^|\s)\.(\d)/g, '$10.$2');                                     /* .5 -> 0.5 */
+    s = s.replace(/\bpack of (\d+)/g, '$1 pk').replace(/\((\d+)\)/g, ' $1 pk ');
+    s = s.replace(/\b(hd|rt|az|hi)\s*-?\s*0*(\d{1,3})\b/g, '$1$2');                  /* bins: hd-01 / hd 1 -> hd1 */
+    s = s.replace(/(\d)(in|inch|inches)\b/g, '$1 in');
+    s = s.replace(/(\d)\s*-?\s*([a-z]+)\b/g, function (m, d, u) { return UNIT[u] ? d + UNIT[u] : m; });
+    s = s.replace(/[^a-z0-9.\s]+/g, ' ').replace(/\.(?!\d)/g, ' ').replace(/(^|[^\d])\./g, '$1 ');
+    return s.replace(/\s+/g, ' ').trim();
+  }
+  function stem(t) {
+    if (t.length < 4 || /\d/.test(t)) return t;
+    if (/ies$/.test(t)) return t.slice(0, -3) + 'y';
+    if (/(ss|sh|ch|x)es$/.test(t)) return t.slice(0, -2);
+    if (/s$/.test(t) && !/(ss|us|is)$/.test(t)) return t.slice(0, -1);
+    return t;
+  }
+  function tokenize(s) {
+    var raw = normalize(s).split(' '), out = [], i, t;
+    for (i = 0; i < raw.length; i++) { t = raw[i]; if (t && !STOP[t]) out.push(stem(t)); }
+    return out;
+  }
+
+  var NUM = /^\d+(\.\d+)?$/, NUMUNIT = /^(\d+(?:\.\d+)?)([a-z]+)$/;
+  /* optimal string alignment distance with cutoff */
+  function osa(a, b, max) {
+    var la = a.length, lb = b.length, i, j;
+    if (Math.abs(la - lb) > max) return max + 1;
+    var p2 = [], p = [], c = [];
+    for (j = 0; j <= lb; j++) p[j] = j;
+    for (i = 1; i <= la; i++) {
+      c = [i]; var rowMin = i;
+      for (j = 1; j <= lb; j++) {
+        var cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+        var v = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + cost);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, p2[j - 2] + 1);
+        c[j] = v; if (v < rowMin) rowMin = v;
+      }
+      if (rowMin > max) return max + 1;
+      p2 = p; p = c;
+    }
+    return p[lb];
+  }
+  function maxD(n) { return n <= 5 ? 1 : n <= 8 ? 2 : 3; }
+
+  /* similarity of query token q to item token t (0..1); code = SKU/bin token (exact or prefix only) */
+  function sim(q, t, code, joined) {
+    if (q === t) return 1;
+    var ql = q.length, tl = t.length;
+    if (code) return (ql >= 4 && t.indexOf(q) === 0) ? 0.9 : 0;   /* SKU / bin: exact or a 4+ char prefix */
+    if (NUM.test(q)) {                                        /* numbers: exact, or a number+unit ("80" ~ "80lb") */
+      var m = NUMUNIT.exec(t); return (m && m[1] === q && m[2] !== 'pk') ? 0.85 : 0;
+    }
+    if (NUM.test(t) || ql < 3) return 0;
+    if (t.indexOf(q) === 0) return 0.86 + 0.14 * ql / tl;     /* partial word */
+    if (!joined && tl >= 4 && q.indexOf(t) === 0) return 0.75 + 0.2 * tl / ql;
+    if (q[0] !== t[0] && !(q[0] === t[1] && q[1] === t[0])) return 0;
+    var best = 0, L = Math.max(ql, tl), d = osa(q, t, maxD(L));
+    if (d <= maxD(L)) best = 1 - d / L;
+    if (ql >= 4 && tl > ql + 1) {                             /* misspelled partial word: "hydrali" ~ "hydraulic" */
+      var d2 = osa(q, t.slice(0, ql), ql <= 6 ? 1 : 2);
+      if (d2 <= (ql <= 6 ? 1 : 2)) best = Math.max(best, (1 - d2 / ql) * 0.92);
+    }
+    best *= 0.97;
+    return best >= 0.7 ? best : 0;
+  }
+
+  function addTok(map, tok, w) { if (tok && !STOP[tok] && !(map[tok] >= w)) map[tok] = w; }
+  function addText(map, text, w, join) {
+    var toks = tokenize(text), i;
+    for (i = 0; i < toks.length; i++) {
+      addTok(map, toks[i], w);
+      if (join && i + 1 < toks.length && !NUM.test(toks[i])) addTok(map, toks[i] + toks[i + 1], w);
+    }
+  }
+
+  function buildIndex(items, terms) {
+    terms = terms || {};
+    var bySku = {}, k, vocab = {}, vlist = [], out = [];
+    for (k in terms) if (Object.prototype.hasOwnProperty.call(terms, k) && terms[k] && terms[k].sku) bySku[String(terms[k].sku).trim()] = terms[k];
+    function vid(tok, code) { var key = (code ? '#' : '') + tok; if (!(key in vocab)) { vocab[key] = vlist.length; vlist.push({ t: tok, code: code }); } return vocab[key]; }
+    (items || []).forEach(function (it) {
+      if (!it) return;
+      var bin = String(it.bin || ''), sku = String(it.sku == null ? '' : it.sku).trim();
+      var entry = (sku && bySku[sku]) || terms[bin] || terms[bin.toLowerCase()] || terms[bin.toUpperCase()] || null;
+      var name = {}, term = {}, code = {};
+      addText(name, it.name, 1, true);
+      if (entry && entry.terms) entry.terms.forEach(function (t) { addText(term, t, 0.96, true); });
+      tokenize(bin).forEach(function (t) { code[t] = 1; });
+      if (sku) { code[sku.toLowerCase().replace(/[^a-z0-9]/g, '')] = 1; tokenize(sku).forEach(function (t) { code[t] = 1; }); }
+      var ids = [], ws = [], seen = {};
+      function put(map, isCode) { for (var t in map) { var id = vid(t, isCode); if (seen[id] == null) { seen[id] = ids.length; ids.push(id); ws.push(map[t]); } else ws[seen[id]] = Math.max(ws[seen[id]], map[t]); } }
+      put(name, false); put(term, false); put(code, true);
+      /* primary phrases: the item's first 3 terms (what it IS); a query that matches one word-for-word ranks first */
+      var prim = [];
+      if (entry && entry.terms) entry.terms.slice(0, 3).forEach(function (t) { var pt = tokenize(t); if (pt.length) prim.push(pt.map(function (x) { return vid(x, false); })); });
+      out.push({ item: it, bin: bin, ids: ids, ws: ws, prim: prim, nlen: tokenize(it.name).length || 1 });
+    });
+    return { rows: out, vocab: vlist };
+  }
+
+  function search(index, query, opts) {
+    opts = opts || {};
+    var threshold = opts.threshold == null ? 0.6 : opts.threshold, relCut = opts.relCut == null ? 0.2 : opts.relCut;
+    var q = tokenize(query); if (!q.length || !index) return [];
+    var V = index.vocab, n = q.length, i, j, r;
+    /* query-token x vocab similarity, computed once per search */
+    var S = [], joins = [];
+    /* v205: rows cached per token on the index, so typing "sump p", "sump pm", ... reuses the "sump" row */
+    var RC = index._rc || (index._rc = { n: 0, m: {} });
+    function rowFor(tok, joined) {
+      var key = (joined ? '+' : '') + tok, row = RC.m[key]; if (row) return row;
+      row = new Float32Array(V.length); for (var jj = 0; jj < V.length; jj++) row[jj] = sim(tok, V[jj].t, V[jj].code, joined);
+      if (++RC.n > 400) { RC.m = {}; RC.n = 1; }
+      RC.m[key] = row; return row;
+    }
+    for (i = 0; i < n; i++) S.push(rowFor(q[i], false));
+    for (i = 0; i + 1 < n; i++) joins.push(rowFor(q[i] + q[i + 1], true));
+    var res = [];
+    for (r = 0; r < index.rows.length; r++) {
+      var R = index.rows[r], used = {}, sc = new Array(n), nameHit = 0;
+      /* greedy one-to-one: query tokens with the strongest match claim item tokens first */
+      var order = [];
+      for (i = 0; i < n; i++) { var b = 0; for (j = 0; j < R.ids.length; j++) { var v0 = S[i][R.ids[j]] * R.ws[j]; if (v0 > b) b = v0; } order.push([b, i]); }
+      order.sort(function (a, c) { return c[0] - a[0]; });
+      for (var o = 0; o < n; o++) {
+        var qi = order[o][1], best = 0, bj = -1;
+        if (order[o][0] <= 0) { sc[qi] = 0; continue; }
+        for (j = 0; j < R.ids.length; j++) { if (used[j]) continue; var v = S[qi][R.ids[j]] * R.ws[j]; if (v > best) { best = v; bj = j; } }
+        sc[qi] = best; if (bj >= 0) { used[bj] = 1; if (R.ws[bj] === 1 && !V[R.ids[bj]].code) nameHit++; }
+      }
+      for (i = 0; i + 1 < n; i++) {                           /* "back up" ~ "backup", "sump pump" ~ "sumpump" */
+        var jb = 0; for (j = 0; j < R.ids.length; j++) { var vj = joins[i][R.ids[j]] * R.ws[j]; if (vj > jb) jb = vj; }
+        if (jb >= 0.85 && jb > (sc[i] + sc[i + 1]) / 2) { sc[i] = Math.max(sc[i], jb); sc[i + 1] = Math.max(sc[i + 1], jb); }
+      }
+      var tot = 0, wsum = 0;
+      for (i = 0; i < n; i++) { var w = q[i].length <= 2 && !NUM.test(q[i]) ? 0.5 : 1; tot += sc[i] * w; wsum += w; }
+      var score = tot / wsum, bonus = 0;
+      if (score >= threshold) {
+        for (var pi = 0; pi < R.prim.length && !bonus; pi++) {
+          var P = R.prim[pi]; if (P.length !== n) continue;
+          var taken = {}, all = true;
+          for (var pk = 0; pk < P.length && all; pk++) { var hit = -1; for (i = 0; i < n; i++) if (!taken[i] && S[i][P[pk]] >= 0.7) { hit = i; break; } if (hit < 0) all = false; else taken[hit] = 1; }
+          if (all) bonus = 0.05;
+        }
+        res.push({ item: R.item, bin: R.bin, score: Math.round(Math.min(1, score + bonus) * 1000) / 1000, _r: score + bonus, _n: nameHit / R.nlen, _h: nameHit });
+      }
+    }
+    res.sort(function (a, c) { return (c._r - a._r) || (c._h - a._h) || (c._n - a._n) || String(a.item.name).localeCompare(String(c.item.name)); });
+    if (res.length && relCut > 0) { var top = res[0]._r; res = res.filter(function (x) { return x._r >= top - relCut; }); }
+    if (opts.limit) res = res.slice(0, opts.limit);
+    res.forEach(function (x) { delete x._n; delete x._h; delete x._r; });
+    return res;
+  }
+
+  var api = { normalize: normalize, tokenize: tokenize, similarity: sim, buildIndex: buildIndex, search: search };
+  root.StormFuzzy = api; /* v205 inline: always the browser global */
+})(typeof window !== 'undefined' ? window : this);
+  var TERMS205 = {"hd-01":{"sku":"319340971","terms":["ball valve","valve","valves","ballvalve","shut off valve","shutoff","1-1/2\"","1 1/2","1.5 in","1-1/2in","pvc valve","quarter turn","everbilt","sch 40","schedule 40","discharge valve","pvc","fitting"]},"hd-02":{"sku":"100350217","terms":["concrete block","block","blocks","cinder block","cinderblock","sinder block","cmu","solid block","4x8x16","4 inch block","masonry","concrete"]},"hd-03":{"sku":"202086526","terms":["lally column","lally","jack post","support pole","7'6","7 ft 6","7.5 ft","lolly column","support post","adjustable column","steel column","basement pole","column","tiger brand","post"]},"hd-04":{"sku":"202086524","terms":["lally column","lally","jack post","support pole","6'6","6 ft 6","6.5 ft","lolly column","support post","adjustable column","steel column","basement pole","column","tiger brand","post"]},"hd-05":{"sku":"100318511","terms":["concrete","concrete mix","quikrete","quickrete","quickcrete","quikcrete","80 lb","80lb","bag of concrete","concrete bag","cement mix","floor repour","re-pour","concret"]},"hd-06":{"sku":"202188453","terms":["mortar","morter","mortar mix","rapid set","rapidset","fast set","fast setting","quick set","55 lb","55lb","patching","block repair","masonry"]},"hd-07":{"sku":"100318526","terms":["hydraulic cement","hydraulic","hydralic","hydrolic","hydraulic cememt","hydro cement","water stop","waterstop","water-stop","leak plug","plug leaks","stop leaks","quikrete","quickrete","50 lb","cement"]},"hd-08":{"sku":"100003547","terms":["tar","foundation tar","black tar","tar bucket","foundation coating","foundation sealer","henry","henry 101","asphalt coating","damp proofing","dampproofing","exterior waterproofing","4.75 gal","5 gal"]},"hd-09":{"sku":"202262872","terms":["hose clamp","hose clamps","hoseclamp","worm clamp","worm gear clamp","clamp","1-3/4\"","1 3/4","1.75 in","1-3/4in","2-3/4\"","2 3/4","2.75 in","2-3/4in","clamps","band clamp","stainless clamp","stainless","size 36","everbilt","10pk"]},"hd-10":{"sku":"203811646","terms":["male adapter","male adaptor","adapter","adaptor","mpt","mip","1-1/2\"","1 1/2","1.5 in","1-1/2in","male thread","threaded adapter","pump adapter","pvc adapter","pvc","fitting","sch 40","schedule 40","charlotte"]},"hd-11":{"sku":"203812129","terms":["90","90 elbow","pvc 90","90 degree","elbow","elbows","1-1/2\"","1 1/2","1.5 in","1-1/2in","elbo","ell","quarter bend","1/4 bend","pvc","fitting","sch 40","schedule 40","charlotte"]},"hd-12":{"sku":"203812169","terms":["45","45 elbow","pvc 45","45 degree","elbow","elbows","1-1/2\"","1 1/2","1.5 in","1-1/2in","elbo","ell","eighth bend","1/8 bend","pvc","fitting","sch 40","schedule 40","charlotte"]},"hd-13":{"sku":"203393551","terms":["street 45","street elbow","street ell","st 45","45","45 degree","1-1/2\"","1 1/2","1.5 in","1-1/2in","elbow","elbows","spigot elbow","dwv","pvc","fitting","charlotte"]},"hd-14":{"sku":"202985691","terms":["primer","primmer","pvc primer","clear primer","pipe primer","cpvc","oatey","otey","prime","8 oz","pvc"]},"hd-15":{"sku":"100139307","terms":["glue","glu","pvc glue","pipe glue","clear glue","pvc cement","cement","solvent cement","heavy duty cement","oatey","otey","8 oz","pvc"]},"hd-16":{"sku":"203811389","terms":["coupling","couplings","coupler","cupling","copling","pvc coupling","1-1/2\"","1 1/2","1.5 in","1-1/2in","joiner","connector","pvc","fitting","sch 40","schedule 40","charlotte"]},"hd-17":{"sku":"202259348","terms":["22.5","22 1/2","22","22.5 degree","1/16 bend","sixteenth bend","4\"","4 in","4 inch","elbow","elbows","nds","s&d","sewer and drain","downspout","discharge","pvc","fitting","hub"]},"hd-18":{"sku":"202091036","terms":["blueskin","blue skin","blu skin","wp200","wp 200","membrane","peel and stick","self adhered","waterproofing membrane","henry","exterior waterproofing","foundation wrap","roll","36 in"]},"hd-19":{"sku":"326012655","terms":["hose nozzle","nozzle","nozle","spray nozzle","garden hose","hose sprayer","water nozzle","hose","anvil","hi vis","high visibility","washdown","cleanup"]},"hd-20":{"sku":"100318195","terms":["trowel","trowels","trowl","pool trowel","finishing trowel","blue steel","14\"","14 in","14 inch","marshalltown","marshaltown","concrete finishing","finish trowel","concrete"]},"hd-21":{"sku":"202532049","terms":["footing form","footing","footer","footer form","pier footing","post footing","column footing","lally footing","plastic form","concrete form","square foot","form"]},"hd-22":{"sku":"203156788","terms":["caulk","caulking","cauk","calk","concrete caulk","crack caulk","crack sealer","masonry caulk","polyurethane","poly caulk","sealant","loctite","pl","non sag","tube","10 oz"]},"hd-23":{"sku":"308137797","terms":["tarp","tarps","heavy duty tarp","tarpaulin","cover","dirt tarp","brown tarp","everbilt","8x10","8 x 10"]},"hd-24":{"sku":"202973825","terms":["contractor bags","contracter bags","contractor bag","trash bags","garbage bags","debris bags","black bags","bags","garbage","trash","husky","42 gal","cleanup"]},"hd-25":{"sku":"202088850","terms":["ram board","ramboard","ram","floor protection","floor protector","floor cover","protection board","temporary floor","builder paper","roll","38 in","100 ft"]},"hd-26":{"sku":"100318067","terms":["float","hand float","mag float","magnesium","magnesium float","concrete float","16\"","16 in","16 inch","finishing","marshalltown","marshaltown","concrete"]},"hd-27":{"sku":"100318204","terms":["trowel","trowels","trowl","pool trowel","finishing trowel","blue steel","16\"","16 in","16 inch","marshalltown","marshaltown","concrete finishing","finish trowel","concrete"]},"hd-28":{"sku":"314718830","terms":["oscillating blade","oscillating","oscilating","multi tool blade","multitool","multi tool","1-1/4\"","1 1/4","1.25 in","1-1/4in","osc blade","starlock","diablo","metal blade","carbide","blade","blades","3pk"]},"hd-29":{"sku":"307297834","terms":["sawzall blade","sawzall","sawzal","sawsall","recip blade","reciprocating","6\"","6 in","6 inch","reciprocating blade","saw blade","blade","blades","demo demon","demo blade","nail embedded wood","diablo","carbide","10pk"]},"hd-30":{"sku":"100015928","terms":["sawzall blade","sawzall","sawzal","sawsall","recip blade","reciprocating","6\"","6 in","6 inch","metal blade","metal cutting","18 tpi","thin kerf","milwaukee","milwakee","blade","blades","5pk"]},"hd-31":{"sku":"329846964","terms":["knife","knives","utility knife","utilty knife","folding knife","box cutter","razor knife","pocket knife","lock back","cutter","husky","3pk"]},"hd-32":{"sku":"333293856","terms":["sawzall blade","sawzall","sawzal","sawsall","recip blade","reciprocating","9\"","9 in","9 inch","thick metal","metal cutting","metal blade","diablo","carbide","blade","blades","2pk"]},"hd-33":{"sku":"100053616","terms":["self feed bit","selfeed","self feed","hole bit","boring bit","wood bit","2\"","2 in","2 inch","drill bit","bit","joist bit","milwaukee","milwakee","hole for pipe"]},"hd-34":{"sku":"203115018","terms":["switchblade","switch blade","replacement blades","self feed blades","selfeed blade","self feed bit","2\"","2 in","2 inch","bit blades","blades","milwaukee","milwakee","10 blades"]},"hd-35":{"sku":"304160491","terms":["sawzall blades","sawzall","sawzal","sawsall","blade kit","blade set","assorted blades","variety pack","demolition blades","demo blades","recip blades","reciprocating","milwaukee","milwakee","13pk"]},"hd-36":{"sku":"306587154","terms":["#8 x 2","8 x 2","deck screws","deck screw","wood screws","screws","2\"","2 in","2 inch","screw","deckmate","deck mate","star drive","torx","exterior screws"]},"hd-37":{"sku":"306587134","terms":["#9 x 2-1/2","9 x 2.5","deck screws","deck screw","wood screws","screws","2-1/2\"","2 1/2","2.5 in","2-1/2in","screw","deckmate","deck mate","star drive","torx","exterior screws"]},"hd-38":{"sku":"306587131","terms":["#9 x 3","9 x 3","deck screws","deck screw","wood screws","screws","3\"","3 in","3 inch","screw","deckmate","deck mate","star drive","torx","exterior screws"]},"hd-39":{"sku":"313573845","terms":["#10 x 4","10 x 4","deck screws","deck screw","wood screws","screws","4\"","4 in","4 inch","screw","deckmate","deck mate","star drive","square drive","exterior screws"]},"hd-40":{"sku":"312754855","terms":["1/4 x 5","deck screws","deck screw","wood screws","structural screws","lag screw","5\"","5 in","5 inch","screws","screw","deckmate","deck mate","star drive","torx","exterior screws"]},"hd-41":{"sku":"100138746","terms":["1/4 x 1-3/4","1/4 x 1.75","tapcon","tapcons","tap con","tapcon screws","1-3/4\"","1 3/4","1.75 in","1-3/4in","concrete screws","concrete screw","concrete anchors","anchor","anchors","masonry screws","blue screws","hex head","block screws","25pk"]},"hd-42":{"sku":"100114651","terms":["1/4 x 2-3/4","1/4 x 2.75","tapcon","tapcons","tap con","tapcon screws","2-3/4\"","2 3/4","2.75 in","2-3/4in","concrete screws","concrete screw","concrete anchors","anchor","anchors","masonry screws","blue screws","hex head","block screws","25pk"]},"hd-43":{"sku":"100200027","terms":["1/4 x 2-1/4","1/4 x 2.25","tapcon","tapcons","tap con","tapcon screws","2-1/4\"","2 1/4","2.25 in","2-1/4in","concrete screws","concrete screw","concrete anchors","anchor","anchors","masonry screws","blue screws","hex head","block screws","25pk"]},"hd-44":{"sku":"322254108","terms":["#8 x 1/2","lath screws","lath screw","teks","tek screws","tek","1/2\"","1/2 in",".5 in","self drilling","self tapping","sheet metal screws","truss head","drill point","screws","screw"]},"hd-45":{"sku":"203531928","terms":["zip ties","zip tie","zipties","ziptie","cable ties","cable tie","11\"","11 in","11 inch","tie wraps","ty wraps","wire ties","black zip ties","big zip ties","500pk"]},"hd-46":{"sku":"326155126","terms":["utility blades","utility blade","razor blades","knife blades","box cutter blades","replacement blades","blades","refill blades","husky","100pk"]},"hd-47":{"sku":"205644545","terms":["gloves","glove","work gloves","nitrile coated","firm grip","firmgrip","large gloves","large","grip gloves","5pk"]},"hd-49":{"sku":"301394019","terms":["safety glasses","safety glass","glasses","eye protection","eyewear","safety specs","clear glasses","bison","bison life","12pk"]},"hd-50":{"sku":"203531918","terms":["zip ties","zip tie","zipties","ziptie","cable ties","cable tie","4\"","4 in","4 inch","tie wraps","ty wraps","wire ties","small zip ties","mini zip ties","100pk"]},"hd-51":{"sku":"318101659","terms":["ear plugs","earplugs","ear plug","hearing protection","ear protection","foam plugs","plugs","milwaukee","300pk"]},"hd-52":{"sku":"205337121","terms":["n95","n 95","mask","masks","dust mask","face mask","respirator","respirators","valved mask","dust","hdx","15pk"]},"hd-53":{"sku":"302782641","terms":["trench drain","channel drain","trench grate","drain grate","grate","garage drain","driveway drain","surface drain","us trench drain","9.8 ft","kit"]},"hd-54":{"sku":"313780402","terms":["1/4 x 4","sds","sds plus","sds bit","masonry bit","concrete bit","1/4\"","1/4 in",".25 in","4\"","4 in","4 inch","hammer drill bit","drill bit","bit","bits","rebar demon","rebar","diablo","carbide"]},"hd-55":{"sku":"312593058","terms":["5/8 x 12","sds","sds plus","sds bit","masonry bit","concrete bit","5/8\"","5/8 in",".625 in","12\"","12 in","12 inch","hammer drill bit","drill bit","bit","bits","rebar demon","rebar","diablo","carbide"]},"hd-56":{"sku":"313780409","terms":["1/4 x 18","sds","sds plus","sds bit","long bit","masonry bit","1/4\"","1/4 in",".25 in","18\"","18 in","18 inch","concrete bit","hammer drill bit","drill bit","bit","bits","rebar demon","rebar","diablo","carbide"]},"hd-57":{"sku":"329189880","terms":["1/4 x 18","hammer drill bit","masonry bit","concrete bit","carbide bit","long bit","1/4\"","1/4 in",".25 in","18\"","18 in","18 inch","drill bit","bit","bits","shockwave","shock wave","milwaukee","milwakee"]},"hd-58":{"sku":"100060853","terms":["simple green","simplegreen","cleaner","degreaser","all purpose cleaner","cleaning","soap","1 gal","gallon","cleanup"]},"hd-59":{"sku":"336959960","terms":["rags","rag","shop rags","towels","towel","terry","terry towels","cloth","wipes","cleanup","hdx","100pk"]},"hd-60":{"sku":"100007602","terms":["spray bottle","spray bottles","squirt bottle","trigger sprayer","bottle","zep","32 oz","quart","mist"]},"hd-61":{"sku":"206007301","terms":["beam plate","top plate","cap plate","lally plate","column plate","post plate","lally column","lally","jack post","steel plate","plate"]},"hd-62":{"sku":"302949195","terms":["floor jack","house jack","screw jack","support jack","jack","temporary support","16\"","16 in","16 inch","shoring","vestil","support"]},"hd-63":{"sku":"300862912","terms":["barb elbow","barb fitting","hose barb","barb","nylon elbow","condensate fitting","3/4\"","3/4 in",".75 in","drain fitting","dehumidifier drain","dehu drain","aprilaire drain","90 barb","mip","elbow"]},"hd-64":{"sku":"306757968","terms":["bed risers","bed riser","risers","riser","riser blocks","furniture risers","6\"","6 in","6 inch","dehumidifier risers","dehu stand","dehu risers","lift","4pk"]},"hd-65":{"sku":"315635639","terms":["packing tape","packaging tape","clear tape","box tape","shipping tape","tape","scotch","rolls"]},"hd-66":{"sku":"310614128","terms":["threaded rod","all thread","allthread","all-thread","ready rod","redi rod","3/8\"","3/8 in",".375 in","rod","hanger rod","superstrut","3/8 rod","2 ft"]},"hd-67":{"sku":"309595895","terms":["split ring","split ring hanger","ring hanger","pipe hanger","pipe hangers","hanger","1-1/2\"","1 1/2","1.5 in","1-1/2in","hangers","hinged hanger","plumbflex","plumb flex"]},"hd-68":{"sku":"301505444","terms":["j hook","j-hook","jhook","j hooks","pipe hook","pipe hanger","1-1/2\"","1 1/2","1.5 in","1-1/2in","pipe hangers","hanger","hangers","oatey","otey","dwv"]},"hd-69":{"sku":"100372302","terms":["cap","caps","rubber cap","end cap","test cap","pipe cap","1-1/2\"","1 1/2","1.5 in","1-1/2in","flex cap","qwik cap","quick cap","fernco","ferncos","dwv","pvc"]},"hd-70":{"sku":"100372303","terms":["cap","caps","rubber cap","end cap","test cap","pipe cap","2\"","2 in","2 inch","flex cap","flexible cap","fernco","ferncos","dwv","pvc"]},"hd-71":{"sku":"312584279","terms":["rmr 141","fungicide","mold","rmr141","rmr","disinfectant","mold killer","mold spray","mold treatment","mould","mildew","antimicrobial","wall treatment","1 gal"]},"hd-72":{"sku":"338014565","terms":["rmr 86","mold remover","mold","rmr86","rmr","mold stain remover","stain remover","mould","mildew","bleach","wall treatment","1 gal"]},"hd-73":{"sku":"302469150","terms":["broom","brooms","push broom","shop broom","floor broom","sweep","24\"","24 in","24 inch","razor-back","razorback","razor back","cleanup"]},"hd-74":{"sku":"100137163","terms":["90","90 elbow","90 degree","elbow","elbows","elbo","4\"","4 in","4 inch","quarter bend","1/4 bend","nds","s&d","sewer and drain","downspout","discharge","pvc","fitting","hub"]},"hd-75":{"sku":"100192743","terms":["coupling","couplings","coupler","cupling","nds","s&d","4\"","4 in","4 inch","sewer and drain","downspout","discharge","pvc","fitting","hub"]},"hd-76":{"sku":"100377412","terms":["downspout adapter","downspout","down spout","gutter adapter","downspout connector","leader adapter","4\"","4 in","4 inch","offset adapter","adapter","adaptor","2x3","s&d","gutter"]},"hd-77":{"sku":"304162971","terms":["grate","drain grate","round grate","green grate","catch basin grate","yard drain","8\"","8 in","8 inch","reln","window well drain","bubbler pot","drain","bubbler","bubbler pot grate","bubbler grate","bubler pot","bubbler pot lid"]},"hd-78":{"sku":"304162935","terms":["bullet basin","catch basin","drain basin","basin","yard drain","reln","6\"","6 in","6 inch","window well drain","bubbler pot","bubbler","drain","bubbler pot basin","bubbler basin","bubler pot","bubbler pot 6 in"]},"hd-79":{"sku":"202280933","terms":["pipe","pipes","pvc pipe","4 in pipe","sewer and drain","s&d pipe","4\"","4 in","4 inch","d2729","thin wall","jm eagle","downspout pipe","discharge pipe","solid pipe","10 ft","pvc"]},"hd-80":{"sku":"100164403","terms":["wye","wyes","y","why","45 wye","y fitting","4\"","4 in","4 inch","nds","s&d","sewer and drain","downspout","discharge","pvc","fitting","hub"]},"hd-81":{"sku":"100111278","terms":["45","45 elbow","45 degree","elbow","elbows","elbo","4\"","4 in","4 inch","eighth bend","1/8 bend","nds","s&d","sewer and drain","downspout","discharge","pvc","fitting","hub"]},"hd-82":{"sku":"100372296","terms":["fernco","ferncos","fernco coupling","rubber coupling","flex coupling","flexible coupling","3\"","3 in","3 inch","coupling","coupler","boot","mechanical coupling","dwv","pvc"]},"hd-83":{"sku":"203393232","terms":["male adapter","male adaptor","adapter","adaptor","mpt","male thread","3\"","3 in","3 inch","threaded adapter","charlotte","dwv","pvc","fitting"]},"hd-84":{"sku":"305473567","terms":["3 x 1-1/2","3 to 1-1/2","reducer","reducing coupling","rubber reducer","flex reducer","3\"","3 in","3 inch","1-1/2\"","1 1/2","1.5 in","1-1/2in","flex coupling","fernco style","coupling","plumbflex","plumb flex","pvc"]},"hd-85":{"sku":"203391597","terms":["3 x 1-1/2","3 to 1-1/2","bushing","bushings","reducer bushing","flush bushing","3\"","3 in","3 inch","1-1/2\"","1 1/2","1.5 in","1-1/2in","reducer","charlotte","dwv","pvc","fitting"]},"hd-86":{"sku":"205995229","terms":["4 x 4","rubber coupling","flex coupling","flexible coupling","mechanical coupling","fernco style","4\"","4 in","4 inch","coupling","coupler","boot","eastman","dwv","pvc"]},"hd-87":{"sku":"203393240","terms":["male adapter","male adaptor","adapter","adaptor","mpt","male thread","4\"","4 in","4 inch","threaded adapter","charlotte","dwv","pvc","fitting"]},"hd-88":{"sku":"203393212","terms":["4 x 2","4 to 2","bushing","bushings","reducer bushing","flush bushing","4\"","4 in","4 inch","2\"","2 in","2 inch","reducer","charlotte","dwv","pvc","fitting"]},"hd-89":{"sku":"100345144","terms":["2 x 1-1/2","2 to 1-1/2","bushing","bushings","reducer bushing","flush bushing","2\"","2 in","2 inch","1-1/2\"","1 1/2","1.5 in","1-1/2in","reducer","nibco","dwv","pvc","fitting"]},"hd-90":{"sku":"305473571","terms":["4 x 1-1/2","4 to 1-1/2","reducer","reducing coupling","rubber reducer","flex reducer","4\"","4 in","4 inch","1-1/2\"","1 1/2","1.5 in","1-1/2in","flex coupling","fernco style","coupling","plumbflex","plumb flex","pvc"]},"rt-02":{"sku":"CIBOS50A","terms":["sump pump","sump pumps","sumpump","sum pump","sump","pump","pumps","primary pump","cast iron pump","submersible","pitboss","pit boss","pittboss","1/2 hp","half hp","half horse"]},"rt-03":{"sku":"PBPCICOM","terms":["battery backup","battery back up","backup pump","back up pump","backup sump","backup","back up","combo","combo kit","wifi","wi-fi","wifi pump","pitboss","pit boss","pitboss plus","sump pump","cast iron"]},"rt-04":{"sku":"RICSRHT","terms":["humidity monitor","humidity sensor","humidity","temperature","temp sensor","hygrometer","rh monitor","rh&t","smart monitor","monitor","smart outlet","wifi","alarm","wifi alarm","sensor"]},"rt-06":{"sku":"INVRIC20","terms":["backup power","back up power","battery backup","battery back up","inverter","invertor","inverter backup","power backup","power outage","ups","backup","invric20"]},"rt-07":{"sku":"PGBATBX","terms":["battery case","battery box","battery cables","cables","jumper cables","case","box","battery","backup","battery backup"]},"rt-08":{"sku":"SLA100I","terms":["battery","batteries","batt","batery","100 ah","100ah","100 amp hour","100 amp","agm","deep cycle","sla","backup battery","battery backup"]},"rt-09":{"sku":"S3033-DFC2","terms":["sump pump","sump pumps","sumpump","sum pump","sump","pump","pumps","primary pump","pro series","proseries","1/3 hp","third hp","stainless","stainless pump","submersible","s3033","dfc2"]},"rt-10":{"sku":"RICSWI19","terms":["float switch","float","floats","vertical float","pump switch","sump switch","switch","swtich","pipe mount"]},"rt-11":{"sku":"DFC2","terms":["dual float","double float","dual float switch","float switch","float","floats","controller","float controller","piggyback","dfc2","dfc","switch","swtich","pro series"]},"rt-12":{"sku":"RICSTND","terms":["pump stand","sump stand","stand","pump riser","pump base","pedestal","riser","sump pump stand","2 in"]},"rt-13":{"sku":"V150SCL","terms":["check valve","check valves","checkvalve","check valv","chek valve","chk valve","1-1/2\"","1 1/2","1.5 in","1-1/2in","check","valve","silencer","silent check","quiet check","clear check valve","double boot","pvc"]},"rt-14":{"sku":"RICWYE","terms":["wye","y","why","y connector","y fitting","dual discharge","1-1/2\"","1 1/2","1.5 in","1-1/2in","dual pump","twin pump","two pump","discharge wye","reducer","ricwye"]},"rt-16":{"sku":"QF04CAP","terms":["cleanout cap","clean out cap","cleanout","clean out","cap","flush cap","quikflo","quickflo","quick flo","quickflow","drain tile","port"]},"rt-17":{"sku":"QF04CNR","terms":["corner","corners","corner port","90 corner","drain corner","quikflo","quickflo","quick flo","quickflow","drain tile","drainage"]},"rt-18":{"sku":"QF10496HS58","terms":["drain tile","draintile","drain tiles","drainage","drain track","track","quikflo","quickflo","quick flo","quickflow","perimeter drain","interior drain","french drain","drain pipe","drainage pipe","stick","8 ft","5/8 holes","drain"]},"rt-19":{"sku":"QF04BIA","terms":["basin adapter","inlet adapter","basin inlet","crock adapter","adapter","adaptor","cleanout port","quikflo","quickflo","quick flo","quickflow","drain tile"]},"rt-20":{"sku":"SB022PF","terms":["sump basin","crock","sump pit","basin","sump liner","liner","22\"","22 in","22 inch","sump crock","pit","sump","perforated","perf basin","bucket","pump basin"]},"rt-21":{"sku":"SBRADCL1","terms":["lid","lids","sump lid","basin lid","crock lid","pit lid","cover","sump cover","pit cover","clear lid","cord hole","sump"]},"rt-22":{"sku":"AADE100W","terms":["dehumidifier","dehu","aprilaire","dehumidifiers","dehumidifer","dehumidfier","dehumdifier","dehus","aprilair","april air","aprilare","e100w","e100","wifi","wifi dehu","whole home","crawl space"]},"rt-23":{"sku":"AADE130","terms":["dehumidifier","dehu","aprilaire","dehumidifiers","dehumidifer","dehumidfier","dehumdifier","dehus","aprilair","april air","aprilare","e130","130 pint","whole home","crawl space"]},"rt-24":{"sku":"5822","terms":["hanging kit","hang kit","hanging strap","hanging straps","dehu hanger","dehumidifier hanger","ratchet","ratchet rope","eye bolts","brackets","aprilaire","aprilair","dehu","dehumidifier","5822"]},"rt-25":{"sku":"4856","terms":["condensate pump","condensate","condensation pump","dehu pump","drain pump","mini pump","pump","aprilaire","aprilair","dehu","dehumidifier","4856"]},"rt-26":{"sku":"5958","terms":["condensate pump bracket","pump bracket","condensate bracket","bracket","mount","mounting bracket","condensate","aprilaire","aprilair","dehu","5958"]},"rt-29":{"sku":"CFS600654KIT","terms":["carbon fiber","carbon fibre","carbon","cfs","carbon strap","carbon straps","wall straps","strap","crack repair","wall repair","bowing wall","wall reinforcement","kit","cfs600"]},"rt-30":{"sku":"RICBLKR125","terms":["ocher","ochre","ocre","oker","iron ocher","iron bacteria","ocher blocker","blocker","ocher treatment","orange slime","drain treatment","12.5 kg","bucket"]},"rt-33":{"sku":"FSTAPE42-ST","terms":["tape","seam tape","vapor barrier tape","liner tape","crawl space tape","crawlspace tape","4\"","4 in","4 inch","white tape","poly tape","encapsulation","vapor barrier"]},"rt-34":{"sku":"WWS20004","terms":["vapor barrier","poly","liner","woven liner","4 ft","4'","4ft liner","vapour barrier","vapor","woven liner 4ft","crawl space liner","crawlspace","crawl liner","moisture barrier","wall liner","plastic","encapsulation","14 mil","200 ft"]},"rt-35":{"sku":"CC10501","terms":["channel cove","chanel cove","cove","wall drain","drain channel","channel","15\"","15 in","15 inch","cove roll","white","225 ft","roll"]},"rt-36":{"sku":"DM80600","terms":["dimple board","dimpleboard","dimple","dimpel","dimple mat","dimple membrane","dimpled membrane","dimple drain","dimpledrain","dimple shield","wall membrane","8 ft","50 ft","roll"]},"rt-37":{"sku":"FREZFLO","terms":["freeze drain","freezflo","freeze flo","freeze flow","freezeflow","frozen discharge","1-1/2\"","1 1/2","1.5 in","1-1/2in","4\"","4 in","4 inch","freeze guard","discharge fitting","discharge line","winter","frozen line","frezflo"]},"rt-39":{"sku":"XT07501","terms":["xt fastener","xt fasteners","xt","christmas tree","x-mas tree","xmas tree","push pin","push pins","push rivet","plastic rivet","liner fastener","fasteners","pins","vapor barrier"]},"rt-41":{"sku":"WWS10008","terms":["vapor barrier","poly","liner","woven liner","8 ft","8'","8ft liner","vapour barrier","vapor","woven liner 8ft","crawl space liner","crawlspace","crawl liner","moisture barrier","wall liner","wall protection","plastic","encapsulation","14 mil","100 ft"]},"az-01":{"sku":"20A","terms":["wiper blade","wiper blades","wiper","wipers","windshield wiper","wiper bade","20\"","20 in","20 inch","bosch","icon","truck wiper","truck","box truck"]},"az-02":{"sku":"266362","terms":["fuel cleaner","fuel system cleaner","injector cleaner","fuel additive","gas treatment","techron","chevron","12 oz","oil change","truck","box truck"]},"az-03":{"sku":"120228","terms":["tire cleaner","wheel cleaner","rim cleaner","black magic","truck wash","cleaner","tire","wheel","truck","box truck"]},"az-04":{"sku":"AF850","terms":["antifreeze","anti freeze","coolant","prestone","50/50","radiator fluid","radiator","1 gal","truck","box truck"]},"az-05":{"sku":"112627","terms":["motor oil","oil","engine oil","mobil 1","mobil1","mobile 1","synthetic","5w30","5w-30","quart","1 qt","oil change","truck","box truck"]},"az-06":{"sku":"120766","terms":["motor oil","oil","engine oil","mobil 1","mobil1","mobile 1","synthetic","5w30","5w-30","5 quart","5 qt","jug","oil change","truck","box truck"]},"az-07":{"sku":"S10060XL","terms":["oil filter","oil filters","filter","engine filter","spin on","stp","s10060xl","oil change","truck","box truck"]},"hd-91":{"sku":"100348474","terms":["pvc pipe","1-1/2 pvc","1-1/2 in pvc sch 40","pipe","pipes","piping","1-1/2\"","1 1/2","1.5 in","1-1/2in","discharge pipe","sch 40","schedule 40","pvc sch 40","dwv","stick","pipe stick","10 ft","charlotte","pvc"]},"hd-92":{"sku":"313383605","terms":["hammer","hammers","hamer","claw hammer","rip claw","rip hammer","framing hammer","fiberglass","husky","20 oz"]},"hd-93":{"sku":"305227383","terms":["shovel","shovels","shovle","square shovel","square point","flat shovel","scoop","digging","razor-back","razorback","razor back","poweredge"]},"hd-94":{"sku":"305227382","terms":["shovel","shovels","shovle","round point","pointed shovel","digging shovel","spade","digging","razor-back","razorback","razor back","poweredge","super socket"]},"hd-95":{"sku":"204168129","terms":["pick","pick axe","pickaxe","mattock","matock","pick mattock","digging","husky","2.5 lb","fiberglass"]},"hd-96":{"sku":"100093815","terms":["pry bar","prybar","flat bar","wonder bar","wonderbar","crowbar","12\"","12 in","12 inch","crow bar","nail puller","bar","stanley"]},"hd-97":{"sku":"202985576","terms":["wrecking bar","crowbar","crow bar","pry bar","prybar","demo bar","24\"","24 in","24 inch","bar","dewalt","de walt"]},"hd-98":{"sku":"301024184","terms":["bit set","bits","driver bits","screwdriver bits","impact bits","phillips","torx","shockwave","shock wave","milwaukee","milwakee","45 piece","45pc"]},"hd-99":{"sku":"307766754","terms":["pump sprayer","sprayer","garden sprayer","hand sprayer","tank sprayer","pump up sprayer","chemical sprayer","mold sprayer","spray","hdx","1 gal"]},"hd-100":{"sku":"325982793","terms":["safety glasses","safety glass","glasses","eye protection","eyewear","safety specs","clear glasses","bison","bison life","ansi","48pk"]},"hd-101":{"sku":"318317591","terms":["broom","brooms","push broom","shop broom","floor broom","outdoor broom","18\"","18 in","18 inch","sweep","hdx","cleanup"]},"hd-102":{"sku":"322111515","terms":["bit set","bits","driver bits","screwdriver bits","impact bits","phillips","torx","shockwave","shock wave","milwaukee","milwakee","60 piece","60pc"]},"hd-103":{"sku":"312583734","terms":["extension cord","extension cords","extention cord","extension","ext cord","cord","cords","drop cord","power cord","outdoor cord","50 ft","14/3","14 gauge","15 amp","eastman"]},"hd-104":{"sku":"301024174","terms":["bit set","bits","drill bits","driver bits","screwdriver bits","impact bits","drill and drive","shockwave","shock wave","milwaukee","milwakee","40 piece","40pc"]},"HI-01":{"sku":"2297324","terms":["pre filter","prefilter","pre-filter","filter","filters","air cleaner","air scrubber","scrubber","dust filter","aic","aic 1000","hilti","hilty","30pk"]},"HI-02":{"sku":"2320750","terms":["main filter","hepa","hepa filter","filter","filters","air cleaner","air scrubber","scrubber","dust filter","aic","aic 1000","hilti","hilty","3pk"]},"HI-03":{"sku":"2127087","terms":["supply cord","power cord","cord","cords","hilti cord","replacement cord","breaker cord","jackhammer cord","te 2000","te2000","te-2000","hilti","hilty","13 ft","4m"]}};
+
+  var F = window.StormFuzzy;
+  if (!F || !F.buildIndex || !F.search) return;
+  if (!window.STORM_SEARCH_TERMS) window.STORM_SEARCH_TERMS = TERMS205;
+  var idx = null, sig = null, memo = {}, memoN = 0;
+  function list() { try { return Array.isArray(items) ? items : []; } catch (e) { return []; } }
+  function signature(a) {
+    var s = new Array(a.length);
+    for (var i = 0; i < a.length; i++) { var it = a[i]; s[i] = it ? (it.bin + '|' + it.name + '|' + (it.sku == null ? '' : it.sku)) : ''; }
+    return s.join(';');
+  }
+  function index() {
+    var a = list(), s = signature(a);
+    if (s !== sig || !idx) {
+      idx = F.buildIndex(a.filter(function (it) { return it && it.bin; }), window.STORM_SEARCH_TERMS || TERMS205);
+      sig = s; memo = {}; memoN = 0;
+    }
+    return idx;
+  }
+  function run(q, key, opts) {
+    var ix = index(), k = key + '\u0001' + q;
+    if (Object.prototype.hasOwnProperty.call(memo, k)) return memo[k];
+    var hits = [];
+    try { hits = F.search(ix, q, opts); } catch (e) { hits = []; }
+    if (memoN > 200) { memo = {}; memoN = 0; }
+    memo[k] = hits; memoN++;
+    return hits;
+  }
+  function rank(q) {
+    q = String(q == null ? '' : q).trim();
+    var out = { bins: [], rank: {} };
+    if (!q) return out;
+    var hits = run(q, 'r', { threshold: 0.6, relCut: 0.2 });
+    for (var i = 0; i < hits.length; i++) { var b = hits[i].bin; if (out.rank[b] == null) { out.rank[b] = out.bins.length; out.bins.push(b); } }
+    return out;
+  }
+  function closest(q) {
+    q = String(q == null ? '' : q).trim();
+    if (!q) return [];
+    return run(q, 'c', { threshold: 0.45, limit: 3 }).map(function (h) { return h.bin; });
+  }
+  window.stormSearch205 = { rank: rank, closest: closest, warm: function () { try { index(); } catch (e) {} }, _index: index };
+
+  /* pre-build: idle after load (and after each full load of the list), and when a search box gets focus */
+  function warmUp() { /* build the index, then run a few throw-away searches so the matcher is compiled before the first real keystroke */
+    if (!list().length) return; var ix = index();
+    if (ix.__warm) return; ix.__warm = 1;
+    ['sump pump', '1 1/2 pvc', 'chek valve', 'hydralic cement 50lb', 'tapcons 2 3/4'].forEach(function (w) { try { F.search(ix, w); F.search(ix, w, { threshold: 0.45, limit: 3 }); } catch (e) {} });
+    ix._rc = null;
+  }
+  function warmSoon() { var f = function () { try { warmUp(); } catch (e) {} }; if (window.requestIdleCallback) requestIdleCallback(f, { timeout: 3000 }); else setTimeout(f, 600); }
+  document.addEventListener('focusin', function (e) { var t = e.target; if (t && t.matches && t.matches('#search, #ro201 .r-q')) setTimeout(function () { try { warmUp(); } catch (x) {} }, 0); }, true);
+  (function waitItems(n) { if (list().length) warmSoon(); else if (n < 60) setTimeout(function () { waitItems(n + 1); }, 500); })(0);
+})();
+
+/* v205 CSS: the search-results / closest-matches heads use the category head look; nothing else changes */
+(function () {
+  if (document.getElementById('storm-v205-css')) return;
+  var st = document.createElement('style'); st.id = 'storm-v205-css';
+  st.textContent = '#list > .cat-head.cat-closest .cat-count { white-space: nowrap; }'
+    + '#empty.s205-near { padding-bottom: 6px !important; }';
+  document.head.appendChild(st);
 })();
