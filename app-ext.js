@@ -1,3 +1,4 @@
+/* v206 (Hark, 2026-11-11, Dave approved 22:55, batch T2): Truck Check part 2 - side menu rows Box Truck Check + Tool Checklist under Receiving Orders; big Save & Submit at the bottom of each form (fieldId __submitted in the Truck Check tab, banner Submitted by NAME . time, Update submission); Past checks list (read-only getTruckCheckHistory) opening a read-only copy. See the v206 block at the end. Pairs with app v158. */
 /* v205 (Hark, 2026-11-11, Dave batch H): forgiving search - typos, slang and sizes find the item; ranked best match first (flat list while searching), "Closest matches" when nothing matches; Receiving Orders add-by-search ranked the same way. See the v205 block at the end. Pairs with app v157. */
 /* v204 (Hark, 2026-11-11, Dave 21:15): Insurance Certificates > Email opens a Jobber customer search (all clients incl. quotes/leads, read-only searchJobberClients) or "Skip, continue to email"; new body with a Customer information section. Pairs with app v156. */
 /* v203 (Hark, 2026-11-11 21:23-21:48, Dave): Truck Check: the Box Truck Pre Check and Tool Checklist rows open fillable phone forms that save to the "Truck Check" tab (anyone can fill them in; live across phones); "View / print paper copy" keeps the PDFs. Item details swipe: photo box no longer shrinks after the slide. See the v203 block at the end. */
@@ -7918,6 +7919,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       if (seq !== fetchSeq || !cur || cur.key !== k || cur.h !== h || !res || !res.fields) return;
       var out = {};
       Object.keys(res.fields).forEach(function (f) {
+        if (f === '__submitted') { try { if (window.stormTC206) window.stormTC206.remote(k, res.fields[f], since); } catch (e) {} return; } /* v206: the submission, not a box on the form */
         if (f === 'hdr.truck' || f === 'hdr.date' || busyField(k, f, since)) return;
         var x = res.fields[f] || {};
         out[f] = { v: x.v == null ? '' : String(x.v), by: x.by || '', at: 0 }; /* at 0: phone clocks differ from the server's; our own changes are held back above */
@@ -7984,7 +7986,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   setInterval(function () { if (cur && (!cur.v.isConnected || !cur.v.classList.contains('open') || !cur.v.contains(cur.h && cur.h.el))) close(); }, 1000);
   setTimeout(function () { if (Object.keys(queue).length) flush(); }, 4000);
 
-  window.stormTC203 = { render: render, close: close, flush: flush, queue: function () { return JSON.parse(JSON.stringify(queue)); }, current: function () { return cur; } };
+  window.stormTC203 = { render: render, close: close, flush: flush, queue: function () { return JSON.parse(JSON.stringify(queue)); }, current: function () { return cur; },
+    /* v206: Save & Submit sends through the same queue; who() is the name the boxes are saved under */
+    enqueue: enqueue, who: who, failing: function () { return err > 0; }, busy: function (k, f) { return !!((queue[k] && f in queue[k].f) || (inflight && inflight.k === k && f in inflight.q.f)); } };
 })();
 
 /* v204 (Hark, 2026-11-11 21:15, Dave): Insurance Certificates > contact > Email no longer jumps straight to the email.
@@ -8462,4 +8466,370 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   st.textContent = '#list > .cat-head.cat-closest .cat-count { white-space: nowrap; }'
     + '#empty.s205-near { padding-bottom: 6px !important; }';
   document.head.appendChild(st);
+})();
+
+/* v206 (Hark, 2026-11-11, Dave approved 22:55, batch T2): Truck Check, part 2. Pairs with app v158.
+   1. Side menu: "Box Truck Check" and "Tool Checklist" rows right under Receiving Orders (crew + managers). Each opens the
+      fillable form straight away (same path as Resource Center > Checklists, which keeps working). The old "Truck Check · Soon"
+      placeholder row is hidden: it is live now.
+   2. A big "Save & Submit" button at the bottom of each form. Boxes still save on every tap. Submit = one more box in the same
+      record: fieldId "__submitted", value = the submitter's name, sent through the v203 queue (so any queued boxes go first and
+      an offline submit waits on the phone and sends when there is signal). Banner "Submitted by NAME · time"; the button turns
+      into "Update submission" (re-submit overwrites the time). Blank items: a confirm with the count, submit allowed.
+   3. "Past checks" (top of the form and under the button): earlier checks newest first (date, truck #, submitted by/time or
+      Not submitted, red-mark count), read with the read-only getTruckCheckHistory. Tap one: that day's form, READ-ONLY, with Back.
+      Android back steps back the same way (history states ride on the 'chk' overlay state). */
+(function () {
+  if (window.stormTC206) return;
+  var BLUE = '#29A8E0', BLUE_D = '#1A8FC4', INK = '#0F1720', MUTE = '#6B7280', RED = '#DC2626';
+  var FONT = 'Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+  var AB = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/truckcheck/';
+  var NAMES = { 'box-truck': 'Box Truck Pre Check', 'tools': 'Tool Checklist' };
+  var SHEET_OF = { 'box-truck': 'truck', 'tools': 'tools' }, ID_OF = { truck: 'box-truck', tools: 'tools' };
+  var sub = {};      /* key -> { by, at, sent, since } (what this phone knows about the record's submission) */
+  var hist = {};     /* sheet -> last list from the server */
+  var view = null;   /* the Past checks screen: { sheet, mode: 'list'|'ro', h } */
+  function $(id) { return document.getElementById(id); }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function run() { try { return (window.google && google.script && google.script.run) ? google.script.run : null; } catch (e) { return null; } }
+  function T() { return window.stormTC203 || null; }
+  function cur() { try { return T() && T().current(); } catch (e) { return null; } }
+  function devName() { try { return String(localStorage.getItem('stormDeviceNameV1') || '').trim().slice(0, 60); } catch (e) { return ''; } }
+  /* the v203 who-name (this phone's name, else Manager / Crew); with no phone name, the name written on the form comes first */
+  function whoName(c) {
+    var base = ''; try { base = T().who(); } catch (e) {}
+    if (devName()) return devName();
+    try { var f = c.h.getData().fields, n = ((f['foot.checkedBy'] || {}).v || (f['hdr.employee'] || {}).v || '').trim(); if (n) return n.slice(0, 60); } catch (e) {}
+    return base || 'Crew';
+  }
+  function fmtTime(ms) { try { return new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
+  function sameDay(ms, iso) { var d = new Date(ms), p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) === iso; }
+  function fmtWhen(ms, iso) {
+    if (!ms) return '';
+    if (iso && !sameDay(ms, iso)) { try { return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + fmtTime(ms); } catch (e) {} }
+    return fmtTime(ms);
+  }
+  function fmtDay(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); if (!m) return iso || '';
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    var o = { weekday: 'short', month: 'short', day: 'numeric' }; if (+m[1] !== new Date().getFullYear()) o.year = 'numeric';
+    try { return d.toLocaleDateString([], o); } catch (e) { return (+m[2]) + '/' + (+m[3]) + '/' + m[1]; }
+  }
+
+  /* ---------- styles ---------- */
+  var css = document.createElement('style'); css.id = 'storm-v206-css';
+  css.textContent = ''
+    + '#cl-menu .cl-row[data-tc206-hide] { display: none !important; }'
+    + '#chk-view .tc203-links { gap: 8px; flex-wrap: wrap; }'
+    + '#chk-view .tc206-ban, #tc206-hist .tc206-ban { display: flex; align-items: center; gap: 12px; margin: 0 2px 10px; padding: 12px 14px; border-radius: 14px; background: #fff; border: 1.5px solid ' + BLUE + '; box-shadow: 0 1px 2px rgba(15,23,32,.05); font-family: ' + FONT + '; color: ' + INK + '; }'
+    + '.tc206-ban[hidden] { display: none !important; }'
+    + '.tc206-ban .tc206-ck { width: 34px; height: 34px; flex: none; border-radius: 50%; background: ' + BLUE + '; color: #fff; display: flex; align-items: center; justify-content: center; }'
+    + '.tc206-ban .tc206-ck svg { width: 20px; height: 20px; }'
+    + '.tc206-ban b { display: block; font-size: 15px; font-weight: 800; line-height: 1.25; }'
+    + '.tc206-ban span.tc206-sub { display: block; font-size: 12.5px; font-weight: 600; color: ' + MUTE + '; margin-top: 2px; line-height: 1.3; }'
+    + '.tc206-ban.wait { border-color: #D97706; } .tc206-ban.wait .tc206-ck { background: #D97706; }'
+    + '.tc206-ban.none { border-color: #DCE4EE; } .tc206-ban.none .tc206-ck { background: #E5EAF0; color: ' + MUTE + '; }'
+    + '#chk-view .tc206-foot { margin: 16px 2px 0; display: flex; flex-direction: column; align-items: stretch; gap: 10px; font-family: ' + FONT + '; }'
+    + '#chk-view .tc206-go { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 58px; border: 0; border-radius: 16px; background: ' + BLUE + '; color: #fff; font-family: ' + FONT + '; font-size: 18px; font-weight: 800; letter-spacing: .01em; box-shadow: 0 2px 8px rgba(41,168,224,.35); cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }'
+    + '#chk-view .tc206-go svg { width: 22px; height: 22px; flex: none; }'
+    + '#chk-view .tc206-go:active { background: ' + BLUE_D + '; transform: scale(.99); }'
+    + '#chk-view .tc206-go.upd { background: #fff; color: ' + BLUE_D + '; border: 2px solid ' + BLUE + '; box-shadow: none; }'
+    + '#chk-view .tc206-go.upd:active { background: rgba(41,168,224,.08); }'
+    + '#chk-view .tc206-fs { text-align: center; font-size: 13px; font-weight: 600; color: ' + MUTE + '; min-height: 17px; }'
+    + '#chk-view .tc206-past2 { align-self: center; }'
+    /* Past checks screen */
+    + '#tc206-hist { position: fixed; inset: 0; z-index: 102; background: #F3F4F6; overflow-y: auto; -webkit-overflow-scrolling: touch; display: none; font-family: ' + FONT + '; color: ' + INK + '; }'
+    + '#tc206-hist.open { display: block; }'
+    + '#tc206-hist .th-bar { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 0 12px; padding-top: env(safe-area-inset-top, 0px); background: #EEF2F7; border-bottom: 1px solid #DCE4EE; }'
+    + '#tc206-hist .th-back { display: inline-flex; align-items: center; gap: 2px; min-height: 40px; padding: 0 12px 0 6px; border: 0; border-radius: 20px; background: #fff; color: ' + BLUE_D + '; font-family: ' + FONT + '; font-size: 15px; font-weight: 700; box-shadow: 0 1px 2px rgba(15,23,32,.06); cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; flex: none; }'
+    + '#tc206-hist .th-back svg { width: 20px; height: 20px; }'
+    + '#tc206-hist .th-t { font-weight: 700; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }'
+    + '#tc206-hist .th-body { max-width: 1000px; margin: 0 auto; padding: 12px 12px calc(28px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; }'
+    + '#tc206-hist .th-list { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }'
+    + '#tc206-hist .th-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 13px 12px 13px 14px; border: 0; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,32,.05), 0 3px 10px rgba(15,23,32,.05); font-family: ' + FONT + '; color: ' + INK + '; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }'
+    + '#tc206-hist .th-row:active { background: #F5FAFD; }'
+    + '#tc206-hist .th-main { flex: 1; min-width: 0; }'
+    + '#tc206-hist .th-d { display: flex; align-items: baseline; gap: 8px; font-size: 15.5px; font-weight: 800; }'
+    + '#tc206-hist .th-d i { font-style: normal; font-weight: 700; font-size: 13px; color: ' + BLUE_D + '; white-space: nowrap; }'
+    + '#tc206-hist .th-s { font-size: 13px; font-weight: 600; color: ' + MUTE + '; margin-top: 3px; line-height: 1.3; }'
+    + '#tc206-hist .th-s.ok { color: #0F7A3D; } #tc206-hist .th-s.no { color: #B45309; }'
+    + '#tc206-hist .th-p { flex: none; font-size: 12.5px; font-weight: 800; padding: 5px 10px; border-radius: 999px; background: #EEF2F7; color: ' + MUTE + '; white-space: nowrap; }'
+    + '#tc206-hist .th-p.bad { background: #FDECEC; color: ' + RED + '; }'
+    + '#tc206-hist .th-ch { width: 18px; height: 18px; flex: none; color: #A9B4C2; }'
+    + '#tc206-hist .th-msg { max-width: 760px; margin: 24px auto; text-align: center; font-size: 14px; font-weight: 600; color: ' + MUTE + '; }'
+    + '#tc206-hist .th-msg button { margin-top: 10px; min-height: 40px; padding: 0 18px; border: 0; border-radius: 20px; background: ' + BLUE + '; color: #fff; font-family: ' + FONT + '; font-weight: 700; font-size: 14px; }'
+    + '#tc206-hist .th-ro { max-width: 1000px; margin: 0 auto 10px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: ' + MUTE + '; }'
+    + '#tc206-hist .th-ro em { font-style: normal; padding: 4px 10px; border-radius: 999px; background: #E5EAF0; color: #374151; font-size: 12px; font-weight: 800; letter-spacing: .02em; }'
+    + '#tc206-hist.ro .stc-card { pointer-events: none; }'
+    + '#tc206-hist.ro .stc .stc-dtv:empty::before { content: "" !important; }'
+    + '#tc206-hist.ro .stc-status, #tc206-hist.ro .stc [data-now] { display: none !important; }'
+    + 'html body #tc206-hist .stc input, html body #tc206-hist .stc textarea { background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }'
+    + 'html body #tc206-hist .stc .stc-tr .stc-in, html body #tc206-hist .stc .stc-mdy input, html body #tc206-hist .stc .stc-desc textarea, html body #tc206-hist .stc .stc-foot .stc-in { border-bottom: 1.5px solid #9AA7B8 !important; }'
+    + 'html body #tc206-hist .stc .stc-init { border-bottom: 1.5px solid #B9C4D2 !important; }'
+    /* confirm */
+    + '#tc206-cf { position: fixed; inset: 0; z-index: 110; display: flex; align-items: flex-end; justify-content: center; background: rgba(15,23,32,.45); font-family: ' + FONT + '; }'
+    + '@media (min-width: 600px) { #tc206-cf { align-items: center; } }'
+    + '#tc206-cf .cf-card { width: 100%; max-width: 440px; margin: 0 10px calc(10px + env(safe-area-inset-bottom, 0px)); padding: 20px 18px 16px; border-radius: 18px; background: #fff; box-shadow: 0 10px 40px rgba(15,23,32,.25); color: ' + INK + '; }'
+    + '#tc206-cf h3 { margin: 0 0 6px; font-size: 18px; font-weight: 800; }'
+    + '#tc206-cf p { margin: 0 0 16px; font-size: 14.5px; font-weight: 500; color: #374151; line-height: 1.4; }'
+    + '#tc206-cf .cf-b { display: flex; gap: 10px; }'
+    + '#tc206-cf .cf-b button { flex: 1; min-height: 50px; border-radius: 14px; font-family: ' + FONT + '; font-size: 16px; font-weight: 800; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }'
+    + '#tc206-cf .cf-no { border: 2px solid #DCE4EE; background: #fff; color: ' + INK + '; }'
+    + '#tc206-cf .cf-yes { border: 0; background: ' + BLUE + '; color: #fff; }';
+  document.head.appendChild(css);
+  var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3 4v4h4"/><path d="M12 7.5V12l3 2"/></svg>';
+  var SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>';
+  var CHEV = '<svg class="th-ch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
+
+  /* ---------- 1. side menu rows ---------- */
+  function svg(inner) { return '<svg class="cl-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + inner + '</svg>'; }
+  var ICONS = {
+    'box-truck': '<path d="M2 5h12v11H2z"/><path d="M14 9h4.2l3.3 4v3H14"/><circle cx="6" cy="18" r="2"/><circle cx="17.5" cy="18" r="2"/><path d="M8 16h7.5"/>',
+    'tools': '<path d="M3 5h4M17 5h4"/><path d="M7 3.5h10v3l-1.2 8.5H8.2L7 6.5z"/><path d="M10 15h4v2.5h-4z"/><path d="M11 17.5v3l1 2 1-2v-3"/><path d="M7.5 9C4.5 10 3.5 13 4.5 17"/>'
+  };
+  var ROWS = [['box-truck', 'Box Truck Check'], ['tools', 'Tool Checklist']];
+  function menuRows() {
+    var mn = $('cl-menu'); if (!mn) return false;
+    var ro = mn.querySelector('[data-ro199]'); if (!ro) return false;
+    var prev = ro;
+    ROWS.forEach(function (x) {
+      var b = mn.querySelector('[data-tc206-go="' + x[0] + '"]');
+      if (!b) { b = document.createElement('button'); b.type = 'button'; b.className = 'cl-row'; b.setAttribute('data-tc206-go', x[0]); b.innerHTML = svg(ICONS[x[0]]) + '<span class="cl-name">' + x[1] + '</span>'; }
+      if (prev.nextElementSibling !== b) prev.insertAdjacentElement('afterend', b);
+      prev = b;
+    });
+    mn.querySelectorAll('.cl-row.cl-soon:not([data-tc206-hide])').forEach(function (r) { var n = r.querySelector('.cl-name'); if (n && /^\s*Truck Check\s*$/.test(n.textContent)) r.setAttribute('data-tc206-hide', '1'); });
+    return true;
+  }
+  function openForm(id) {
+    /* like Receiving Orders: the menu closes, then the form opens through the Resource Center row's own path
+       (v75 openChecklist -> v203 form), so both entries open the very same form */
+    try { closeDrawer(); } catch (x) { var sc = $('drawer-scrim'); if (sc) sc.click(); }
+    setTimeout(function () {
+      var rb = document.querySelector('#drawer-resources [data-drawer-checklist="' + id + '"]') || document.querySelector('[data-drawer-checklist="' + id + '"]');
+      if (rb) rb.click();
+    }, 220);
+  }
+  var mq = 0;
+  function menuSoon() { if (!mq) mq = requestAnimationFrame(function () { mq = 0; try { menuRows(); } catch (e) {} }); }
+  try { new MutationObserver(menuSoon).observe(document.body, { childList: true }); } catch (e) {}
+  (function watch(n) {
+    var dr = $('drawer');
+    if (dr && !dr.__o206) { dr.__o206 = true; try { new MutationObserver(menuSoon).observe(dr, { childList: true, subtree: true }); } catch (e) {} }
+    var done = false; try { done = menuRows(); } catch (e) {}
+    if (n < 240 && (!dr || !done)) setTimeout(function () { watch(n + 1); }, 500);
+  })(0);
+
+  /* ---------- 2. Save & Submit ---------- */
+  function decorate(c) {
+    var v = c && c.v; if (!v || !v.querySelector('.tc203-host')) return;
+    var links = v.querySelector('.tc203-links');
+    if (links && !links.querySelector('[data-tc206-past]')) links.insertAdjacentHTML('afterbegin', '<button type="button" class="tc203-link" data-tc206-past>' + CLOCK + 'Past checks</button>');
+    var host = v.querySelector('.tc203-host');
+    if (!v.querySelector('.tc206-ban')) host.insertAdjacentHTML('beforebegin', '<div class="tc206-ban" hidden role="status" aria-live="polite"><div class="tc206-ck">' + CHECK + '</div><div><b></b><span class="tc206-sub"></span></div></div>');
+    if (!v.querySelector('.tc206-foot')) host.insertAdjacentHTML('afterend', '<div class="tc206-foot"><button type="button" class="tc206-go" data-tc206-submit>' + SEND + '<span>Save &amp; Submit</span></button><div class="tc206-fs"></div><button type="button" class="tc203-link tc206-past2" data-tc206-past>' + CLOCK + 'Past checks</button></div>');
+    paint();
+  }
+  function queued(k) { try { var q = T().queue()[k]; return q && q.f && ('__submitted' in q.f) ? q.f.__submitted : null; } catch (e) { return null; } }
+  function sending(k) { try { return T().busy(k, '__submitted'); } catch (e) { return false; } }
+  function state(c) {
+    var k = c.key, s = sub[k], q = queued(k);
+    if (q != null || (s && !s.sent && sending(k))) { var off = false; try { off = T().failing(); } catch (e) {} return { by: q != null ? q : s.by, at: s ? s.at : 0, wait: true, offline: off }; }
+    if (s && !s.sent) s.sent = true;
+    return s && s.by ? { by: s.by, at: s.at, wait: false } : null;
+  }
+  function paint() {
+    var c = cur(); if (!c || !c.v) return;
+    var v = c.v, ban = v.querySelector('.tc206-ban'), go = v.querySelector('[data-tc206-submit]'), fs = v.querySelector('.tc206-fs');
+    if (!ban || !go) return;
+    var st = c.truck && c.period ? state(c) : null;
+    var title = '', subt = '';
+    if (st) {
+      title = 'Submitted by ' + st.by + (st.at ? ' \u00b7 ' + fmtWhen(st.at, c.period) : '');
+      subt = st.wait ? (st.offline ? 'Saved on this phone \u00b7 sends when there\u2019s signal' : 'Sending\u2026') : 'Changed something? Tap Update submission.';
+    }
+    if (ban.hidden !== !st) ban.hidden = !st;
+    ban.classList.toggle('wait', !!(st && st.wait));
+    var b = ban.querySelector('b'), sp = ban.querySelector('.tc206-sub');
+    if (b.textContent !== title) b.textContent = title;
+    if (sp.textContent !== subt) sp.textContent = subt;
+    var lbl = st ? 'Update submission' : 'Save & Submit', sl = go.querySelector('span');
+    if (sl.textContent !== lbl) sl.textContent = lbl;
+    go.classList.toggle('upd', !!st);
+    var ft = st ? title : (c.truck ? '' : 'Fill in TRUCK # to submit');
+    if (fs.textContent !== ft) fs.textContent = ft;
+  }
+  setInterval(function () { if (cur()) paint(); }, 600);
+  /* the v203 read hands us the record's __submitted box (server time) */
+  function remote(k, x, since) {
+    if (!x) return;
+    var s = sub[k];
+    if (s && (queued(k) != null || sending(k) || (s.sentAt || 0) > since)) return; /* ours is newer than this read */
+    if (x.v) sub[k] = { by: String(x.v), at: +x.at || 0, sent: true, sentAt: s ? s.sentAt : 0 };
+    paint();
+  }
+  function confirmBox(title, text, yes, no, cb) {
+    var old = $('tc206-cf'); if (old) old.remove();
+    var d = document.createElement('div'); d.id = 'tc206-cf'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
+    d.innerHTML = '<div class="cf-card"><h3>' + esc(title) + '</h3><p>' + esc(text) + '</p><div class="cf-b">' + (no ? '<button type="button" class="cf-no">' + esc(no) + '</button>' : '') + '<button type="button" class="cf-yes">' + esc(yes) + '</button></div></div>';
+    document.body.appendChild(d);
+    function done(v) { d.remove(); try { cb && cb(v); } catch (e) {} }
+    d.addEventListener('click', function (e) {
+      if (e.target === d) { done(false); return; }
+      if (e.target.closest('.cf-yes')) done(true); else if (e.target.closest('.cf-no')) done(false);
+    });
+    setTimeout(function () { try { d.querySelector('.cf-yes').focus({ preventScroll: true }); } catch (e) {} }, 30);
+  }
+  function submit() {
+    var c = cur(); if (!c || !c.h) return;
+    /* a box still being typed in counts: blur sends it (and a TRUCK # being typed picks the record) */
+    try { var a = document.activeElement; if (a && c.v.contains(a) && a.blur) a.blur(); } catch (e) {}
+    c = cur(); if (!c) return;
+    if (!c.truck || !c.period) {
+      confirmBox('Fill in TRUCK # first', 'The check is saved under the truck number and the date.', 'OK', '', function () {
+        var t = c.v.querySelector('[data-f="hdr.truck"]'); if (t) { try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} setTimeout(function () { try { t.focus({ preventScroll: true }); } catch (e) {} }, 300); }
+      });
+      return;
+    }
+    var p = { done: 0, total: 0 }; try { p = c.h.progress(); } catch (e) {}
+    var blank = Math.max(0, (p.total || 0) - (p.done || 0));
+    if (blank) confirmBox(blank + (blank === 1 ? ' item is' : ' items are') + ' still blank', 'You can submit now and fill ' + (blank === 1 ? 'it' : 'them') + ' in later.', 'Submit anyway', 'Go back', function (y) { if (y) send(c); });
+    else send(c);
+  }
+  function send(c) {
+    if (cur() !== c) return;
+    var name = whoName(c), now = Date.now();
+    sub[c.key] = { by: name, at: now, sent: false, sentAt: now };
+    try { T().enqueue({ sheet: c.sheet, truck: c.truck, period: c.period, fieldId: '__submitted', value: name }); } catch (e) {}
+    paint();
+    try { c.v.querySelector('.tc206-ban').scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    var bar = c.v.querySelector('.tc206-ban'); if (bar) { bar.style.transition = 'none'; bar.style.transform = 'scale(.98)'; requestAnimationFrame(function () { bar.style.transition = 'transform .25s ease'; bar.style.transform = ''; }); }
+  }
+
+  /* ---------- 3. Past checks ---------- */
+  function screenEl() {
+    var s = $('tc206-hist');
+    if (!s) { s = document.createElement('div'); s.id = 'tc206-hist'; s.setAttribute('role', 'dialog'); s.setAttribute('aria-label', 'Past checks'); document.body.appendChild(s); }
+    return s;
+  }
+  function bar(title) { return '<div class="th-bar"><button type="button" class="th-back" data-tc206-back aria-label="Back">' + BACK + 'Back</button><div class="th-t">' + esc(title) + '</div></div>'; }
+  function rowHtml(sheet, c) {
+    var k = sheet + '|' + c.truck + '|' + c.period, q = queued(k), s = sub[k];
+    var st;
+    if (q != null) st = '<div class="th-s ok">Submitted by ' + esc(q) + ' \u00b7 sending\u2026</div>';
+    else if (c.submittedBy) st = '<div class="th-s ok">Submitted by ' + esc(c.submittedBy) + (c.submittedAt ? ' \u00b7 ' + esc(fmtWhen(c.submittedAt, c.period)) : '') + '</div>';
+    else if (s && s.by) st = '<div class="th-s ok">Submitted by ' + esc(s.by) + ' \u00b7 ' + esc(fmtWhen(s.at, c.period)) + '</div>';
+    else st = '<div class="th-s no">Not submitted</div>';
+    var n = +c.problems || 0;
+    return '<button type="button" class="th-row" data-tc206-open="' + esc(c.truck) + '|' + esc(c.period) + '"><div class="th-main"><div class="th-d">' + esc(fmtDay(c.period)) + '<i>Truck ' + esc(c.truck) + '</i></div>' + st + '</div>'
+      + '<span class="th-p' + (n ? ' bad' : '') + '">' + (n ? n + (n === 1 ? ' problem' : ' problems') : 'No problems') + '</span>' + CHEV + '</button>';
+  }
+  function paintList() {
+    if (!view || view.mode !== 'list') return;
+    var s = screenEl(), body = s.querySelector('.th-body'); if (!body) return;
+    var d = hist[view.sheet];
+    if (!d) { body.innerHTML = view.err ? '<div class="th-msg">Can\u2019t load past checks right now.<br><button type="button" data-tc206-retry>Try again</button></div>' : '<div class="th-msg">Loading past checks\u2026</div>'; return; }
+    if (!d.checks.length) { body.innerHTML = '<div class="th-msg">No checks yet. Submitted checks show up here.</div>'; return; }
+    body.innerHTML = '<div class="th-list">' + d.checks.map(function (c) { return rowHtml(view.sheet, c); }).join('') + '</div>';
+  }
+  function loadList() {
+    if (!view) return;
+    var r = run(), sheet = view.sheet, me = view;
+    if (!r) { view.err = true; paintList(); return; }
+    r.withSuccessHandler(function (res) {
+      if (res && res.checks) hist[sheet] = { checks: res.checks, at: Date.now() };
+      if (view === me) { view.err = false; paintList(); }
+    }).withFailureHandler(function () { if (view === me) { view.err = true; if (!hist[sheet]) paintList(); } }).getTruckCheckHistory(sheet, 60);
+  }
+  function openList(sheet, push) {
+    var s = screenEl();
+    dropRo();
+    var id = ID_OF[sheet];
+    if (!view || view.sheet !== sheet) view = { sheet: sheet, mode: 'list' }; else view.mode = 'list';
+    s.classList.remove('ro');
+    s.innerHTML = bar('Past checks \u00b7 ' + NAMES[id]) + '<div class="th-body"></div>';
+    s.classList.add('open'); s.scrollTop = view.listTop || 0;
+    paintList(); loadList();
+    if (push) { try { history.pushState({ overlay: 'chk', tc206: 'list' }, ''); } catch (e) {} }
+  }
+  function dropRo() { if (view && view.h) { try { view.h.destroy(); } catch (e) {} view.h = null; } }
+  function openRo(truck, period) {
+    if (!view) return;
+    var s = screenEl(), sheet = view.sheet, id = ID_OF[sheet];
+    view.listTop = s.scrollTop; view.mode = 'ro';
+    var c = ((hist[sheet] || {}).checks || []).filter(function (x) { return x.truck === truck && x.period === period; })[0] || { truck: truck, period: period };
+    s.classList.add('ro');
+    s.innerHTML = bar(NAMES[id]) + '<div class="th-body"><div class="th-ro"><em>READ ONLY</em><span>Truck ' + esc(truck) + ' \u00b7 ' + esc(fmtDay(period)) + '</span></div>'
+      + '<div class="tc206-ban none"><div class="tc206-ck">' + CHECK + '</div><div><b>' + (c.submittedBy ? 'Submitted by ' + esc(c.submittedBy) + (c.submittedAt ? ' \u00b7 ' + esc(fmtWhen(c.submittedAt, period)) : '') : 'Not submitted') + '</b><span class="tc206-sub">Loading\u2026</span></div></div>'
+      + '<div class="th-host"></div></div>';
+    if (c.submittedBy) s.querySelector('.tc206-ban').classList.remove('none');
+    s.scrollTop = 0;
+    try { history.pushState({ overlay: 'chk', tc206: 'ro' }, ''); } catch (e) {}
+    var me = view, r = run();
+    function show(rec) {
+      if (view !== me || me.mode !== 'ro' || !window.stormTruckCheck) return;
+      var f = {}; Object.keys((rec && rec.fields) || {}).forEach(function (k) { if (k !== '__submitted') f[k] = rec.fields[k]; });
+      var sb = rec && rec.fields && rec.fields.__submitted;
+      var b = s.querySelector('.tc206-ban');
+      if (sb && sb.v) { b.classList.remove('none'); b.querySelector('b').textContent = 'Submitted by ' + sb.v + (sb.at ? ' \u00b7 ' + fmtWhen(+sb.at, period) : ''); }
+      b.querySelector('.tc206-sub').textContent = 'This is how the sheet was left. Nothing here can be changed.';
+      dropRo();
+      me.h = window.stormTruckCheck.open(s.querySelector('.th-host'), { sheet: sheet, readOnly: true, assetBase: AB, data: { sheet: sheet, truck: truck, period: period, fields: f } });
+      try { me.h.el.querySelectorAll('input,textarea,button').forEach(function (x) { x.setAttribute('tabindex', '-1'); if (x.tagName !== 'BUTTON') x.readOnly = true; }); } catch (e) {}
+    }
+    if (!r) { s.querySelector('.tc206-sub').textContent = 'Can\u2019t load this check right now.'; return; }
+    r.withSuccessHandler(show).withFailureHandler(function () { if (view === me && me.mode === 'ro') s.querySelector('.tc206-sub').textContent = 'Can\u2019t load this check right now. Go back and try again.'; }).getTruckCheck(truck, period, sheet);
+  }
+  function closeAll() {
+    dropRo(); view = null;
+    var s = $('tc206-hist'); if (s) { s.classList.remove('open', 'ro'); s.innerHTML = ''; }
+  }
+  function back() {
+    var st = history.state;
+    if (st && st.tc206) { try { history.back(); return; } catch (e) {} }
+    if (view && view.mode === 'ro') openList(view.sheet, false); else closeAll();
+  }
+  window.addEventListener('popstate', function () {
+    var st = history.state;
+    if (!st || !st.tc206) { closeAll(); return; }
+    if (st.tc206 === 'list' && view && view.mode === 'ro') openList(view.sheet, false);
+  });
+  /* the live-sync poll: a new submission from another phone shows in the open list */
+  (function wrapRefresh(n) {
+    var o = window.stormTruckCheckRefresh;
+    if (!o) { if (n < 40) setTimeout(function () { wrapRefresh(n + 1); }, 250); return; }
+    if (o.__t206) return;
+    var w = function () { try { o.apply(this, arguments); } catch (e) {} if (view && view.mode === 'list') loadList(); };
+    w.__t206 = true; window.stormTruckCheckRefresh = w;
+  })(0);
+
+  /* ---------- taps (window capture: ahead of the base and v75 handlers) ---------- */
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var g = t.closest('#cl-menu [data-tc206-go]');
+    if (g) { e.preventDefault(); e.stopImmediatePropagation(); openForm(g.getAttribute('data-tc206-go')); return; }
+    if (t.closest('#chk-view [data-tc206-submit]')) { e.preventDefault(); e.stopImmediatePropagation(); submit(); return; }
+    if (t.closest('#chk-view [data-tc206-past]')) { e.preventDefault(); e.stopImmediatePropagation(); var c = cur(); if (c) openList(c.sheet, true); return; }
+    if (t.closest('#tc206-hist [data-tc206-back]')) { e.preventDefault(); e.stopImmediatePropagation(); back(); return; }
+    if (t.closest('#tc206-hist [data-tc206-retry]')) { e.preventDefault(); if (view) { view.err = false; paintList(); loadList(); } return; }
+    var o = t.closest('#tc206-hist [data-tc206-open]');
+    if (o) { e.preventDefault(); e.stopImmediatePropagation(); var a = o.getAttribute('data-tc206-open').split('|'); openRo(a[0], a[1]); return; }
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if ($('tc206-cf')) { $('tc206-cf').remove(); e.stopImmediatePropagation(); } else if (view) { back(); e.stopImmediatePropagation(); } } }, true);
+  /* the form under the list closed some other way: the list goes too */
+  setInterval(function () { var v = $('chk-view'); if (view && (!v || !v.classList.contains('open'))) closeAll(); }, 1000);
+
+  /* ---------- hook into the v203 form ---------- */
+  (function hook(n) {
+    var t = T();
+    if (!t || !t.render) { if (n < 80) setTimeout(function () { hook(n + 1); }, 250); return; }
+    if (t.render.__t206) return;
+    var r0 = t.render;
+    var r1 = function (c, v, paper) { var ok = r0.apply(this, arguments); if (ok) { try { decorate(cur()); } catch (e) {} } return ok; };
+    r1.__t206 = true; t.render = r1;
+  })(0);
+
+  window.stormTC206 = { remote: remote, paint: paint, submit: submit, openList: function (id) { openList(SHEET_OF[id] || id, true); }, menuRows: menuRows, state: function () { return JSON.parse(JSON.stringify(sub)); }, view: function () { return view; } };
 })();
