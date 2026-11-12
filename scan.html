@@ -413,24 +413,34 @@ function showTrace(pts, srcW, srcH) {
   if (traceHideTimer) clearTimeout(traceHideTimer);
   traceHideTimer = setTimeout(function () { traceSvg.classList.remove('on'); }, 450);
 }
-function onDecoded(text) {
-  if (!text || done) return;
+/* scan v140 (Hark, 2026-11-12, Dave): no double adds, no dropped re-scans. Before, a label held in view was added again every
+   2.5 s, and the same label shown again within 2.5 s was ignored. Now a label counts once while it stays in view; take the camera
+   off it for a moment (0.7 s) and show it again to add one more. Beep and haptic fire first, the same animations follow on the
+   next frame so the next read is never held up. Codes are cleaned (spaces, line breaks, hidden characters) before matching. */
+var lastSeen = 0;
+function cleanCode(t) { return String(t == null ? '' : t).replace(/[\u0000-\u001F\u007F\u200B-\u200D\u2060\uFEFF]/g, '').trim(); }
+function onDecoded(raw) {
+  if (!raw || done) return;
+  var text = cleanCode(raw); if (!text) return;
   var now = Date.now();
-  if (text === lastText && now - lastAt < 2500) return;
-  lastText = text; lastAt = now;
+  if (text === lastText && (now - lastSeen < 700 || now - lastAt < 1200)) { lastSeen = now; return; }
+  lastText = text; lastAt = now; lastSeen = now;
   if (stillTimer) { clearTimeout(stillTimer); stillTimer = null; }
   var it = findScanItem(text);
   if (it) {
+    beep(); haptic();
     scans.push(it.i);
     var qty = cartAdd(it.i);
     if (!hasCartApi) { qty = 0; for (var k = 0; k < scans.length; k++) { if (scans[k] === it.i) qty++; } }
-    edgeHit(); beep(); haptic();
-    try { (window.__scanHit || []).forEach(function (f) { f(text); }); } catch (eH) {}
-    renderPill(false);
-    if (sheet.classList.contains('open')) renderSheet();
-    showPopup(it, qty);
     updateDone();
-    setMsg('Looking for a code…');
+    requestAnimationFrame(function () {
+      edgeHit();
+      try { (window.__scanHit || []).forEach(function (f) { f(raw); }); } catch (eH) {}
+      renderPill(false);
+      if (sheet.classList.contains('open')) renderSheet();
+      showPopup(it, qty);
+      setMsg('Looking for a code…');
+    });
   } else {
     hidePopup();
     setMsg("That code isn't a Storm inventory item. Point the camera at a Storm bin label and try again. Scanned: " + text, true);
@@ -668,12 +678,17 @@ function normScanUrl(text) {
   return u.toLowerCase();
 }
 function scanKeyToken(url) {
-  var p = String(url || '').split('/');
+  var p = String(url || '').split(/[?#]/)[0].replace(/\/+$/, '').split('/'); /* scan v140: ignore ?query / #hash */
   var last = p[p.length - 1] || '';
   var m = last.match(/^\d+/);
   return m ? m[0] : last;
 }
 function findScanItem(text) {
+  /* scan v140: also accept a plain bin id (hd-01, HI-01) or a bare SKU, any case, and percent-encoded URLs */
+  text = cleanCode(text);
+  try { if (/%[0-9a-f]{2}/i.test(text)) text = decodeURIComponent(text); } catch (eD) {}
+  var low = text.toLowerCase(), j;
+  for (j = 0; j < ITEMS.length; j++) if (String(ITEMS[j].i).toLowerCase() === low) return ITEMS[j];
   var n = normScanUrl(text);
   if (!n) return null;
   var host = n.split('/')[0];
@@ -693,6 +708,7 @@ function findScanItem(text) {
     it = ITEMS[i];
     if (it.s && String(it.s).toLowerCase() === tok && it.u && normScanUrl(it.u).split('/')[0] === host) return it;
   }
+  if (!/[\/.]/.test(low)) for (j = 0; j < ITEMS.length; j++) if (ITEMS[j].s && String(ITEMS[j].s).toLowerCase() === low) return ITEMS[j];
   return null;
 }
 var ITEMS = [
