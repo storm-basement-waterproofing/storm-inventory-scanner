@@ -50,6 +50,7 @@ header { position: relative; padding-right: 60px; }
 #pop { transition: transform .45s cubic-bezier(.4,0,.2,1), opacity .45s ease; }
 #pop.gone { transform: translateX(-115%) !important; opacity: 0 !important; }
 #cart-pill { position: absolute; right: 14px; bottom: 14px; z-index: 12; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 999px; border: 1px solid #29ABE2; background: rgba(15,23,32,.88); color: #fff; font-size: 16px; font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.4); transition: transform .3s ease, opacity .3s ease; }
+html.recv #cart-tot, html.recv #sheet-total { display: none !important; } /* scan v143: receiving scan, no prices */
 #cart-pill.hide { opacity: 0; transform: translateY(20px); pointer-events: none; }
 #cart-pill.bump { animation: bump .45s ease; }
 @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
@@ -183,6 +184,11 @@ var PX = {};
 (params.get('px') || '').split(',').forEach(function (s) { var a = s.split('~'); if (a[0]) PX[a[0]] = Number(a[1]); });
 var cart = [];
 (params.get('cart') || '').split(',').forEach(function (s) { var a = s.split('*'); var q = Math.floor(Number(a[1])); if (a[0] && q > 0) cart.push({ bin: a[0], qty: q }); });
+/* scan v143 (Hark, 2026-11-12, Dave): Receiving scan (&recv=1, from Receiving Orders > Scan). The camera only shows what was scanned this
+   time (pill count, popup "Counted", the list) with no prices, and keeps scanning until Done. The app's cart rides along untouched (BASE)
+   and comes back merged, so even if Receiving did not catch the result the cart would only gain the scans. Beep, haptic and animations unchanged. */
+var RECV = params.get('recv') === '1', BASE = [];
+if (RECV) { BASE = cart; cart = []; try { document.documentElement.classList.add('recv'); var sh2 = document.querySelector('#sheet-head h2'); if (sh2) sh2.textContent = 'Scanned'; var sd = document.getElementById('sheet'); if (sd) sd.setAttribute('aria-label', 'Scanned'); } catch (e) {} }
 var ITEM_BY_ID = null;
 function itemById(id) {
   if (!ITEM_BY_ID) { ITEM_BY_ID = {}; ITEMS.forEach(function (it) { ITEM_BY_ID[it.i] = it; ITEM_BY_ID[String(it.i).toLowerCase()] = it; }); }
@@ -254,11 +260,11 @@ var sheet = document.getElementById('sheet');
 var sheetList = document.getElementById('sheet-list');
 function renderSheet() {
   var html = '';
-  if (!cart.length) html = '<div class="empty">Your cart is empty. Scan a bin label to add an item.</div>';
+  if (!cart.length) html = RECV ? '<div class="empty">Nothing scanned yet. Scan a bin label: each scan counts 1.</div>' : '<div class="empty">Your cart is empty. Scan a bin label to add an item.</div>';
   cart.forEach(function (c, idx) {
     var it = itemById(c.bin) || { t: c.bin, m: '' };
     var p = PX[c.bin];
-    html += '<div class="line"><img src="' + (it.m || '') + '" alt=""><div class="nm">' + String(it.t).replace(/</g, '&lt;') + '<div class="pr">' + (p != null ? money(p) + ' each · ' + money(p * c.qty) : 'No price') + '</div></div>'
+    html += '<div class="line"><img src="' + (it.m || '') + '" alt=""><div class="nm">' + String(it.t).replace(/</g, '&lt;') + '<div class="pr">' + (RECV ? 'Received' : (p != null ? money(p) + ' each · ' + money(p * c.qty) : 'No price')) + '</div></div>'
       + '<div class="qty"><button type="button" data-dec="' + idx + '" aria-label="Less">&minus;</button><span>' + c.qty + '</span><button type="button" data-inc="' + idx + '" aria-label="More">+</button></div></div>';
   });
   sheetList.innerHTML = html;
@@ -306,7 +312,10 @@ pop.addEventListener('click', function (e) { e.stopPropagation(); if (!pop.class
 document.getElementById('sheet-min').addEventListener('click', function () { closeSheet(true); });
 document.getElementById('sheet-x').addEventListener('click', function () { closeSheet(false); });
 sheet.addEventListener('click', function (e) { e.stopPropagation(); });
-function cartCsv() { return cart.map(function (c) { return c.bin + '*' + c.qty; }).join(','); }
+function cartCsv() {
+  if (RECV) { var m = {}, o = []; BASE.concat(cart).forEach(function (c) { if (!(c.bin in m)) { m[c.bin] = 0; o.push(c.bin); } m[c.bin] += c.qty; }); return o.map(function (b) { return b + '*' + m[b]; }).join(','); } /* scan v143 */
+  return cart.map(function (c) { return c.bin + '*' + c.qty; }).join(',');
+}
 function goBackWithCart() {
   if (!hasCartApi) { goBack(scans.length ? scans.join(',') : null); return; }
   if (done) return; done = true;
@@ -379,7 +388,7 @@ function cameraError(err) {
 function showPopup(item, qty) {
   popImg.src = item.m;
   popName.textContent = item.t;
-  popSub.textContent = qty > 1 ? ('Added to cart · ×' + qty) : 'Added to cart';
+  popSub.textContent = RECV ? ('Counted' + (qty > 1 ? ' · ×' + qty : '')) : (qty > 1 ? ('Added to cart · ×' + qty) : 'Added to cart'); /* scan v143 */
   pop.classList.remove('show', 'gone');
   void pop.offsetWidth;
   pop.classList.add('show');
