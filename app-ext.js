@@ -1,3 +1,4 @@
+/* v201 (Hark, 2026-11-11, Dave asked 19:01): Receiving Orders screen - items on order (need > 0, same rule as Needs Ordering) grouped by supplier, received counter per row (big -/+ with hold-repeat, tap for number pad, Got all, Receive all per supplier), Add item search + Scan for extras (cart never touched), confirm summary -> new on hand = current + received via updateCount (manager-only, unchanged), Received check, local receiving log (Recent receipts). Replaces the v199 placeholder and hides the Restock Soon row. See the v201 block at the end. */
 /* v200 (Hark, 2026-11-11, Dave asked 18:58): quick count sheet - KEEP ON HAND and ON HAND side by side (big -/+ with hold-repeat, tap a number for a number pad, live Need + OK/LOW/OUT), one Save sends only what changed via updatePar / updateCount; replaces the v181 On hand sheet; opens from the card On hand pill, the card Keep on hand button, and Item details (Edit keep on hand | Edit on hand). Manager-only like the server; never touches the order. See the v200 block at the end. */
 /* v199 (Hark, 2026-11-11, Dave fix list 10, 11, 14-tab, 15): Find a Job search field gets a one-tap clear X; Customer Search gets an X by the customer name that clears the retained customer in place (cart kept, Find a Job not reopened); side menu "Receiving Orders" row under Staging (restock icon, placeholder screen); Staging icon is a flat utility cart loaded with boxes. Pairs with app v151 (manager-only Delete job in Find a Job, search alias for SKU 100348474). See the v199 block at the end. */
 /* v198 (Hark, 2026-11-11, Dave fix list 7-9): swipe left / right in Item details = next / previous item in the on-screen list order (drag + carousel slide; taps and vertical scrolls never swipe; touch + pointer); full STORM logo with blue BASEMENT WATERPROOFING in Item details and the side menu; supplier logo (transparent, no box) in the top-right of the item photo on cards and in Item details. See the v198 block at the end. */
@@ -6270,4 +6271,564 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
   window.stormOpenOnHand = function (bin) { return open(bin, 'oh'); };
   window.stormOpenCount = function (bin, focus) { return open(bin, focus === 'par' ? 'par' : 'oh'); };
+})();
+
+/* v201 (Hark, 2026-11-11, Dave asked 19:01 "I want that restock really bad, so when the truck arrives the user can easily add the items back
+   to the inventory."): the real Receiving Orders screen (#ro201) replaces the v199 placeholder.
+   - What's on order: every item with need > 0 (need = max(0, keep on hand - on hand), the same rule as Needs Ordering / the Order List),
+     grouped Home Depot, RichTech, AutoZone, Hilti (then any other supplier), A-Z. Each row: photo, name, bin, "Ordered/needed N".
+   - Received counter per row: big - / + (hold = repeat, speeding up, same timings as v200), tap the number for a number pad (v200 pad keys:
+     types over, Clear, backspace, Done; hardware keys work). Starts at 0. "Got all" sets it to the needed qty; "Receive all" per supplier.
+   - Extras: "Add item" search (name, bin, SKU) and, inside the wrapper, a Scan button that reuses openScanner. While a receiving scan is open the
+     result is caught (applyCartParam / applyScansParam are wrapped for that one scan only): the scanned items are added here and the cart is
+     never changed.
+   - Sticky bar "Add N items to On hand" -> confirm summary (was -> new) -> for each row new on hand = current on hand + received, sent one by one
+     through updateCount(bin, value, manager token) using the saveCount queue (saveQueues[bin] is held busy, any count tapped meanwhile is pumped
+     after). Cards and rings update in place via applyUpdate/patchCard. "Received ✓" banner. Counts survive a reload (draft in localStorage)
+     and are kept when offline or when a save fails (only the rows that saved are cleared, so nothing is added twice).
+   - One receiving log line per item in localStorage stormReceivingLogV1 {t, bin, name, qty, from, to, by}; shown as "Recent receipts".
+     No Sheet tab is added.
+   - Permissions unchanged: updateCount is manager-only on the server. Without a manager login the list shows and counting works, but the bar
+     reads "Manager login to receive" (opens the manager code screen) and nothing is sent.
+   - Never places supplier orders and never touches the cart / order. The greyed "Restock · Soon" side-menu row is hidden (this replaces it).
+   - Android back / Escape / X close it. window.stormOpenReceiving opens it. */
+(function () {
+  if (window.__stormReceiving201) return; window.__stormReceiving201 = true;
+  var BLUE = '#29A8E0', BLUED = '#1A8FC4', INK = '#0F1720', MUTE = '#6B7280', MUTE2 = '#8A94A3', LINE = '#DCE4EE', BG = '#EEF3F8', AMBER = '#D97706', RED = '#DC2626', GREEN = '#15803D';
+  var FONT = "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  var BASE = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/';
+  var ORDER = ['Home Depot', 'RichTech', 'AutoZone', 'Hilti'];
+  var LOGO = { 'Home Depot': 'hd', 'RichTech': 'rt', 'AutoZone': 'az', 'Hilti': 'hi' };
+  var LOG_KEY = 'stormReceivingLogV1', DRAFT_KEY = 'stormReceivingDraftV1';
+  function $(id) { return document.getElementById(id); }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function all() { try { return Array.isArray(items) ? items : []; } catch (e) { return []; } }
+  function find(bin) { try { return findItem(bin); } catch (e) { return null; } }
+  function numOf(v) { return v == null || v === '' || isNaN(Number(v)) ? null : Math.max(0, Math.floor(Number(v))); }
+  function needOf(it) { var p = numOf(it && it.par), o = numOf(it && it.onHand); return p == null || o == null ? 0 : Math.max(0, p - o); } /* = server need */
+  function isMgr() { try { return !!(window.stormAccess && window.stormAccess.isMgr()); } catch (e) { return false; } }
+  function tok() { try { return window.stormCrewPin ? stormCrewPin.get() : (window.stormAccess ? stormAccess.token() : ''); } catch (e) { return ''; } }
+  function who() { var n = ''; try { n = localStorage.getItem('stormDeviceNameV1') || ''; } catch (e) {} return n || (isMgr() ? 'Manager' : 'Crew'); }
+  function buzz() { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) {} }
+  function byNm(a, b) { return String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' }); }
+  function supRank(s) { var i = ORDER.indexOf(s); return i < 0 ? 9 : i; }
+  function inWrap() { try { var ao = location.ancestorOrigins; if (ao) for (var i = 0; i < ao.length; i++) if (/github\.io$/.test(ao[i])) return true; } catch (e) {} return false; }
+  function photo(it) {
+    var img = document.querySelector('#list .card[data-bin="' + it.bin + '"] img.photo');
+    return (img && (img.currentSrc || img.getAttribute('src'))) || it.photoUrl || '';
+  }
+
+  /* ---------- css ---------- */
+  var css = document.createElement('style'); css.id = 'storm-v201-css';
+  var SH = 'box-shadow: 0 1px 2px rgba(15,23,32,.05), 0 4px 14px rgba(15,23,32,.06);';
+  css.textContent = ''
+    + '#ro201 { position: fixed; inset: 0; z-index: 135; display: flex; flex-direction: column; background: #EAF0F7; color: ' + INK + '; font-family: ' + FONT + '; transform: translateX(100%); transition: transform .26s cubic-bezier(.2,.8,.2,1); visibility: hidden; }'
+    + '#ro201.open { transform: none; visibility: visible; }'
+    + '#ro201 *, #ro201-pad *, #ro201-cf * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }'
+    + '#ro201 button, #ro201-pad button, #ro201-cf button { -webkit-appearance: none; appearance: none; font-family: ' + FONT + '; cursor: pointer; }'
+    + '#ro201 .r-top { flex: none; display: flex; align-items: center; gap: 12px; padding: calc(12px + env(safe-area-inset-top)) 16px 8px; max-width: 820px; width: 100%; margin: 0 auto; }'
+    + '#ro201 .r-top h2 { flex: 1; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.01em; }'
+    + '#ro201 .r-x { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: #fff; color: ' + INK + '; font-size: 26px; line-height: 42px; padding: 0; ' + SH + ' }'
+    + '#ro201 .r-body { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 0 16px 24px; }'
+    + '#ro201 .r-in { max-width: 820px; margin: 0 auto; }'
+    + '#ro201 .r-sub { margin: 0 2px 10px; font-size: 13.5px; font-weight: 600; color: ' + MUTE + '; line-height: 1.4; }'
+    + '#ro201 .r-tools { position: relative; display: flex; gap: 8px; margin-bottom: 12px; }'
+    + '#ro201 .r-q { flex: 1 1 auto; min-width: 0; height: 46px; padding: 0 14px 0 40px; border: 1px solid ' + LINE + '; border-radius: 14px; background: #fff url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2718%27 height=%2718%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%238A94A3%27 stroke-width=%272.2%27 stroke-linecap=%27round%27%3E%3Ccircle cx=%2711%27 cy=%2711%27 r=%277%27/%3E%3Cpath d=%27M20 20l-3.5-3.5%27/%3E%3C/svg%3E") 13px 50% no-repeat; font-family: ' + FONT + '; font-size: 15px; font-weight: 600; color: ' + INK + '; outline: none; -webkit-appearance: none; appearance: none; }'
+    + '#ro201 .r-q:focus { border-color: ' + BLUE + '; }'
+    + '#ro201 .r-q::-webkit-search-cancel-button { -webkit-appearance: none; }'
+    + '#ro201 .r-scan { flex: none; display: flex; align-items: center; gap: 6px; height: 46px; padding: 0 14px; border: 0; border-radius: 14px; background: ' + BLUE + '; color: #fff; font-size: 14.5px; font-weight: 700; }'
+    + '#ro201 .r-scan:active { background: ' + BLUED + '; } #ro201 .r-scan svg { width: 20px; height: 20px; }'
+    + '#ro201 .r-res { position: absolute; left: 0; right: 0; top: 50px; z-index: 5; max-height: 330px; overflow-y: auto; background: #fff; border-radius: 14px; ' + SH + ' box-shadow: 0 8px 30px rgba(15,23,32,.16); display: none; }'
+    + '#ro201 .r-res.on { display: block; }'
+    + '#ro201 .r-hit { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 0; border-bottom: 1px solid #F1F4F8; background: #fff; text-align: left; color: ' + INK + '; }'
+    + '#ro201 .r-hit:last-child { border-bottom: 0; } #ro201 .r-hit:active { background: ' + BG + '; }'
+    + '#ro201 .r-hit img, #ro201 .r-hit .r-noimg { flex: none; width: 40px; height: 40px; border-radius: 8px; object-fit: contain; background: #fff; border: 1px solid #EEF2F6; }'
+    + '#ro201 .r-hit .r-ht { min-width: 0; flex: 1; } #ro201 .r-hit .r-hn { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + '#ro201 .r-hit .r-hm { font-size: 12px; font-weight: 600; color: ' + MUTE2 + '; } #ro201 .r-hit .r-add { flex: none; font-size: 13px; font-weight: 800; color: ' + BLUED + '; }'
+    + '#ro201 .r-none { padding: 14px; font-size: 13.5px; font-weight: 600; color: ' + MUTE + '; text-align: center; }'
+    + '#ro201 .r-done { display: none; align-items: center; gap: 10px; margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; background: #E7F6EC; color: ' + GREEN + '; font-size: 15px; font-weight: 800; }'
+    + '#ro201 .r-done.on { display: flex; animation: r201in .3s ease both; } #ro201 .r-done span { font-weight: 600; color: #166534; font-size: 13.5px; }'
+    + '#ro201 .r-warn { display: none; margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; background: #FEF3E2; color: #92400E; font-size: 13.5px; font-weight: 700; line-height: 1.4; } #ro201 .r-warn.on { display: block; }'
+    + '@keyframes r201in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }'
+    + '#ro201 .r-grp { margin-bottom: 14px; background: #fff; border-radius: 14px; ' + SH + ' overflow: hidden; transition: opacity .3s ease; }'
+    + '#ro201 .r-gh { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 10px 12px 10px 14px; border-bottom: 1px solid #F1F4F8; }'
+    + '#ro201 .r-gl { flex: none; height: 24px; max-width: 64px; object-fit: contain; }'
+    + '#ro201 .r-gt { flex: 1; min-width: 0; } #ro201 .r-gn { font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + '#ro201 .r-gc { font-size: 12.5px; font-weight: 600; color: ' + MUTE2 + '; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + '#ro201 .r-all { flex: none; height: 38px; padding: 0 14px; border: 1px solid rgba(41,168,224,.45); border-radius: 12px; background: #fff; color: ' + BLUED + '; font-size: 13.5px; font-weight: 700; white-space: nowrap; }'
+    + '#ro201 .r-all:active { background: rgba(41,168,224,.08); } #ro201 .r-all.r-on { background: #E8F5FC; border-color: transparent; }'
+    + '#ro201 .r-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px 12px 14px; border-bottom: 1px solid #F1F4F8; transition: background-color .2s ease; overflow: hidden; }'
+    + '#ro201 .r-row:last-child { border-bottom: 0; } #ro201 .r-row.r-got { background: #F5FBFE; } #ro201 .r-row.r-flash { background: #E8F5FC; }'
+    + '#ro201 .r-row.r-ok { background: #F1FAF4; }'
+    + '#ro201 .r-row.r-gone { max-height: 0 !important; padding-top: 0; padding-bottom: 0; opacity: 0; border-bottom-width: 0; transition: max-height .3s ease, padding .3s ease, opacity .2s ease; }'
+    + '#ro201 .r-ph { flex: none; width: 52px; height: 52px; border-radius: 10px; background: #fff; border: 1px solid #EEF2F6; object-fit: contain; }'
+    + '#ro201 .r-ph.r-nop { visibility: hidden; }'
+    + '#ro201 .r-it { flex: 1 1 0; min-width: 0; }'
+    + '#ro201 .r-nm { font-size: 14.5px; font-weight: 700; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }'
+    + '#ro201 .r-mt { margin-top: 3px; font-size: 12.5px; font-weight: 600; color: ' + MUTE2 + '; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + '#ro201 .r-mt b { color: ' + INK + '; font-weight: 800; } #ro201 .r-tag { color: ' + GREEN + '; font-weight: 800; } #ro201 .r-over { color: ' + AMBER + '; font-weight: 700; }'
+    + '#ro201 .r-ctl { flex: 1 1 100%; display: flex; align-items: center; gap: 8px; padding-left: 62px; }'
+    + '#ro201 .r-st { flex: none; width: 58px; height: 52px; border: 0; border-radius: 14px; background: ' + BG + '; color: ' + INK + '; font-size: 28px; font-weight: 600; line-height: 1; touch-action: none; -webkit-user-select: none; user-select: none; transition: transform .06s ease, background-color .1s ease; }'
+    + '#ro201 .r-st[data-d="1"] { background: ' + BLUE + '; color: #fff; }'
+    + '#ro201 .r-st.r-down { transform: scale(.95); background: #DCE6F0; } #ro201 .r-st[data-d="1"].r-down { background: ' + BLUED + '; }'
+    + '#ro201 .r-st:disabled { opacity: .45; }'
+    + '#ro201 .r-n { flex: 1 1 0; min-width: 52px; height: 52px; border: 0; border-radius: 12px; background: transparent; color: ' + INK + '; font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: center; padding: 0; }'
+    + '#ro201 .r-n:active { background: ' + BG + '; } #ro201 .r-n.r-zero { color: #B7C1CE; } #ro201 .r-n:focus { outline: none; }'
+    + '#ro201 .r-got-b { flex: none; height: 52px; padding: 0 12px; border: 1px solid ' + LINE + '; border-radius: 14px; background: #fff; color: ' + INK + '; font-size: 13.5px; font-weight: 700; white-space: nowrap; }'
+    + '#ro201 .r-got-b:active { background: ' + BG + '; } #ro201 .r-got-b.r-on { border-color: transparent; background: #E8F5FC; color: ' + BLUED + '; }'
+    + '#ro201 .r-rm { flex: none; width: 44px; height: 52px; border: 0; border-radius: 14px; background: transparent; color: ' + MUTE2 + '; font-size: 24px; }'
+    + '#ro201 .r-empty { padding: 26px 18px; margin-bottom: 14px; background: #fff; border-radius: 14px; ' + SH + ' text-align: center; }'
+    + '#ro201 .r-empty b { display: block; font-size: 16px; font-weight: 800; } #ro201 .r-empty span { display: block; margin-top: 6px; font-size: 13.5px; font-weight: 600; color: ' + MUTE + '; line-height: 1.4; }'
+    + '#ro201 .r-h3 { margin: 18px 2px 8px; font-size: 12px; font-weight: 800; letter-spacing: .1em; color: ' + MUTE2 + '; }'
+    + '#ro201 .r-log { background: #fff; border-radius: 14px; ' + SH + ' overflow: hidden; }'
+    + '#ro201 .r-lg { display: flex; align-items: baseline; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #F1F4F8; font-size: 13.5px; }'
+    + '#ro201 .r-lg:last-child { border-bottom: 0; } #ro201 .r-lq { flex: none; min-width: 34px; font-weight: 800; color: ' + GREEN + '; }'
+    + '#ro201 .r-ln { flex: 1; min-width: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + '#ro201 .r-lw { flex: none; font-size: 12px; font-weight: 600; color: ' + MUTE2 + '; white-space: nowrap; }'
+    + '#ro201 .r-lnone { padding: 14px; font-size: 13.5px; font-weight: 600; color: ' + MUTE + '; text-align: center; }'
+    + '#ro201 .r-bar { flex: none; padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); background: rgba(234,240,247,.94); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-top: 1px solid #DCE4EE; }'
+    + '#ro201 .r-go { display: block; width: 100%; max-width: 560px; margin: 0 auto; min-height: 54px; border: 0; border-radius: 14px; background: ' + BLUE + '; color: #fff; font-size: 16.5px; font-weight: 800; transition: opacity .15s ease, background-color .15s ease; }'
+    + '#ro201 .r-go:active { background: ' + BLUED + '; } #ro201 .r-go.r-idle { opacity: .5; } #ro201 .r-go.r-lock { background: ' + INK + '; }'
+    + '#ro201 .r-go.r-busy { opacity: .75; pointer-events: none; }'
+    /* number pad + confirm sheets */
+    + '#ro201-scrim { position: fixed; inset: 0; z-index: 210; background: rgba(15,23,32,.42); opacity: 0; pointer-events: none; transition: opacity .2s ease; }'
+    + '#ro201-scrim.open { opacity: 1; pointer-events: auto; }'
+    + '#ro201-pad, #ro201-cf { position: fixed; left: 0; right: 0; bottom: 0; z-index: 211; max-width: 600px; margin: 0 auto; padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); background: #fff; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 24px rgba(15,23,32,.18); font-family: ' + FONT + '; color: ' + INK + '; transform: translateY(105%); transition: transform .24s cubic-bezier(.2,.8,.2,1); visibility: hidden; }'
+    + '#ro201-pad.open, #ro201-cf.open { transform: none; visibility: visible; }'
+    + '#ro201-pad { -webkit-user-select: none; user-select: none; touch-action: manipulation; }'
+    + '#ro201-pad .p-nm, #ro201-cf .c-t { font-size: 15.5px; font-weight: 800; line-height: 1.25; text-align: center; padding: 4px 8px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }'
+    + '#ro201-pad .p-sub { margin-top: 2px; text-align: center; font-size: 12.5px; font-weight: 600; color: ' + MUTE2 + '; }'
+    + '#ro201-pad .p-v { margin: 8px auto 4px; height: 62px; line-height: 62px; border-radius: 12px; background: ' + BG + '; text-align: center; font-size: 42px; font-weight: 800; font-variant-numeric: tabular-nums; }'
+    + '#ro201-pad .p-v::after { content: ""; display: inline-block; width: 3px; height: 34px; margin-left: 3px; vertical-align: -3px; background: ' + BLUE + '; border-radius: 2px; animation: r201blink 1s steps(1) infinite; }'
+    + '@keyframes r201blink { 50% { opacity: 0; } }'
+    + '#ro201-pad .p-k { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }'
+    + '#ro201-pad .p-k button { height: 52px; border: 0; border-radius: 12px; background: ' + BG + '; color: ' + INK + '; font-size: 22px; font-weight: 700; }'
+    + '#ro201-pad .p-k button:active { background: #DCE6F0; } #ro201-pad .p-k .p-clr { font-size: 14px; color: ' + MUTE + '; }'
+    + '#ro201-pad .p-k .p-done { grid-column: 1 / -1; background: ' + BLUE + '; color: #fff; font-size: 16px; } #ro201-pad .p-k .p-done:active { background: ' + BLUED + '; }'
+    + '#ro201-cf { max-height: 86vh; display: flex; flex-direction: column; }'
+    + '#ro201-cf .c-t, #ro201-cf .c-s { flex: none; }'
+    + '#ro201-cf .c-s { margin-top: 2px; text-align: center; font-size: 13px; font-weight: 600; color: ' + MUTE + '; }'
+    + '#ro201-cf .c-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 10px 0 0; border: 1px solid #EEF2F6; border-radius: 14px; }'
+    + '#ro201-cf .c-r { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid #F1F4F8; font-size: 13.5px; }'
+    + '#ro201-cf .c-r:last-child { border-bottom: 0; } #ro201-cf .c-n { flex: 1; min-width: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + '#ro201-cf .c-q { flex: none; font-weight: 800; color: ' + GREEN + '; min-width: 34px; text-align: right; }'
+    + '#ro201-cf .c-w { flex: none; font-weight: 600; color: ' + MUTE + '; font-variant-numeric: tabular-nums; white-space: nowrap; } #ro201-cf .c-w b { color: ' + INK + '; }'
+    + '#ro201-cf .c-gh { padding: 7px 12px; background: #F7F9FC; font-size: 11.5px; font-weight: 800; letter-spacing: .08em; color: ' + MUTE2 + '; border-bottom: 1px solid #F1F4F8; }'
+    + '#ro201-cf .c-b { flex: none; display: flex; gap: 10px; margin-top: 14px; }'
+    + '#ro201-cf .c-b button { flex: 1 1 0; min-height: 52px; border-radius: 14px; font-size: 16px; font-weight: 700; }'
+    + '#ro201-cf .c-no { border: 1px solid ' + LINE + '; background: #fff; color: ' + INK + '; } #ro201-cf .c-yes { border: 0; background: ' + BLUE + '; color: #fff; } #ro201-cf .c-yes:active { background: ' + BLUED + '; }'
+    + '@media (min-width: 640px) {'
+    + '  #ro201 .r-body { padding: 4px 24px 28px; } #ro201 .r-top { padding-left: 24px; padding-right: 24px; }'
+    + '  #ro201 .r-row { flex-wrap: nowrap; padding: 10px 14px; } #ro201 .r-ctl { flex: none; padding-left: 0; width: auto; }'
+    + '  #ro201 .r-n { flex: none; width: 70px; } #ro201 .r-ph { width: 56px; height: 56px; } #ro201 .r-nm { font-size: 15.5px; }'
+    + '  #ro201 .r-st { width: 62px; height: 54px; } #ro201 .r-got-b { height: 54px; }'
+    + '}'
+    + '@media (max-width: 370px) { #ro201 .r-body { padding: 0 12px 20px; } #ro201 .r-top { padding-left: 12px; padding-right: 12px; } #ro201 .r-ctl { padding-left: 0; gap: 6px; } #ro201 .r-st { width: 54px; } #ro201 .r-scan { padding: 0 12px; } #ro201 .r-row { padding-left: 12px; padding-right: 10px; } }'
+    + '#cl-menu .cl-row[data-r201-hide] { display: none !important; }';
+  document.head.appendChild(css);
+
+  /* ---------- state ---------- */
+  var R = { recv: {}, extra: [], rows: [], open: false, sending: false };
+  function loadDraft() { try { var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (d && d.recv && Date.now() - (d.t || 0) < 3 * 864e5) { R.recv = d.recv; R.extra = Array.isArray(d.extra) ? d.extra : []; } } catch (e) {} }
+  function saveDraft() { try { var any = Object.keys(R.recv).some(function (b) { return R.recv[b] > 0; }); if (any) localStorage.setItem(DRAFT_KEY, JSON.stringify({ t: Date.now(), recv: R.recv, extra: R.extra })); else localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+  function readLog() { try { var a = JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function addLog(line) { var a = readLog(); a.unshift(line); if (a.length > 300) a.length = 300; try { localStorage.setItem(LOG_KEY, JSON.stringify(a)); } catch (e) {} }
+  function qty(bin) { return R.recv[bin] > 0 ? R.recv[bin] : 0; }
+
+  /* ---------- screen ---------- */
+  var SCAN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M7 12h10"/></svg>';
+  var scr = null;
+  function screen() {
+    if (scr) return scr;
+    scr = document.createElement('div'); scr.id = 'ro201'; scr.setAttribute('role', 'dialog'); scr.setAttribute('aria-label', 'Receiving Orders');
+    scr.innerHTML = '<div class="r-top"><h2>Receiving Orders</h2><button type="button" class="r-x" data-r-x aria-label="Close">\u00d7</button></div>'
+      + '<div class="r-body"><div class="r-in">'
+      + '<div class="r-sub">Truck here? Count what came in. It gets added to On hand.</div>'
+      + '<div class="r-tools"><input class="r-q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" placeholder="Add item not on the list" aria-label="Add item">'
+      + (inWrap() ? '<button type="button" class="r-scan" data-r-scan>' + SCAN + 'Scan</button>' : '')
+      + '<div class="r-res" role="listbox"></div></div>'
+      + '<div class="r-done" aria-live="polite"></div><div class="r-warn" aria-live="polite"></div>'
+      + '<div class="r-list"></div>'
+      + '<div class="r-h3">RECENT RECEIPTS</div><div class="r-log"></div>'
+      + '</div></div>'
+      + '<div class="r-bar"><button type="button" class="r-go" data-r-go></button></div>';
+    document.body.appendChild(scr);
+    return scr;
+  }
+  function q(s) { return scr ? scr.querySelector(s) : null; }
+
+  function onOrder() {
+    return all().filter(function (it) { return it && it.bin && needOf(it) > 0; })
+      .sort(function (a, b) { return supRank(a.supplier) - supRank(b.supplier) || String(a.supplier || '').localeCompare(String(b.supplier || '')) || byNm(a, b); });
+  }
+  function rowHtml(it, extra) {
+    var n = qty(it.bin), nd = needOf(it), src = photo(it);
+    return '<div class="r-row' + (n > 0 ? ' r-got' : '') + '" data-r-bin="' + esc(it.bin) + '"' + (extra ? ' data-r-extra="1"' : '') + '>'
+      + (src ? '<img class="r-ph" loading="lazy" alt="" src="' + esc(src) + '">' : '<div class="r-ph r-nop"></div>')
+      + '<div class="r-it"><div class="r-nm">' + esc(it.name || it.bin) + '</div><div class="r-mt">' + metaHtml(it, extra) + '</div></div>'
+      + '<div class="r-ctl"><button type="button" class="r-st" data-d="-1" aria-label="One less"' + (n > 0 ? '' : ' disabled') + '>\u2212</button>'
+      + '<button type="button" class="r-n' + (n ? '' : ' r-zero') + '" data-r-num aria-label="Received, tap to type">' + n + '</button>'
+      + '<button type="button" class="r-st" data-d="1" aria-label="One more">+</button>'
+      + (extra ? '<button type="button" class="r-rm" data-r-rm aria-label="Remove">\u00d7</button>'
+               : '<button type="button" class="r-got-b' + (n === nd && nd > 0 ? ' r-on' : '') + '" data-r-gotall>Got all</button>')
+      + '</div></div>';
+  }
+  function metaHtml(it, extra) {
+    var n = qty(it.bin), nd = needOf(it), b = esc(String(it.bin).toUpperCase());
+    if (extra) return b + ' \u00b7 On hand <b>' + (numOf(it.onHand) == null ? '\u2013' : numOf(it.onHand)) + '</b>' + (nd > 0 ? ' \u00b7 needed ' + nd : '');
+    return b + ' \u00b7 Ordered/needed <b>' + nd + '</b>' + (n > nd ? ' \u00b7 <span class="r-over">+' + (n - nd) + ' extra</span>' : '');
+  }
+  function groupHead(sup, list) {
+    var lg = LOGO[sup];
+    return '<div class="r-gh">' + (lg ? '<img class="r-gl" alt="" src="' + BASE + 'assets/supplier-clear/' + lg + '.png">' : '')
+      + '<div class="r-gt"><div class="r-gn">' + esc(sup || 'Other') + '</div><div class="r-gc">' + list.length + ' item' + (list.length === 1 ? '' : 's') + ' on order</div></div>'
+      + '<button type="button" class="r-all" data-r-all="' + esc(sup) + '">Receive all</button></div>';
+  }
+  function build() {
+    screen();
+    var list = onOrder(), seen = {}, groups = [], gi = {};
+    list.forEach(function (it) { seen[it.bin] = 1; var s = it.supplier || 'Other'; if (!(s in gi)) { gi[s] = groups.length; groups.push([s, []]); } groups[gi[s]][1].push(it); });
+    /* counted rows that are no longer needed (another phone counted them) stay as extras so nothing is lost */
+    Object.keys(R.recv).forEach(function (b) { if (R.recv[b] > 0 && !seen[b] && R.extra.indexOf(b) < 0 && find(b)) R.extra.push(b); });
+    R.extra = R.extra.filter(function (b) { return !seen[b] && find(b); });
+    var h = '';
+    if (!groups.length && !R.extra.length) h += '<div class="r-empty"><b>Nothing on order right now</b><span>Every item is at its Keep on hand. Use Add item or Scan for anything else that came in.</span></div>';
+    groups.forEach(function (g) { h += '<div class="r-grp" data-r-sup="' + esc(g[0]) + '">' + groupHead(g[0], g[1]) + g[1].map(function (it) { return rowHtml(it, false); }).join('') + '</div>'; });
+    if (R.extra.length) h += '<div class="r-grp" data-r-sup="" data-r-extras="1"><div class="r-gh"><div class="r-gt"><div class="r-gn">Also received</div><div class="r-gc">Not on the order</div></div></div>'
+      + R.extra.map(function (b) { return rowHtml(find(b), true); }).join('') + '</div>';
+    q('.r-list').innerHTML = h;
+    paintGroups(); paintBar(); paintLog();
+  }
+  function rowEl(bin) { return scr && scr.querySelector('.r-row[data-r-bin="' + (window.CSS && CSS.escape ? CSS.escape(bin) : bin) + '"]'); }
+  function paintRow(bin) {
+    var el = rowEl(bin); if (!el) return; var it = find(bin); if (!it) return;
+    var n = qty(bin), nd = needOf(it), ex = el.hasAttribute('data-r-extra');
+    var num = el.querySelector('[data-r-num]'); if (num.textContent !== String(n)) num.textContent = n; num.classList.toggle('r-zero', !n);
+    el.querySelector('.r-st[data-d="-1"]').disabled = n <= 0;
+    el.classList.toggle('r-got', n > 0);
+    var mt = el.querySelector('.r-mt'), mh = metaHtml(it, ex); if (mt.innerHTML !== mh) mt.innerHTML = mh;
+    var g = el.querySelector('[data-r-gotall]'); if (g) g.classList.toggle('r-on', n === nd && nd > 0);
+  }
+  function paintGroups() {
+    if (!scr) return;
+    scr.querySelectorAll('[data-r-all]').forEach(function (b) {
+      var g = b.closest('.r-grp'), rows = g.querySelectorAll('.r-row:not(.r-gone)'), full = rows.length > 0;
+      rows.forEach(function (r) { var it = find(r.getAttribute('data-r-bin')); if (!it || qty(it.bin) < needOf(it)) full = false; });
+      b.classList.toggle('r-on', full); b.textContent = full ? 'All received' : 'Receive all';
+    });
+  }
+  function totals() { var u = 0, l = 0; Object.keys(R.recv).forEach(function (b) { if (R.recv[b] > 0 && find(b)) { u += R.recv[b]; l++; } }); return { units: u, lines: l }; }
+  function paintBar() {
+    var b = q('[data-r-go]'); if (!b || R.sending) return;
+    var t = totals(), lk = !isMgr();
+    var txt = lk ? 'Manager login to receive' : (t.units ? 'Add ' + t.units + ' item' + (t.units === 1 ? '' : 's') + ' to On hand' : 'Count what arrived');
+    if (b.textContent !== txt) b.textContent = txt;
+    b.classList.toggle('r-lock', lk); b.classList.toggle('r-idle', !lk && !t.units);
+  }
+  function fmtT(t) { try { var d = new Date(t); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
+  function paintLog() {
+    var a = readLog().slice(0, 25), el = q('.r-log'); if (!el) return;
+    el.innerHTML = a.length ? a.map(function (x) { return '<div class="r-lg"><span class="r-lq">+' + esc(x.qty) + '</span><span class="r-ln">' + esc(x.name || x.bin) + '</span><span class="r-lw">' + esc(fmtT(x.t)) + ' \u00b7 ' + esc(x.by || '') + '</span></div>'; }).join('')
+      : '<div class="r-lnone">Nothing received on this phone yet.</div>';
+  }
+  function setQty(bin, v) {
+    v = Math.max(0, Math.min(9999, Math.floor(Number(v) || 0)));
+    if (qty(bin) === v) return;
+    if (v) R.recv[bin] = v; else delete R.recv[bin];
+    paintRow(bin); paintGroups(); paintBar(); saveDraft(); hideDone();
+  }
+  function hideDone() { var d = q('.r-done'); if (d && d.classList.contains('on') && !R.sending) d.classList.remove('on'); }
+  function warn(t) { var w = q('.r-warn'); if (!w) return; w.textContent = t || ''; w.classList.toggle('on', !!t); }
+
+  /* ---------- open / close (Android back = popstate) ---------- */
+  function openR() {
+    if (R.open) return;
+    loadDraft(); screen(); build(); warn(navigator.onLine === false ? 'You\u2019re offline. Count now \u2014 counts stay on this phone until you have signal.' : '');
+    q('.r-done').classList.remove('on'); q('.r-q').value = ''; showRes(false);
+    void scr.offsetWidth; scr.classList.add('open'); q('.r-body').scrollTop = 0; R.open = true;
+    try { history.pushState({ overlay: 'ro201' }, ''); } catch (e) {}
+  }
+  function closeR(viaPop) {
+    if (!R.open) return;
+    closePad(); closeCf(); stopRep(); showRes(false);
+    R.open = false; scr.classList.remove('open');
+    try { var a = document.activeElement; if (a && scr.contains(a) && a.blur) a.blur(); } catch (e) {}
+    if (!viaPop) { try { if (history.state && history.state.overlay === 'ro201') history.back(); } catch (e) {} }
+  }
+  window.addEventListener('popstate', function () { if (R.open && !(history.state && history.state.overlay === 'ro201')) closeR(true); });
+  window.stormOpenReceiving = openR;
+  window.stormReceiving201 = { open: function () { wire(); openR(); }, close: closeR, state: R, setQty: setQty, addExtra: function (b, n) { addExtra(b, n); }, scan: function () { wire(); startScan(); } };
+
+  /* ---------- hold to repeat (v200 timings) ---------- */
+  var rep = { t: 0, bin: null, d: 0, n: 0, el: null };
+  function stopRep() { clearTimeout(rep.t); rep.t = 0; if (rep.el) rep.el.classList.remove('r-down'); rep.el = null; rep.bin = null; }
+  function step(bin, d) { var v = qty(bin); if (d < 0 && v <= 0) return false; setQty(bin, v + d); buzz(); return true; }
+  function tick() {
+    if (!rep.bin || !R.open) return stopRep();
+    rep.n++;
+    var by = rep.n > 30 ? 5 : 1; /* after ~2.5 s of holding, jump by 5 */
+    if (!step(rep.bin, rep.d * by) && rep.d < 0) setQty(rep.bin, 0);
+    if (rep.d < 0 && qty(rep.bin) <= 0) return stopRep();
+    rep.t = setTimeout(tick, Math.max(45, Math.round(150 * Math.pow(0.9, rep.n))));
+  }
+  function wireBody(b) {
+    b.addEventListener('pointerdown', function (e) {
+      var s = e.target.closest && e.target.closest('.r-st'); if (!s || s.disabled || R.sending) return;
+      var row = s.closest('.r-row'); if (!row) return;
+      e.preventDefault(); stopRep();
+      rep.bin = row.getAttribute('data-r-bin'); rep.d = Number(s.getAttribute('data-d')); rep.n = 0; rep.el = s; s.classList.add('r-down');
+      try { s.setPointerCapture(e.pointerId); } catch (x) {}
+      step(rep.bin, rep.d);
+      rep.t = setTimeout(tick, 420);
+    });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (t) { b.addEventListener(t, function () { if (rep.bin) stopRep(); }); });
+    b.addEventListener('contextmenu', function (e) { if (e.target.closest && e.target.closest('.r-st')) e.preventDefault(); });
+  }
+
+  /* ---------- number pad (v200 keys) ---------- */
+  var scrim = null, pad = null, P = null;
+  function mountSheets() {
+    if (pad) return;
+    scrim = document.createElement('div'); scrim.id = 'ro201-scrim';
+    pad = document.createElement('div'); pad.id = 'ro201-pad'; pad.setAttribute('role', 'dialog'); pad.setAttribute('aria-label', 'Received');
+    pad.innerHTML = '<div class="p-nm"></div><div class="p-sub"></div><div class="p-v" aria-live="polite"></div><div class="p-k">'
+      + ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(function (k) { return '<button type="button" data-p-k="' + k + '">' + k + '</button>'; }).join('')
+      + '<button type="button" class="p-clr" data-p-k="clr">Clear</button><button type="button" data-p-k="0">0</button><button type="button" data-p-k="bs" aria-label="Backspace">\u232b</button>'
+      + '<button type="button" class="p-done" data-p-k="done">Done</button></div>';
+    cf = document.createElement('div'); cf.id = 'ro201-cf'; cf.setAttribute('role', 'dialog'); cf.setAttribute('aria-label', 'Confirm receiving');
+    document.body.appendChild(scrim); document.body.appendChild(pad); document.body.appendChild(cf);
+    scrim.addEventListener('click', function () { if (P) closePad(); else closeCf(); });
+    pad.addEventListener('click', function (e) { var k = e.target.closest && e.target.closest('[data-p-k]'); if (k) typeKey(k.getAttribute('data-p-k')); });
+    cf.addEventListener('click', function (e) { var t = e.target; if (!t.closest) return; if (t.closest('.c-no')) closeCf(); else if (t.closest('.c-yes')) { closeCf(); send(); } });
+  }
+  function openPad(bin) {
+    var it = find(bin); if (!it) return; mountSheets();
+    P = { bin: bin, v: qty(bin), fresh: true };
+    pad.querySelector('.p-nm').textContent = it.name || bin;
+    pad.querySelector('.p-sub').textContent = 'Received \u00b7 ' + String(bin).toUpperCase() + (rowEl(bin) && !rowEl(bin).hasAttribute('data-r-extra') ? ' \u00b7 needed ' + needOf(it) : '');
+    paintPad(); scrim.classList.add('open'); void pad.offsetWidth; pad.classList.add('open');
+  }
+  function paintPad() { if (P) pad.querySelector('.p-v').textContent = P.v; }
+  function closePad() { if (!pad || !P) { P = null; return; } var b = P.bin, v = P.v; P = null; pad.classList.remove('open'); if (!cf.classList.contains('open')) scrim.classList.remove('open'); setQty(b, v); }
+  function typeKey(k) {
+    if (!P) return;
+    if (k === 'done') { closePad(); return; }
+    if (k === 'clr') { P.fresh = false; P.v = 0; paintPad(); return; }
+    if (k === 'bs') { P.fresh = false; var s = String(P.v).slice(0, -1); P.v = s === '' ? 0 : Number(s); paintPad(); return; }
+    if (/^[0-9]$/.test(k)) { var base = P.fresh || !P.v ? '' : String(P.v); P.fresh = false; var ns = (base + k).replace(/^0+(?=\d)/, ''); if (ns.length > 4) return; P.v = Number(ns); paintPad(); }
+  }
+
+  /* ---------- extras: search + scan ---------- */
+  function addExtra(bin, n) {
+    var it = find(bin); if (!it) return false;
+    n = Math.max(1, Math.floor(Number(n) || 1));
+    var el = rowEl(bin);
+    if (!el) {
+      if (R.extra.indexOf(bin) < 0) R.extra.push(bin);
+      R.recv[bin] = qty(bin) + n; saveDraft();
+      var box = q('[data-r-extras]');
+      if (!box) { build(); }
+      else { var t = document.createElement('div'); t.innerHTML = rowHtml(it, true); box.appendChild(t.firstChild); paintBar(); }
+      el = rowEl(bin);
+    } else setQty(bin, qty(bin) + n);
+    if (el) { el.classList.add('r-flash'); setTimeout(function () { el.classList.remove('r-flash'); }, 700); try { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {} }
+    var e2 = q('.r-empty'); if (e2) build();
+    hideDone(); buzz();
+    return true;
+  }
+  function norm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+  function search(v) {
+    var w = norm(v).split(' ').filter(Boolean); if (!w.length) return [];
+    return all().filter(function (it) { if (!it || !it.bin) return false; var h = norm(it.name + ' ' + it.bin + ' ' + (it.sku || '') + ' ' + (it.supplier || '')); return w.every(function (x) { return h.indexOf(x) >= 0; }); })
+      .sort(byNm).slice(0, 8);
+  }
+  function showRes(on) { var r = q('.r-res'); if (r) r.classList.toggle('on', !!on); }
+  function paintRes() {
+    var v = q('.r-q').value, hits = search(v), r = q('.r-res');
+    if (!norm(v)) { showRes(false); return; }
+    r.innerHTML = hits.length ? hits.map(function (it) { var src = photo(it); return '<button type="button" class="r-hit" data-r-hit="' + esc(it.bin) + '">' + (src ? '<img alt="" loading="lazy" src="' + esc(src) + '">' : '<span class="r-noimg"></span>') + '<span class="r-ht"><span class="r-hn">' + esc(it.name || it.bin) + '</span><span class="r-hm">' + esc(String(it.bin).toUpperCase()) + ' \u00b7 ' + esc(it.supplier || '') + '</span></span><span class="r-add">+ Add</span></button>'; }).join('')
+      : '<div class="r-none">No item matches \u201c' + esc(v) + '\u201d</div>';
+    showRes(true);
+  }
+  /* scan: reuse openScanner (wrapper camera). For this one scan the result is caught here: added as received, the cart stays as it was. */
+  var scan = null;
+  function cartMap() { var m = {}; try { (pickList || []).forEach(function (p) { m[p.bin] = (m[p.bin] || 0) + (Number(p.qty) || 0); }); } catch (e) {} return m; }
+  function startScan() {
+    if (typeof openScanner !== 'function') return;
+    scan = { snap: cartMap(), t: Date.now() };
+    try { openScanner(); } catch (e) { scan = null; }
+  }
+  function takeCart(text, ct) {
+    try { localStorage.setItem('stormCartAppliedV1', String(ct)); } catch (e) {} /* never applied to the cart later either */
+    var got = {}, snap = scan.snap, n = 0;
+    String(text || '').split(',').forEach(function (s) { var a = s.split('*'), b = (a[0] || '').trim(), v = Math.floor(Number(a[1])); if (b && v > 0) got[b] = (got[b] || 0) + v; });
+    Object.keys(got).forEach(function (b) { var d = got[b] - (snap[b] || 0), it = find(b) || find(b.toLowerCase()); if (d > 0 && it) { addExtra(it.bin, d); n += d; } });
+    return n;
+  }
+  function takeScans(text) { var n = 0; String(text || '').split(',').forEach(function (b) { b = b.trim(); var it = b && (find(b) || find(b.toLowerCase())); if (it) { addExtra(it.bin, 1); n++; } }); return n; }
+  function wrapScan() {
+    if (wrapScan.done) return; wrapScan.done = true;
+    var _ac = window.applyCartParam, _as = window.applyScansParam;
+    if (typeof _ac === 'function') window.applyCartParam = function (text, ct) { if (scan && R.open) { takeCart(text, ct); scan = null; return; } return _ac.apply(this, arguments); };
+    if (typeof _as === 'function') window.applyScansParam = function (text) { if (scan && R.open) { takeScans(text); scan = null; return; } return _as.apply(this, arguments); };
+  }
+  try { wrapScan(); } catch (e) {}
+  window.addEventListener('message', function (e) { var d = e.data; if (d && d.storm === 'camClosed' && scan) setTimeout(function () { scan = null; }, 400); });
+
+  /* ---------- confirm + send ---------- */
+  var cf = null;
+  function lines() {
+    var out = [];
+    Object.keys(R.recv).forEach(function (b) { var it = find(b); if (it && R.recv[b] > 0) out.push(it); });
+    return out.sort(function (a, b) { return supRank(a.supplier) - supRank(b.supplier) || byNm(a, b); });
+  }
+  function openCf() {
+    var L = lines(); if (!L.length) return; mountSheets();
+    var t = totals(), h = '', last = null;
+    L.forEach(function (it) {
+      if (it.supplier !== last) { last = it.supplier; h += '<div class="c-gh">' + esc(String(it.supplier || 'Other').toUpperCase()) + '</div>'; }
+      var o = numOf(it.onHand) || 0, n = qty(it.bin);
+      h += '<div class="c-r"><span class="c-q">+' + n + '</span><span class="c-n">' + esc(it.name || it.bin) + '</span><span class="c-w">' + (numOf(it.onHand) == null ? '\u2013' : o) + ' \u2192 <b>' + (o + n) + '</b></span></div>';
+    });
+    cf.innerHTML = '<div class="c-t">Add to On hand?</div><div class="c-s">' + t.units + ' item' + (t.units === 1 ? '' : 's') + ' \u00b7 ' + t.lines + ' line' + (t.lines === 1 ? '' : 's') + ' \u00b7 On hand was \u2192 new</div>'
+      + '<div class="c-list">' + h + '</div><div class="c-b"><button type="button" class="c-no">Cancel</button><button type="button" class="c-yes">Add to On hand</button></div>';
+    scrim.classList.add('open'); void cf.offsetWidth; cf.classList.add('open');
+  }
+  function closeCf() { if (!cf || !cf.classList.contains('open')) return; cf.classList.remove('open'); if (!P) scrim.classList.remove('open'); }
+  function goTap() {
+    if (R.sending) return;
+    if (!isMgr()) { try { stormAccess.ask(function () { paintBar(); }, 'Receiving adds to On hand. That\u2019s for managers.'); } catch (e) {} return; }
+    if (!totals().units) { var r = q('.r-row'); if (r) { r.classList.add('r-flash'); setTimeout(function () { r.classList.remove('r-flash'); }, 600); } return; }
+    if (navigator.onLine === false) { warn('You\u2019re offline. Your counts are kept on this phone \u2014 tap again when you have signal.'); return; }
+    warn(''); openCf();
+  }
+  function send() {
+    var L = lines(); if (!L.length || R.sending) return;
+    R.sending = true; stopRep();
+    var go = q('[data-r-go]'), done = [], i = 0, failMsg = '', tries = 0;
+    go.classList.add('r-busy');
+    function prog() { go.textContent = 'Adding ' + Math.min(i + 1, L.length) + ' of ' + L.length + '\u2026'; }
+    function next() {
+      if (i >= L.length) return finish();
+      var it = L[i], bin = it.bin, n = qty(bin);
+      if (!n) { i++; return next(); }
+      var sq = null; try { sq = saveQueues[bin]; if (!sq) { sq = { busy: false, pending: null }; saveQueues[bin] = sq; } } catch (e) {}
+      if (sq && sq.busy) { setTimeout(next, 250); return; } /* a count save for this bin is in flight: wait for it, then add on top */
+      if (sq) sq.busy = true; /* hold the saveCount queue (and live sync) for this bin */
+      var from = numOf(find(bin).onHand), to = (from || 0) + n; prog();
+      google.script.run
+        .withSuccessHandler(function (updated) {
+          if (sq) sq.busy = false;
+          tries = 0;
+          addLog({ t: Date.now(), bin: bin, name: it.name || bin, qty: n, from: from, to: to, by: who(), sup: it.supplier || '' });
+          delete R.recv[bin]; saveDraft();
+          done.push([bin, n]);
+          try { if (updated && updated.bin) applyUpdate(updated); else { it.onHand = to; it.need = needOf(it); patchCard(it); } } catch (e) {}
+          try { syncDetailStepper(bin); } catch (e) {}
+          markRow(bin, n);
+          try { if (sq && sq.pending !== null && typeof pumpSaveQueue === 'function') pumpSaveQueue(bin); } catch (e) {}
+          i++; next();
+        })
+        .withFailureHandler(function (err) {
+          if (sq) sq.busy = false;
+          var m = String(err && (err.message || err) || '');
+          if (/MANAGER_REQUIRED|PIN_REQUIRED/.test(m)) { failMsg = 'Manager login expired. Log in and tap again to add the rest.'; try { stormAccess.expired(); } catch (x) {} return finish(); }
+          if (/PIN_LOCKED/.test(m)) { failMsg = 'Too many wrong codes \u2014 wait 10 minutes, then tap again.'; return finish(); }
+          if (++tries < 2) { setTimeout(next, 700); return; }
+          failMsg = 'Couldn\u2019t save ' + (it.name || bin) + '. Check your signal and tap again \u2014 the rest are still counted here.';
+          finish();
+        })
+        .updateCount(bin, String(to), tok());
+    }
+    function finish() {
+      R.sending = false; go.classList.remove('r-busy');
+      var u = done.reduce(function (s, x) { return s + x[1]; }, 0);
+      var d = q('.r-done');
+      if (done.length) { d.innerHTML = '\u2713 Received <span>' + u + ' item' + (u === 1 ? '' : 's') + ' added to On hand</span>'; d.classList.remove('on'); void d.offsetWidth; d.classList.add('on'); }
+      warn(failMsg);
+      paintBar(); paintGroups(); paintLog();
+      setTimeout(settle, 900);
+    }
+    next();
+  }
+  function markRow(bin, n) {
+    var el = rowEl(bin); if (!el) return; var it = find(bin);
+    el.classList.remove('r-got'); el.classList.add('r-ok');
+    var num = el.querySelector('[data-r-num]'); num.textContent = '0'; num.classList.add('r-zero');
+    el.querySelector('.r-st[data-d="-1"]').disabled = true;
+    var g = el.querySelector('[data-r-gotall]'); if (g) g.classList.remove('r-on');
+    el.querySelector('.r-mt').innerHTML = esc(String(bin).toUpperCase()) + ' \u00b7 <span class="r-tag">Received +' + n + ' \u2713</span> \u00b7 On hand <b>' + (numOf(it && it.onHand) == null ? '\u2013' : numOf(it.onHand)) + '</b>';
+    el.setAttribute('data-r-settle', '1');
+  }
+  /* rows that are now fully stocked fold away; the rest stay with their new "needed" number */
+  function settle() {
+    if (!scr || R.sending) return;
+    scr.querySelectorAll('.r-row[data-r-settle]').forEach(function (el) {
+      var bin = el.getAttribute('data-r-bin'), it = find(bin); el.removeAttribute('data-r-settle');
+      if (qty(bin) > 0) { el.classList.remove('r-ok'); paintRow(bin); return; }
+      if (el.hasAttribute('data-r-extra') || !it || needOf(it) <= 0) {
+        el.style.maxHeight = el.offsetHeight + 'px'; void el.offsetWidth; el.classList.add('r-gone');
+        setTimeout(function () {
+          var g = el.closest('.r-grp'); if (el.parentNode) el.parentNode.removeChild(el);
+          R.extra = R.extra.filter(function (b) { return b !== bin; });
+          if (g && !g.querySelector('.r-row')) { g.style.opacity = '0'; setTimeout(function () { if (g.parentNode) g.parentNode.removeChild(g); if (!scr.querySelector('.r-grp')) build(); }, 300); }
+          else if (g) { var c = g.querySelector('.r-gc'), k = g.querySelectorAll('.r-row').length; if (c && !g.hasAttribute('data-r-extras')) c.textContent = k + ' item' + (k === 1 ? '' : 's') + ' on order'; }
+          paintGroups();
+        }, 320);
+      } else { setTimeout(function () { el.classList.remove('r-ok'); }, 1400); }
+    });
+  }
+
+  /* ---------- taps ---------- */
+  function onBody(e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest('[data-r-x]')) { closeR(false); return; }
+    if (t.closest('[data-r-go]')) { goTap(); return; }
+    if (R.sending) return;
+    if (t.closest('[data-r-scan]')) { showRes(false); startScan(); return; }
+    var h = t.closest('[data-r-hit]'); if (h) { var inp = q('.r-q'); inp.value = ''; showRes(false); try { inp.blur(); } catch (x) {} addExtra(h.getAttribute('data-r-hit'), 1); return; }
+    if (!t.closest('.r-tools')) showRes(false);
+    var row = t.closest('.r-row'), bin = row && row.getAttribute('data-r-bin');
+    if (t.closest('.r-st')) { if (e.detail === 0 && row) step(bin, Number(t.closest('.r-st').getAttribute('data-d'))); return; } /* keyboard; pointer handled on pointerdown */
+    if (t.closest('[data-r-num]')) { openPad(bin); return; }
+    if (t.closest('[data-r-gotall]')) { var it = find(bin); if (it) setQty(bin, qty(bin) === needOf(it) ? 0 : needOf(it)); buzz(); return; }
+    if (t.closest('[data-r-rm]')) { delete R.recv[bin]; R.extra = R.extra.filter(function (b) { return b !== bin; }); saveDraft(); build(); return; }
+    var a = t.closest('[data-r-all]');
+    if (a) {
+      var g = a.closest('.r-grp'), rows = [].slice.call(g.querySelectorAll('.r-row:not(.r-gone)')), full = a.classList.contains('r-on');
+      rows.forEach(function (r) { var b = r.getAttribute('data-r-bin'), x = find(b); if (x) setQty(b, full ? 0 : Math.max(qty(b), needOf(x))); });
+      buzz(); return;
+    }
+  }
+  function wire() {
+    if (wire.done) return; wire.done = true; screen();
+    scr.addEventListener('click', onBody);
+    wireBody(scr);
+    var inp = q('.r-q');
+    inp.addEventListener('input', paintRes);
+    inp.addEventListener('focus', function () { if (norm(inp.value)) paintRes(); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var f = q('[data-r-hit]'); if (f) f.click(); } });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (!R.open) return;
+    if (P) { if (/^[0-9]$/.test(e.key)) { e.preventDefault(); typeKey(e.key); } else if (e.key === 'Backspace') { e.preventDefault(); typeKey('bs'); } else if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); closePad(); } return; }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); if (cf && cf.classList.contains('open')) closeCf(); else closeR(false); }
+  }, true);
+  window.addEventListener('stormaccess', function () { if (R.open) paintBar(); });
+  window.addEventListener('online', function () { if (R.open) warn(''); });
+  window.addEventListener('offline', function () { if (R.open) warn('You\u2019re offline. Count now \u2014 counts stay on this phone until you have signal.'); });
+  /* live sync: on-hand / need changes from other phones refresh the row text in place (no rebuild) */
+  setInterval(function () { if (!R.open || R.sending || !scr) return; scr.querySelectorAll('.r-row:not([data-r-settle]):not(.r-gone)').forEach(function (el) { paintRow(el.getAttribute('data-r-bin')); }); }, 2000);
+
+  /* ---------- side menu: our row opens this screen (window capture runs before the v199 document handler); Restock Soon row hidden ---------- */
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest || !t.closest('#cl-menu [data-ro199]')) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    try { closeDrawer(); } catch (x) { var sc = $('drawer-scrim'); if (sc) sc.click(); }
+    wire(); setTimeout(openR, 220);
+  }, true);
+  function hideSoon() { document.querySelectorAll('#cl-menu .cl-row.cl-soon:not([data-r201-hide])').forEach(function (r) { var n = r.querySelector('.cl-name'); if (n && /^\s*Restock\s*$/.test(n.textContent)) r.setAttribute('data-r201-hide', '1'); }); }
+  var hq = 0; function soon() { if (!hq) hq = requestAnimationFrame(function () { hq = 0; try { hideSoon(); } catch (e) {} }); }
+  (function watch(n) { var m = $('cl-menu') || $('drawer'); if (m && !m.__o201) { m.__o201 = true; try { new MutationObserver(soon).observe(m, { childList: true, subtree: true }); } catch (e) {} } soon(); if (n < 240 && !$('cl-menu')) setTimeout(function () { watch(n + 1); }, 500); })(0);
+  window.stormOpenReceiving = function () { wire(); openR(); };
 })();
