@@ -1,3 +1,22 @@
+/* v210 (Hark, 2026-11-12 15:20, Dave): CREW VIEW SIMPLE. Only Dave and his 2 managers (Manager Login) see Inventory and Needs Ordering.
+   Crew (html.storm-crew = no manager login): the top switch shows only "Staging Job", highlighted, with no Inventory half and no tap-to-switch.
+   Needs Ordering is hidden. Side menu for crew: Home, Customer Search, Staging, Box Truck Check, Tool Checklist, CATEGORIES, Products by supplier,
+   Resource Center (without Bin Labels), Manager Login. Hidden for crew: the Stocked to par card, Bin Labels, Receiving Orders, Quote Templates,
+   old Checklists section. Hidden for everyone: the grey "Soon" rows (Truck Check, Restock, Job Wrap-up, Crew Day).
+   CSS only. Nothing removed from the code, so a manager login shows the full menu again. */
+(function () {
+  if (document.getElementById('storm-v210-css')) return;
+  var st = document.createElement('style'); st.id = 'storm-v210-css';
+  var C = 'html.storm-crew body ';
+  st.textContent = ''
+    + '#cl-menu .cl-row.cl-soon { display: none !important; }'
+    + C + '#mode-switch .cl-seg-inv { display: none !important; }'
+    + C + '#mode-switch { pointer-events: none !important; }'
+    + C + '#mode-switch .cl-seg-job { flex: 1 1 auto !important; width: 100% !important; background: #29A8E0 !important; color: #fff !important; border-radius: 999px !important; text-align: center !important; }'
+    + C + '#tab-need, ' + C + '#need-badge { display: none !important; }'
+    + C + '#cl-menu .cl-par, ' + C + '#cl-menu [data-ro199], ' + C + '#drawer-labels, ' + C + '#drawer-qt, ' + C + '#drawer-checklists { display: none !important; }';
+  (document.head || document.documentElement).appendChild(st);
+})();
 /* v209 (Hark, 2026-11-12, Dave 11:27): Receiving Orders Scanned rows - tapping -/+, the number (number pad) or x no longer opens the camera. The rows carry data-r-scan like the Scan button, and the Scan check matched them first; it now only matches the Scan button. Pairs with app v168. */
 /* v208 (Hark, 2026-11-12, Dave): Receiving Orders - a "Scanned" section pinned at the top: every bin scanned with the camera in Receiving lands there (on order or not, e.g. PVC fittings), +1 per scan, -/+ and number pad still work, moved up out of its supplier group (no duplicates). Its own "Add N to bins" button adds only the Scanned counts (same confirm sheet, manager gate, save queue, retry/offline, receipt log, Received check) and clears those rows. Bottom bar relabeled "Add counted items to On hand (N)" (same behavior: only rows with a count above 0). Receiving opens the scanner with &recv=1; the order cart is never touched. See the v208 notes in the v201 block. Pairs with app v167. */
 /* v207 (Hark, 2026-11-11, Dave 21:02-21:03, batch G): How to Use the App rewritten for the app as it is now, and the animation at its top replaced by a real screen recording of the current app (assets/howto/how-to-use.mp4, muted, loops while the guide is open, tap to pause, jump-to chips). Guide in the app's look (Montserrat, #EAF0F7, 14px cards). See the v207 block at the end. Pairs with app v159. */
