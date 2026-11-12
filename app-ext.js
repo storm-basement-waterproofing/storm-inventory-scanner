@@ -1,3 +1,4 @@
+/* v208 (Hark, 2026-11-12, Dave): Receiving Orders - a "Scanned" section pinned at the top: every bin scanned with the camera in Receiving lands there (on order or not, e.g. PVC fittings), +1 per scan, -/+ and number pad still work, moved up out of its supplier group (no duplicates). Its own "Add N to bins" button adds only the Scanned counts (same confirm sheet, manager gate, save queue, retry/offline, receipt log, Received check) and clears those rows. Bottom bar relabeled "Add counted items to On hand (N)" (same behavior: only rows with a count above 0). Receiving opens the scanner with &recv=1; the order cart is never touched. See the v208 notes in the v201 block. Pairs with app v167. */
 /* v207 (Hark, 2026-11-11, Dave 21:02-21:03, batch G): How to Use the App rewritten for the app as it is now, and the animation at its top replaced by a real screen recording of the current app (assets/howto/how-to-use.mp4, muted, loops while the guide is open, tap to pause, jump-to chips). Guide in the app's look (Montserrat, #EAF0F7, 14px cards). See the v207 block at the end. Pairs with app v159. */
 /* v206 (Hark, 2026-11-11, Dave approved 22:55, batch T2): Truck Check part 2 - side menu rows Box Truck Check + Tool Checklist under Receiving Orders; big Save & Submit at the bottom of each form (fieldId __submitted in the Truck Check tab, banner Submitted by NAME . time, Update submission); Past checks list (read-only getTruckCheckHistory) opening a read-only copy. See the v206 block at the end. Pairs with app v158. */
 /* v205 (Hark, 2026-11-11, Dave batch H): forgiving search - typos, slang and sizes find the item; ranked best match first (flat list while searching), "Closest matches" when nothing matches; Receiving Orders add-by-search ranked the same way. See the v205 block at the end. Pairs with app v157. */
@@ -6311,7 +6312,17 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
    - Permissions unchanged: updateCount is manager-only on the server. Without a manager login the list shows and counting works, but the bar
      reads "Manager login to receive" (opens the manager code screen) and nothing is sent.
    - Never places supplier orders and never touches the cart / order. The greyed "Restock · Soon" side-menu row is hidden (this replaces it).
-   - Android back / Escape / X close it. window.stormOpenReceiving opens it. */
+   - Android back / Escape / X close it. window.stormOpenReceiving opens it.
+   v208 (Hark, 2026-11-12, Dave: "I want those items to have a button on top of their section so I can add them to our bins ... PVC fittings
+   ... not every job has these on the job listing ... scan the bins and then have a count going on them"):
+   - R.scanned (bins, newest first, kept in the draft): every bin read by the camera while Receiving is open goes to the "Scanned" section
+     pinned above the supplier groups, whether it is on order or not. A scan of a bin already there adds +1 (the scanner counts a label once
+     per appearance; off and back = +1 more). A scanned bin is taken out of its supplier group / Also received, so it is never listed twice.
+   - "Add N to bins" at the top of the section -> same confirm sheet (was -> new) limited to the Scanned rows -> same send() (updateCount,
+     manager token, saveQueues hold, retry, offline, receipt log, Received banner). Saved scanned rows fold away; one still on order goes back
+     to its supplier group at 0.
+   - The bottom bar reads "Add counted items to On hand (N)": unchanged behavior, only rows with a count above 0 (scanned ones included).
+   - The scanner is opened with &recv=1 (scan.html shows it as a receiving scan); the result is still caught here and the cart never changes. */
 (function () {
   if (window.__stormReceiving201) return; window.__stormReceiving201 = true;
   var BLUE = '#29A8E0', BLUED = '#1A8FC4', INK = '#0F1720', MUTE = '#6B7280', MUTE2 = '#8A94A3', LINE = '#DCE4EE', BG = '#EEF3F8', AMBER = '#D97706', RED = '#DC2626', GREEN = '#15803D';
@@ -6370,6 +6381,15 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#ro201 .r-done.on { display: flex; animation: r201in .3s ease both; } #ro201 .r-done span { font-weight: 600; color: #166534; font-size: 13.5px; }'
     + '#ro201 .r-warn { display: none; margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; background: #FEF3E2; color: #92400E; font-size: 13.5px; font-weight: 700; line-height: 1.4; } #ro201 .r-warn.on { display: block; }'
     + '@keyframes r201in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }'
+    /* v208: Scanned section */
+    + '#ro201 .r-grp[data-r-scanned] { box-shadow: 0 0 0 2px rgba(41,168,224,.35), 0 1px 2px rgba(15,23,32,.05), 0 4px 14px rgba(15,23,32,.06); animation: r201in .3s ease both; }'
+    + '#ro201 .r-sic { flex: none; width: 36px; height: 36px; border-radius: 10px; background: #E8F5FC; color: ' + BLUED + '; display: flex; align-items: center; justify-content: center; }'
+    + '#ro201 .r-sic svg { width: 20px; height: 20px; }'
+    + '#ro201 .r-addscan { flex: none; height: 40px; padding: 0 14px; border: 0; border-radius: 12px; background: ' + BLUE + '; color: #fff; font-size: 14px; font-weight: 800; white-space: nowrap; transition: opacity .15s ease, background-color .15s ease; }'
+    + '#ro201 .r-addscan:active { background: ' + BLUED + '; } #ro201 .r-addscan.r-idle { opacity: .5; } #ro201 .r-addscan.r-lock { background: ' + INK + '; } #ro201 .r-addscan.r-busy { opacity: .75; pointer-events: none; }'
+    + '#ro201 .r-row.r-new { animation: r208new .34s cubic-bezier(.2,.8,.2,1) both; }'
+    + '@keyframes r208new { from { opacity: 0; transform: translateY(-8px); background: #E8F5FC; } to { opacity: 1; transform: none; } }'
+    + '#ro201-cf .c-note { flex: none; margin-top: 4px; text-align: center; font-size: 12px; font-weight: 600; color: ' + MUTE2 + '; }'
     + '#ro201 .r-grp { margin-bottom: 14px; background: #fff; border-radius: 14px; ' + SH + ' overflow: hidden; transition: opacity .3s ease; }'
     + '#ro201 .r-gh { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 10px 12px 10px 14px; border-bottom: 1px solid #F1F4F8; }'
     + '#ro201 .r-gl { flex: none; height: 24px; max-width: 64px; object-fit: contain; }'
@@ -6448,9 +6468,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   document.head.appendChild(css);
 
   /* ---------- state ---------- */
-  var R = { recv: {}, extra: [], rows: [], open: false, sending: false };
-  function loadDraft() { try { var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (d && d.recv && Date.now() - (d.t || 0) < 3 * 864e5) { R.recv = d.recv; R.extra = Array.isArray(d.extra) ? d.extra : []; } } catch (e) {} }
-  function saveDraft() { try { var any = Object.keys(R.recv).some(function (b) { return R.recv[b] > 0; }); if (any) localStorage.setItem(DRAFT_KEY, JSON.stringify({ t: Date.now(), recv: R.recv, extra: R.extra })); else localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+  var R = { recv: {}, extra: [], scanned: [], rows: [], open: false, sending: false };
+  function loadDraft() { try { var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (d && d.recv && Date.now() - (d.t || 0) < 3 * 864e5) { R.recv = d.recv; R.extra = Array.isArray(d.extra) ? d.extra : []; R.scanned = Array.isArray(d.scanned) ? d.scanned : []; } } catch (e) {} }
+  function saveDraft() { try { var any = Object.keys(R.recv).some(function (b) { return R.recv[b] > 0; }); if (any) localStorage.setItem(DRAFT_KEY, JSON.stringify({ t: Date.now(), recv: R.recv, extra: R.extra, scanned: R.scanned })); else localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
   function readLog() { try { var a = JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
   function addLog(line) { var a = readLog(); a.unshift(line); if (a.length > 300) a.length = 300; try { localStorage.setItem(LOG_KEY, JSON.stringify(a)); } catch (e) {} }
   function qty(bin) { return R.recv[bin] > 0 ? R.recv[bin] : 0; }
@@ -6463,7 +6483,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     scr = document.createElement('div'); scr.id = 'ro201'; scr.setAttribute('role', 'dialog'); scr.setAttribute('aria-label', 'Receiving Orders');
     scr.innerHTML = '<div class="r-top"><h2>Receiving Orders</h2><button type="button" class="r-x" data-r-x aria-label="Close">\u00d7</button></div>'
       + '<div class="r-body"><div class="r-in">'
-      + '<div class="r-sub">Truck here? Count what came in. It gets added to On hand.</div>'
+      + '<div class="r-sub">Truck here? Count what came in, or scan bins. It gets added to On hand.</div>'
       + '<div class="r-tools"><input class="r-q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" placeholder="Add item not on the list" aria-label="Add item">'
       + (inWrap() ? '<button type="button" class="r-scan" data-r-scan>' + SCAN + 'Scan</button>' : '')
       + '<div class="r-res" role="listbox"></div></div>'
@@ -6483,7 +6503,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   function rowHtml(it, extra) {
     var n = qty(it.bin), nd = needOf(it), src = photo(it);
-    return '<div class="r-row' + (n > 0 ? ' r-got' : '') + '" data-r-bin="' + esc(it.bin) + '"' + (extra ? ' data-r-extra="1"' : '') + '>'
+    return '<div class="r-row' + (n > 0 ? ' r-got' : '') + '" data-r-bin="' + esc(it.bin) + '"' + (extra ? ' data-r-extra="1"' : '') + (extra === 'scan' ? ' data-r-scan="1"' : '') + '>'
       + (src ? '<img class="r-ph" loading="lazy" alt="" src="' + esc(src) + '">' : '<div class="r-ph r-nop"></div>')
       + '<div class="r-it"><div class="r-nm">' + esc(it.name || it.bin) + '</div><div class="r-mt">' + metaHtml(it, extra) + '</div></div>'
       + '<div class="r-ctl"><button type="button" class="r-st" data-d="-1" aria-label="One less"' + (n > 0 ? '' : ' disabled') + '>\u2212</button>'
@@ -6506,18 +6526,58 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   function build() {
     screen();
-    var list = onOrder(), seen = {}, groups = [], gi = {};
+    R.scanned = R.scanned.filter(function (b, i, a) { return find(b) && a.indexOf(b) === i; }); /* v208 */
+    var list = onOrder().filter(function (it) { return R.scanned.indexOf(it.bin) < 0; }), seen = {}, groups = [], gi = {};
+    R.scanned.forEach(function (b) { seen[b] = 1; });
     list.forEach(function (it) { seen[it.bin] = 1; var s = it.supplier || 'Other'; if (!(s in gi)) { gi[s] = groups.length; groups.push([s, []]); } groups[gi[s]][1].push(it); });
     /* counted rows that are no longer needed (another phone counted them) stay as extras so nothing is lost */
     Object.keys(R.recv).forEach(function (b) { if (R.recv[b] > 0 && !seen[b] && R.extra.indexOf(b) < 0 && find(b)) R.extra.push(b); });
     R.extra = R.extra.filter(function (b) { return !seen[b] && find(b); });
     var h = '';
-    if (!groups.length && !R.extra.length) h += '<div class="r-empty"><b>Nothing on order right now</b><span>Every item is at its Keep on hand. Use Add item or Scan for anything else that came in.</span></div>';
+    if (R.scanned.length) h += scanGroupHtml(); /* v208: pinned at the top */
+    if (!groups.length && !R.extra.length && !R.scanned.length) h += '<div class="r-empty"><b>Nothing on order right now</b><span>Every item is at its Keep on hand. Use Add item or Scan for anything else that came in.</span></div>';
     groups.forEach(function (g) { h += '<div class="r-grp" data-r-sup="' + esc(g[0]) + '">' + groupHead(g[0], g[1]) + g[1].map(function (it) { return rowHtml(it, false); }).join('') + '</div>'; });
     if (R.extra.length) h += '<div class="r-grp" data-r-sup="" data-r-extras="1"><div class="r-gh"><div class="r-gt"><div class="r-gn">Also received</div><div class="r-gc">Not on the order</div></div></div>'
       + R.extra.map(function (b) { return rowHtml(find(b), true); }).join('') + '</div>';
     q('.r-list').innerHTML = h;
     paintGroups(); paintBar(); paintLog();
+  }
+  /* v208: the Scanned section (pinned at the top) */
+  function scanGroupHtml() {
+    var k = R.scanned.length;
+    return '<div class="r-grp" data-r-sup="" data-r-scanned="1"><div class="r-gh"><div class="r-sic">' + SCAN + '</div>'
+      + '<div class="r-gt"><div class="r-gn">Scanned</div><div class="r-gc" data-r-scnt>' + scanSub(k) + '</div></div>'
+      + '<button type="button" class="r-addscan" data-r-addscan></button></div>'
+      + R.scanned.map(function (b) { return rowHtml(find(b), 'scan'); }).join('') + '</div>';
+  }
+  function scanSub(k) { return k + ' item' + (k === 1 ? '' : 's') + ' scanned'; }
+  function scanBins() { var o = {}; R.scanned.forEach(function (b) { o[b] = 1; }); return o; }
+  function paintScan() {
+    var b = q('[data-r-addscan]'); if (!b || R.sending) return;
+    var t = totals(scanBins()), lk = !isMgr();
+    var txt = t.units ? 'Add ' + t.units + ' to bins' : 'Add to bins';
+    if (b.textContent !== txt) b.textContent = txt;
+    b.setAttribute('aria-label', t.units ? 'Add ' + t.units + ' scanned item' + (t.units === 1 ? '' : 's') + ' to their bins (On hand)' : 'Add scanned items to bins');
+    b.classList.toggle('r-lock', lk && t.units > 0); b.classList.toggle('r-idle', !t.units);
+    var c = q('[data-r-scnt]'); if (c) { var s2 = scanSub(R.scanned.length); if (c.textContent !== s2) c.textContent = s2; }
+  }
+  /* v208: camera reads land in Scanned. hits = { bin: count }. One rebuild for the whole batch, new rows slide in. */
+  function addScanned(hits) {
+    var bins = Object.keys(hits).filter(function (b) { return hits[b] > 0 && find(b); });
+    if (!bins.length) return 0;
+    var fresh = [], n = 0;
+    bins.forEach(function (b) {
+      R.recv[b] = qty(b) + hits[b]; n += hits[b];
+      if (R.scanned.indexOf(b) < 0) { R.scanned.unshift(b); fresh.push(b); }
+      R.extra = R.extra.filter(function (x) { return x !== b; });
+    });
+    saveDraft(); hideDone();
+    if (fresh.length) build(); else { bins.forEach(paintRow); paintGroups(); paintBar(); }
+    bins.forEach(function (b) { var el = rowEl(b); if (!el) return; el.classList.add(fresh.indexOf(b) >= 0 ? 'r-new' : 'r-flash'); setTimeout(function () { el.classList.remove('r-new'); el.classList.remove('r-flash'); }, 750); });
+    var body = q('.r-body'); /* the Scanned section is the first group, right under Add item / Scan */
+    if (body && body.scrollTop > 0) { try { body.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { body.scrollTop = 0; } }
+    buzz();
+    return n;
   }
   function rowEl(bin) { return scr && scr.querySelector('.r-row[data-r-bin="' + (window.CSS && CSS.escape ? CSS.escape(bin) : bin) + '"]'); }
   function paintRow(bin) {
@@ -6537,12 +6597,14 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       b.classList.toggle('r-on', full); b.textContent = full ? 'All received' : 'Receive all';
     });
   }
-  function totals() { var u = 0, l = 0; Object.keys(R.recv).forEach(function (b) { if (R.recv[b] > 0 && find(b)) { u += R.recv[b]; l++; } }); return { units: u, lines: l }; }
+  function totals(only) { var u = 0, l = 0; Object.keys(R.recv).forEach(function (b) { if (R.recv[b] > 0 && find(b) && (!only || only[b])) { u += R.recv[b]; l++; } }); return { units: u, lines: l }; } /* v208: only = { bin: 1 } limits it (Scanned) */
   function paintBar() {
     var b = q('[data-r-go]'); if (!b || R.sending) return;
     var t = totals(), lk = !isMgr();
-    var txt = lk ? 'Manager login to receive' : (t.units ? 'Add ' + t.units + ' item' + (t.units === 1 ? '' : 's') + ' to On hand' : 'Count what arrived');
+    var txt = lk ? 'Manager login to receive' : (t.units ? 'Add counted items to On hand (' + t.units + ')' : 'Count what arrived'); /* v208: says it only adds what was counted */
     if (b.textContent !== txt) b.textContent = txt;
+    b.setAttribute('aria-label', lk ? txt : (t.units ? 'Add ' + t.units + ' counted item' + (t.units === 1 ? '' : 's') + ' to On hand. Only rows with a count above 0.' : txt));
+    paintScan();
     b.classList.toggle('r-lock', lk); b.classList.toggle('r-idle', !lk && !t.units);
   }
   function fmtT(t) { try { var d = new Date(t); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
@@ -6577,7 +6639,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   window.addEventListener('popstate', function () { if (R.open && !(history.state && history.state.overlay === 'ro201')) closeR(true); });
   window.stormOpenReceiving = openR;
-  window.stormReceiving201 = { open: function () { wire(); openR(); }, close: closeR, state: R, setQty: setQty, addExtra: function (b, n) { addExtra(b, n); }, scan: function () { wire(); startScan(); } };
+  window.stormReceiving201 = { open: function () { wire(); openR(); }, close: closeR, state: R, setQty: setQty, addExtra: function (b, n) { addExtra(b, n); }, scan: function () { wire(); startScan(); }, scanned: function (h) { wire(); return addScanned(h || {}); } }; /* v208: scanned(hits) = what a camera result does */
 
   /* ---------- hold to repeat (v200 timings) ---------- */
   var rep = { t: 0, bin: null, d: 0, n: 0, el: null };
@@ -6619,7 +6681,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     document.body.appendChild(scrim); document.body.appendChild(pad); document.body.appendChild(cf);
     scrim.addEventListener('click', function () { if (P) closePad(); else closeCf(); });
     pad.addEventListener('click', function (e) { var k = e.target.closest && e.target.closest('[data-p-k]'); if (k) typeKey(k.getAttribute('data-p-k')); });
-    cf.addEventListener('click', function (e) { var t = e.target; if (!t.closest) return; if (t.closest('.c-no')) closeCf(); else if (t.closest('.c-yes')) { closeCf(); send(); } });
+    cf.addEventListener('click', function (e) { var t = e.target; if (!t.closest) return; if (t.closest('.c-no')) closeCf(); else if (t.closest('.c-yes')) { var o = CF && CF.only; closeCf(); send(o); } });
   }
   function openPad(bin) {
     var it = find(bin); if (!it) return; mountSheets();
@@ -6691,16 +6753,23 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function startScan() {
     if (typeof openScanner !== 'function') return;
     scan = { snap: cartMap(), t: Date.now() };
+    /* v208: tell the camera page this is a receiving scan (&recv=1). The real cart still rides along as the snapshot, so if the result were
+       ever not caught here the cart would only gain the scans, never lose anything. */
+    var sp = window.scanCartParams, wrapped = false;
+    if (typeof sp === 'function') { try { window.scanCartParams = function () { return sp.apply(this, arguments) + '&recv=1'; }; wrapped = true; } catch (e) {} }
     try { openScanner(); } catch (e) { scan = null; }
+    if (wrapped) { try { window.scanCartParams = sp; } catch (e) {} }
   }
   function takeCart(text, ct) {
     try { localStorage.setItem('stormCartAppliedV1', String(ct)); } catch (e) {} /* never applied to the cart later either */
     var got = {}, snap = scan.snap, n = 0;
     String(text || '').split(',').forEach(function (s) { var a = s.split('*'), b = (a[0] || '').trim(), v = Math.floor(Number(a[1])); if (b && v > 0) got[b] = (got[b] || 0) + v; });
-    Object.keys(got).forEach(function (b) { var d = got[b] - (snap[b] || 0), it = find(b) || find(b.toLowerCase()); if (d > 0 && it) { addExtra(it.bin, d); n += d; } });
+    var hits = {}; /* v208: everything scanned goes to the Scanned section */
+    Object.keys(got).forEach(function (b) { var d = got[b] - (snap[b] || 0), it = find(b) || find(b.toLowerCase()); if (d > 0 && it) { hits[it.bin] = (hits[it.bin] || 0) + d; n += d; } });
+    addScanned(hits);
     return n;
   }
-  function takeScans(text) { var n = 0; String(text || '').split(',').forEach(function (b) { b = b.trim(); var it = b && (find(b) || find(b.toLowerCase())); if (it) { addExtra(it.bin, 1); n++; } }); return n; }
+  function takeScans(text) { var n = 0, hits = {}; String(text || '').split(',').forEach(function (b) { b = b.trim(); var it = b && (find(b) || find(b.toLowerCase())); if (it) { hits[it.bin] = (hits[it.bin] || 0) + 1; n++; } }); addScanned(hits); return n; } /* v208 */
   function wrapScan() {
     if (wrapScan.done) return; wrapScan.done = true;
     var _ac = window.applyCartParam, _as = window.applyScansParam;
@@ -6712,35 +6781,38 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
 
   /* ---------- confirm + send ---------- */
   var cf = null;
-  function lines() {
+  var CF = null; /* v208: { only: {bin:1} } while the confirm sheet is for the Scanned section */
+  function lines(only) {
     var out = [];
-    Object.keys(R.recv).forEach(function (b) { var it = find(b); if (it && R.recv[b] > 0) out.push(it); });
+    Object.keys(R.recv).forEach(function (b) { var it = find(b); if (it && R.recv[b] > 0 && (!only || only[b])) out.push(it); });
     return out.sort(function (a, b) { return supRank(a.supplier) - supRank(b.supplier) || byNm(a, b); });
   }
-  function openCf() {
-    var L = lines(); if (!L.length) return; mountSheets();
-    var t = totals(), h = '', last = null;
+  function openCf(only) {
+    var L = lines(only); if (!L.length) return; mountSheets();
+    CF = { only: only || null };
+    var t = totals(only), h = '', last = null;
     L.forEach(function (it) {
       if (it.supplier !== last) { last = it.supplier; h += '<div class="c-gh">' + esc(String(it.supplier || 'Other').toUpperCase()) + '</div>'; }
       var o = numOf(it.onHand) || 0, n = qty(it.bin);
       h += '<div class="c-r"><span class="c-q">+' + n + '</span><span class="c-n">' + esc(it.name || it.bin) + '</span><span class="c-w">' + (numOf(it.onHand) == null ? '\u2013' : o) + ' \u2192 <b>' + (o + n) + '</b></span></div>';
     });
-    cf.innerHTML = '<div class="c-t">Add to On hand?</div><div class="c-s">' + t.units + ' item' + (t.units === 1 ? '' : 's') + ' \u00b7 ' + t.lines + ' line' + (t.lines === 1 ? '' : 's') + ' \u00b7 On hand was \u2192 new</div>'
-      + '<div class="c-list">' + h + '</div><div class="c-b"><button type="button" class="c-no">Cancel</button><button type="button" class="c-yes">Add to On hand</button></div>';
+    cf.innerHTML = '<div class="c-t">' + (only ? 'Add scanned items to bins?' : 'Add counted items to On hand?') + '</div><div class="c-s">' + t.units + ' item' + (t.units === 1 ? '' : 's') + ' \u00b7 ' + t.lines + ' line' + (t.lines === 1 ? '' : 's') + ' \u00b7 On hand was \u2192 new</div>'
+      + '<div class="c-note">' + (only ? 'Only the Scanned section. Nothing else changes.' : 'Only rows with a count above 0. Rows at 0 are left alone.') + '</div>'
+      + '<div class="c-list">' + h + '</div><div class="c-b"><button type="button" class="c-no">Cancel</button><button type="button" class="c-yes">' + (only ? 'Add to bins' : 'Add to On hand') + '</button></div>';
     scrim.classList.add('open'); void cf.offsetWidth; cf.classList.add('open');
   }
   function closeCf() { if (!cf || !cf.classList.contains('open')) return; cf.classList.remove('open'); if (!P) scrim.classList.remove('open'); }
-  function goTap() {
+  function goTap(only) {
     if (R.sending) return;
     if (!isMgr()) { try { stormAccess.ask(function () { paintBar(); }, 'Receiving adds to On hand. That\u2019s for managers.'); } catch (e) {} return; }
-    if (!totals().units) { var r = q('.r-row'); if (r) { r.classList.add('r-flash'); setTimeout(function () { r.classList.remove('r-flash'); }, 600); } return; }
+    if (!totals(only).units) { var r = q(only ? '[data-r-scanned] .r-row' : '.r-row'); if (r) { r.classList.add('r-flash'); setTimeout(function () { r.classList.remove('r-flash'); }, 600); } return; }
     if (navigator.onLine === false) { warn('You\u2019re offline. Your counts are kept on this phone \u2014 tap again when you have signal.'); return; }
-    warn(''); openCf();
+    warn(''); openCf(only);
   }
-  function send() {
-    var L = lines(); if (!L.length || R.sending) return;
+  function send(only) {
+    var L = lines(only); if (!L.length || R.sending) return;
     R.sending = true; stopRep();
-    var go = q('[data-r-go]'), done = [], i = 0, failMsg = '', tries = 0;
+    var go = (only && q('[data-r-addscan]')) || q('[data-r-go]'), done = [], i = 0, failMsg = '', tries = 0; /* v208: the button that was tapped shows the progress */
     go.classList.add('r-busy');
     function prog() { go.textContent = 'Adding ' + Math.min(i + 1, L.length) + ' of ' + L.length + '\u2026'; }
     function next() {
@@ -6776,7 +6848,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
         .updateCount(bin, String(to), tok());
     }
     function finish() {
-      R.sending = false; go.classList.remove('r-busy');
+      R.sending = false; go.classList.remove('r-busy'); try { var gs = q('[data-r-go]'); if (gs) gs.classList.remove('r-busy'); } catch (e) {}
       var u = done.reduce(function (s, x) { return s + x[1]; }, 0);
       var d = q('.r-done');
       if (done.length) { d.innerHTML = '\u2713 Received <span>' + u + ' item' + (u === 1 ? '' : 's') + ' added to On hand</span>'; d.classList.remove('on'); void d.offsetWidth; d.classList.add('on'); }
@@ -6802,12 +6874,17 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       var bin = el.getAttribute('data-r-bin'), it = find(bin); el.removeAttribute('data-r-settle');
       if (qty(bin) > 0) { el.classList.remove('r-ok'); paintRow(bin); return; }
       if (el.hasAttribute('data-r-extra') || !it || needOf(it) <= 0) {
+        var wasScan = el.hasAttribute('data-r-scan');
         el.style.maxHeight = el.offsetHeight + 'px'; void el.offsetWidth; el.classList.add('r-gone');
         setTimeout(function () {
           var g = el.closest('.r-grp'); if (el.parentNode) el.parentNode.removeChild(el);
           R.extra = R.extra.filter(function (b) { return b !== bin; });
+          if (wasScan) { /* v208: saved scanned rows are cleared; one still on order returns to its supplier group at 0 */
+            R.scanned = R.scanned.filter(function (b) { return b !== bin; }); saveDraft();
+            if (it && needOf(it) > 0) { clearTimeout(settle.rb); settle.rb = setTimeout(function () { if (!R.sending) build(); }, 360); }
+          }
           if (g && !g.querySelector('.r-row')) { g.style.opacity = '0'; setTimeout(function () { if (g.parentNode) g.parentNode.removeChild(g); if (!scr.querySelector('.r-grp')) build(); }, 300); }
-          else if (g) { var c = g.querySelector('.r-gc'), k = g.querySelectorAll('.r-row').length; if (c && !g.hasAttribute('data-r-extras')) c.textContent = k + ' item' + (k === 1 ? '' : 's') + ' on order'; }
+          else if (g) { var c = g.querySelector('.r-gc'), k = g.querySelectorAll('.r-row').length; if (g.hasAttribute('data-r-scanned')) paintScan(); else if (c && !g.hasAttribute('data-r-extras')) c.textContent = k + ' item' + (k === 1 ? '' : 's') + ' on order'; }
           paintGroups();
         }, 320);
       } else { setTimeout(function () { el.classList.remove('r-ok'); }, 1400); }
@@ -6819,6 +6896,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var t = e.target; if (!t || !t.closest) return;
     if (t.closest('[data-r-x]')) { closeR(false); return; }
     if (t.closest('[data-r-go]')) { goTap(); return; }
+    if (t.closest('[data-r-addscan]')) { goTap(scanBins()); return; } /* v208 */
     if (R.sending) return;
     if (t.closest('[data-r-scan]')) { showRes(false); startScan(); return; }
     var h = t.closest('[data-r-hit]'); if (h) { var inp = q('.r-q'); inp.value = ''; showRes(false); try { inp.blur(); } catch (x) {} addExtra(h.getAttribute('data-r-hit'), 1); return; }
@@ -6827,7 +6905,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (t.closest('.r-st')) { if (e.detail === 0 && row) step(bin, Number(t.closest('.r-st').getAttribute('data-d'))); return; } /* keyboard; pointer handled on pointerdown */
     if (t.closest('[data-r-num]')) { openPad(bin); return; }
     if (t.closest('[data-r-gotall]')) { var it = find(bin); if (it) setQty(bin, qty(bin) === needOf(it) ? 0 : needOf(it)); buzz(); return; }
-    if (t.closest('[data-r-rm]')) { delete R.recv[bin]; R.extra = R.extra.filter(function (b) { return b !== bin; }); saveDraft(); build(); return; }
+    if (t.closest('[data-r-rm]')) { delete R.recv[bin]; R.extra = R.extra.filter(function (b) { return b !== bin; }); R.scanned = R.scanned.filter(function (b) { return b !== bin; }); saveDraft(); build(); return; }
     var a = t.closest('[data-r-all]');
     if (a) {
       var g = a.closest('.r-grp'), rows = [].slice.call(g.querySelectorAll('.r-row:not(.r-gone)')), full = a.classList.contains('r-on');
@@ -9009,8 +9087,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
         + '<li>Menu &rarr; ' + k('Receiving Orders') + '. Everything on order is listed by supplier with how many were ordered.</li>'
         + '<li>Count what came: ' + k('+') + ' / ' + k('\u2212') + ' (hold to go fast), or tap the number to type it.</li>'
         + '<li>All of it there? ' + k('Got all') + ' on the line, or ' + k('Receive all') + ' for the whole supplier.</li>'
-        + '<li>Something extra came that isn\'t on the list? ' + k('Add item not on the list') + ': search or scan it.</li>'
-        + '<li>Tap the button at the bottom, check the summary, confirm. On hand goes up by what you counted. This needs a manager login (the button reads ' + k('Manager login to receive') + ' until then).' + M + '</li>'
+        + '<li>Something extra came that isn\'t on the list? ' + k('Add item not on the list') + ' to search for it.</li>'
+        + '<li>Restocking bins like PVC fittings? Tap ' + k('Scan') + ' and scan each bin label: one scan = +1 (move off and back for another). Everything you scan shows in ' + k('Scanned') + ' at the top. Tap ' + k('Add N to bins') + ' there to add just those.</li>'
+        + '<li>' + k('Add counted items to On hand') + ' at the bottom adds every row with a count above 0 (rows at 0 are left alone). Check the summary, confirm. On hand goes up by what you counted. This needs a manager login (the button reads ' + k('Manager login to receive') + ' until then).' + M + '</li>'
         + '</ol>' },
       { t: 'Box Truck Check & Tool Checklist', s: 'Truck check', h:
         '<ol class="sh-steps">'
