@@ -1,3 +1,4 @@
+/* v199 (Hark, 2026-11-11, Dave fix list 10, 11, 14-tab, 15): Find a Job search field gets a one-tap clear X; Customer Search gets an X by the customer name that clears the retained customer in place (cart kept, Find a Job not reopened); side menu "Receiving Orders" row under Staging (restock icon, placeholder screen); Staging icon is a flat utility cart loaded with boxes. Pairs with app v151 (manager-only Delete job in Find a Job, search alias for SKU 100348474). See the v199 block at the end. */
 /* v198 (Hark, 2026-11-11, Dave fix list 7-9): swipe left / right in Item details = next / previous item in the on-screen list order (drag + carousel slide; taps and vertical scrolls never swipe; touch + pointer); full STORM logo with blue BASEMENT WATERPROOFING in Item details and the side menu; supplier logo (transparent, no box) in the top-right of the item photo on cards and in Item details. See the v198 block at the end. */
 /* v197 (Hark, 2026-11-11 19:20, Dave fix list 1-6): main-screen Category dropdown hidden (side menu keeps Categories); Stocked-to-par card + supplier chips ride in the top bar and come back on scroll up; iPad toolbar at normal size in one row; smooth mode switch; rings update in place (no flash on Add to Order / saves); Keep on hand save patches the card in place. See the v197 block at the end. */
 /* v196 (Hark, 2026-11-11 15:10, Dave approved): pairs with app v148. "Pull List" reads "Customer Search" (printout: "Staging List"), top switch "Staging Job | Inventory". Checks only track the staging cart (shared + offline queue, no stock change). Big "Staged Job Complete" button at the bottom of Customer Search -> confirm sheet -> completeStaging; staged banner, checks locked, unchecked lines flagged Not staged; manager-only Unstage. How to Use guide + explainer rewritten for the new flow. See the v196 block at the end. */
@@ -5768,4 +5769,176 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
+})();
+
+/* v199 (Hark, 2026-11-11, Dave's fix list items 10, 11, 14 (tab only), 15):
+   10. Find a Job search field ("Customer name or address"): a round X inside the field, shown only while it has text. One tap empties
+       it, re-runs the search for everything (same as backspacing it out) and puts the cursor back in the field. The browser's own
+       search-cancel X is hidden so there is only one.
+   11. Customer Search sheet: a round X next to the customer's name (only when a customer is filled in) clears the retained customer in
+       place: it does exactly what New Job does (first / last / address and the Jobber link cleared), keeps every line on the cart and
+       does NOT open Find a Job. The cursor lands in First name.
+   14. Side menu: "Receiving Orders" row directly under Staging, with the existing restock icon. For now it opens a simple placeholder
+       screen titled Receiving Orders (Back / X closes it). The real screen comes in the next batch. Nothing else in the menu changes.
+   15. Staging row icon: a flat utility cart (push handle, deck, two wheels) loaded with boxes, drawn in the same 24px / 1.7 stroke /
+       accent blue as the other menu icons.
+   Pure overlay: no server calls, no Sheet writes, no base globals renamed. */
+(function () {
+  if (window.__storm199) return; window.__storm199 = true;
+  try {
+    var css = ''
+      /* 10 */
+      + 'html body #job-find .x199-q { position: relative; flex: none; margin: 0 14px; }'
+      + 'html body #job-find .x199-q > .jf-q { margin: 0 !important; width: 100% !important; padding-right: 50px !important; }'
+      + 'html body #job-find .jf-q::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }'
+      + 'html body .x199-x { position: absolute; top: 50%; right: 8px; width: 32px; height: 32px; margin-top: -16px; padding: 0; border: 0; border-radius: 50%; background: #E6EBF1; color: #4B5563; display: none; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; z-index: 2; }'
+      + 'html body .x199-x svg { width: 16px; height: 16px; display: block; }'
+      + 'html body .x199-x:active { background: #D5DCE5; transform: scale(.94); }'
+      + 'html body #job-find .x199-q.x199-has > .x199-x { display: flex; }'
+      /* 11 */
+      + 'html body #pull-sheet .tc-top { position: relative; }'
+      + 'html body #pull-sheet .tc-top > .tc-name { padding-left: 46px; padding-right: 46px; box-sizing: border-box; }'
+      + 'html body #pull-sheet .tc-top > .x199-cx { position: absolute; right: 16px; margin-top: 0; width: 34px; height: 34px; }'
+      + 'html body #pull-sheet .tc-top.x199-has > .x199-cx { display: flex; }'
+      /* 14: placeholder screen */
+      + '#ro199 { position: fixed; inset: 0; z-index: 135; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #EAF0F7; color: #0F1720; font-family: Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; transform: translateX(100%); transition: transform .26s cubic-bezier(.2,.8,.2,1); visibility: hidden; }'
+      + '#ro199.open { transform: none; visibility: visible; }'
+      + '#ro199 .ro-top { display: flex; align-items: center; gap: 12px; padding: calc(14px + env(safe-area-inset-top)) 16px 10px; }'
+      + '#ro199 .ro-top h2 { flex: 1; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.01em; }'
+      + '#ro199 .ro-x { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: #fff; color: #0F1720; font-size: 26px; line-height: 42px; padding: 0; box-shadow: 0 1px 2px rgba(15,23,32,.05), 0 4px 14px rgba(15,23,32,.06); font-family: inherit; }'
+      + '#ro199 .ro-card { margin: 10px 16px; padding: 26px 18px; background: #fff; border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,32,.05), 0 4px 14px rgba(15,23,32,.06); text-align: center; max-width: 560px; }'
+      + '@media (min-width: 700px) { #ro199 .ro-card { margin: 18px auto; } }'
+      + '#ro199 .ro-ic { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 16px; background: #E8F5FC; color: #29A8E0; display: flex; align-items: center; justify-content: center; }'
+      + '#ro199 .ro-ic svg { width: 30px; height: 30px; }'
+      + '#ro199 .ro-t { font-size: 18px; font-weight: 800; }'
+      + '#ro199 .ro-s { margin-top: 6px; font-size: 14.5px; font-weight: 600; color: #6B7280; line-height: 1.4; }';
+    var st = document.createElement('style'); st.id = 'storm-v199-css'; st.textContent = css;
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+
+  var XSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  function $(id) { return document.getElementById(id); }
+  function focusEnd(el) { try { el.focus({ preventScroll: true }); } catch (e) { try { el.focus(); } catch (e2) {} } }
+
+  /* ---------- 10. Find a Job search field clear (X) ---------- */
+  function wireFind() {
+    var q = $('jf-q'); if (!q || q.__x199) return;
+    q.__x199 = true;
+    var box = document.createElement('div'); box.className = 'x199-q';
+    q.parentNode.insertBefore(box, q); box.appendChild(q);
+    var x = document.createElement('button'); x.type = 'button'; x.className = 'x199-x'; x.setAttribute('data-x199-q', '1');
+    x.setAttribute('aria-label', 'Clear search'); x.innerHTML = XSVG;
+    box.appendChild(x);
+    var sync = function () { box.classList.toggle('x199-has', !!q.value); };
+    q.addEventListener('input', sync); q.addEventListener('change', sync); sync();
+  }
+  function clearFind() {
+    var q = $('jf-q'); if (!q) return;
+    q.value = '';
+    try { q.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+    var b = q.parentNode; if (b && b.classList) b.classList.remove('x199-has');
+    focusEnd(q);
+  }
+
+  /* ---------- 11. Customer Search: clear the retained customer in place ---------- */
+  function custHas() {
+    var c = {}; try { c = JSON.parse(localStorage.getItem('stormJobCustomerV1') || '{}') || {}; } catch (e) {}
+    return !!(String(c.first || '').trim() || String(c.last || '').trim() || String(c.address || '').trim());
+  }
+  function paintCust() {
+    var sh = $('pull-sheet'); if (!sh) return;
+    var top = sh.querySelector('.tc-top'), nm = top && top.querySelector(':scope > .tc-name'); if (!nm) return;
+    var x = top.querySelector(':scope > .x199-cx');
+    if (!x) {
+      x = document.createElement('button'); x.type = 'button'; x.className = 'x199-x x199-cx'; x.setAttribute('data-x199-c', '1');
+      x.setAttribute('aria-label', 'Clear customer'); x.setAttribute('title', 'Clear customer'); x.innerHTML = XSVG;
+      top.appendChild(x);
+    }
+    var has = custHas();
+    if (top.classList.contains('x199-has') !== has) top.classList.toggle('x199-has', has);
+    var y = Math.round(nm.offsetTop + Math.min(nm.offsetHeight, 44) / 2 - 17) + 'px';
+    if (x.style.top !== y) x.style.top = y;
+  }
+  function clearCust() {
+    var sh = $('pull-sheet'); if (!sh) return;
+    var nj = sh.querySelector('[data-jc-clear]');
+    if (nj) nj.click(); /* the same clear as New Job: customer + Jobber link only; cart lines stay; Find a Job is not opened */
+    else {
+      try { localStorage.setItem('stormJobCustomerV1', '{}'); } catch (e) {}
+      sh.querySelectorAll('[data-jc]').forEach(function (i) { i.value = ''; });
+    }
+    setTimeout(paintCust, 0);
+    var f = sh.querySelector('[data-jc="first"]'); if (f) focusEnd(f);
+  }
+
+  /* ---------- 14 + 15. side menu ---------- */
+  var CART = '<path d="M3 3.5h2.2v14"/><path d="M5.2 17.5H21"/><circle cx="8.2" cy="20.1" r="1.4"/><circle cx="18" cy="20.1" r="1.4"/><rect x="7.2" y="11.2" width="5.6" height="6.3" rx=".8"/><path d="M10 11.2v1.9"/><rect x="14.8" y="13" width="5.2" height="4.5" rx=".8"/><path d="M17.4 13v1.5"/><rect x="8.1" y="5.2" width="3.8" height="3.7" rx=".8"/>';
+  var RESTOCK = '<path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/>';
+  function svg(inner, cls) { return '<svg class="' + (cls || 'cl-ico') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + inner + '</svg>'; }
+  function upgradeMenu() {
+    var sg = document.querySelector('#cl-menu [data-cl-go="staging"]'); if (!sg) return false;
+    var ic = sg.querySelector('svg.cl-ico');
+    if (ic && !ic.getAttribute('data-v199')) { ic.innerHTML = CART; ic.setAttribute('data-v199', 'cart'); }
+    var ro = sg.parentNode.querySelector('[data-ro199]');
+    if (!ro) {
+      ro = document.createElement('button'); ro.type = 'button'; ro.className = 'cl-row'; ro.setAttribute('data-ro199', '1');
+      ro.innerHTML = svg(RESTOCK) + '<span class="cl-name">Receiving Orders</span>';
+    }
+    if (sg.nextElementSibling !== ro) sg.insertAdjacentElement('afterend', ro);
+    return true;
+  }
+  function screen() {
+    var s = $('ro199');
+    if (!s) {
+      s = document.createElement('div'); s.id = 'ro199'; s.setAttribute('role', 'dialog'); s.setAttribute('aria-label', 'Receiving Orders');
+      s.innerHTML = '<div class="ro-top"><h2>Receiving Orders</h2><button type="button" class="ro-x" data-ro199-x aria-label="Close">\u00d7</button></div>'
+        + '<div class="ro-card"><div class="ro-ic">' + svg(RESTOCK, 'ro-svg') + '</div><div class="ro-t">Receiving Orders</div>'
+        + '<div class="ro-s">Coming next: check in a supplier delivery and add what arrived to On hand.</div></div>';
+      document.body.appendChild(s);
+    }
+    return s;
+  }
+  var roOpen = false;
+  function openRO() {
+    var s = screen(); void s.offsetWidth; s.classList.add('open'); s.scrollTop = 0; roOpen = true;
+    try { history.pushState({ overlay: 'ro199' }, ''); } catch (e) {}
+  }
+  function closeRO(viaPop) {
+    var s = $('ro199'); if (!s || !roOpen) return;
+    roOpen = false; s.classList.remove('open');
+    if (!viaPop) { try { if (history.state && history.state.overlay === 'ro199') history.back(); } catch (e) {} }
+  }
+  window.addEventListener('popstate', function () { if (roOpen && !(history.state && history.state.overlay === 'ro199')) closeRO(true); });
+  window.stormOpenReceiving = openRO; /* the next batch replaces the placeholder */
+
+  /* ---------- taps (capture, ahead of the base handlers) ---------- */
+  document.addEventListener('mousedown', function (e) { var t = e.target; if (t && t.closest && t.closest('[data-x199-q], [data-x199-c]')) e.preventDefault(); }, true);
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest('[data-x199-q]')) { e.preventDefault(); e.stopImmediatePropagation(); clearFind(); return; }
+    if (t.closest('[data-x199-c]')) { e.preventDefault(); e.stopImmediatePropagation(); clearCust(); return; }
+    if (t.closest('#cl-menu [data-ro199]')) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      try { closeDrawer(); } catch (x) { var sc = $('drawer-scrim'); if (sc) sc.click(); }
+      setTimeout(openRO, 220);
+      return;
+    }
+    if (t.closest('#ro199 [data-ro199-x]')) { e.preventDefault(); e.stopImmediatePropagation(); closeRO(false); return; }
+    if (t.closest('#hamburger')) setTimeout(upgradeMenu, 20);
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && roOpen) closeRO(false); });
+  document.addEventListener('input', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-jc')) paintCust(); }, true);
+
+  /* ---------- keep it applied as the base / overlay redraw ---------- */
+  var q = 0;
+  function all() { q = 0; try { wireFind(); } catch (e) {} try { paintCust(); } catch (e) {} try { upgradeMenu(); } catch (e) {} }
+  function soon() { if (!q) q = requestAnimationFrame(all); }
+  try { new MutationObserver(soon).observe(document.body, { childList: true }); } catch (e) {}
+  (function watch(n) {
+    var sh = $('pull-sheet'), dr = $('drawer');
+    if (sh && !sh.__o199) { sh.__o199 = true; try { new MutationObserver(soon).observe(sh, { childList: true, subtree: true }); new MutationObserver(soon).observe(sh, { attributes: true, attributeFilter: ['class'] }); } catch (e) {} }
+    if (dr && !dr.__o199) { dr.__o199 = true; try { new MutationObserver(soon).observe(dr, { childList: true }); } catch (e) {} }
+    all();
+    if (n < 240 && (!sh || !dr || !document.querySelector('#cl-menu [data-ro199]'))) setTimeout(function () { watch(n + 1); }, 500);
+  })(0);
 })();
