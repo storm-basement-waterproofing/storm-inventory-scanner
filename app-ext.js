@@ -1,3 +1,4 @@
+/* v202 (Hark, 2026-11-11 20:50-21:02, Dave batch F): supplier logos in a clear strip above the product photo; manager login switches in place (no flash/jump); Staging opens only Find a Job; side-menu Customer Search row removed; nothing peeks from the closed Categories list; no blue tap highlight; faster checklist pages; Media tiles float in; Insurance Certificates + Logos manager-only; equal-height item cards; supplier logo in the Supplier tile; photos fade in once loaded; menu button morphs to an X. See the v202 block at the end. */
 /* v201 (Hark, 2026-11-11, Dave asked 19:01): Receiving Orders screen - items on order (need > 0, same rule as Needs Ordering) grouped by supplier, received counter per row (big -/+ with hold-repeat, tap for number pad, Got all, Receive all per supplier), Add item search + Scan for extras (cart never touched), confirm summary -> new on hand = current + received via updateCount (manager-only, unchanged), Received check, local receiving log (Recent receipts). Replaces the v199 placeholder and hides the Restock Soon row. See the v201 block at the end. */
 /* v200 (Hark, 2026-11-11, Dave asked 18:58): quick count sheet - KEEP ON HAND and ON HAND side by side (big -/+ with hold-repeat, tap a number for a number pad, live Need + OK/LOW/OUT), one Save sends only what changed via updatePar / updateCount; replaces the v181 On hand sheet; opens from the card On hand pill, the card Keep on hand button, and Item details (Edit keep on hand | Edit on hand). Manager-only like the server; never touches the order. See the v200 block at the end. */
 /* v199 (Hark, 2026-11-11, Dave fix list 10, 11, 14-tab, 15): Find a Job search field gets a one-tap clear X; Customer Search gets an X by the customer name that clears the retained customer in place (cart kept, Find a Job not reopened); side menu "Receiving Orders" row under Staging (restock icon, placeholder screen); Staging icon is a flat utility cart loaded with boxes. Pairs with app v151 (manager-only Delete job in Find a Job, search alias for SKU 100348474). See the v199 block at the end. */
@@ -6831,4 +6832,405 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var hq = 0; function soon() { if (!hq) hq = requestAnimationFrame(function () { hq = 0; try { hideSoon(); } catch (e) {} }); }
   (function watch(n) { var m = $('cl-menu') || $('drawer'); if (m && !m.__o201) { m.__o201 = true; try { new MutationObserver(soon).observe(m, { childList: true, subtree: true }); } catch (e) {} } soon(); if (n < 240 && !$('cl-menu')) setTimeout(function () { watch(n + 1); }, 500); })(0);
   window.stormOpenReceiving = function () { wire(); openR(); };
+})();
+
+/* v202 (Hark, 2026-11-11 20:50-21:02, Dave's batch F):
+   F1 supplier logo sits in a clear strip at the top of the photo box (26 px cards / 40 px Item details); the product is fitted below it
+      (object-fit: contain), so the logo never covers the product. One logo height for all four suppliers, wide logos capped by width, no glow.
+   F2 Manager login: no flash, no jump. The code box no longer redraws itself when the server answers, and a successful login switches to the
+      Manager view in place (window.stormMgrSwitch202, called by app v154): cards are patched, never rebuilt, the same item stays put on screen,
+      the tabs row keeps its height.
+   F3 Side menu Staging opens only Find a Job (no Customer Search sheet underneath). Picking / loading a job then brings up Customer Search.
+   F4 Side menu "Customer Search" row removed (the + dock button and Staging cover it).
+   F5 Categories row: nothing peeks out of the closed list, and the label beside "Categories" only shows a category the user picked there.
+   F6 No blue tap highlight / long-press selection on buttons, rows, cards and headers (inputs stay selectable); focus rings only for keyboards.
+   F7 Box Truck Pre Check / Tool Checklist pages: screen-size pages (checklists/*-md-N.jpg, ~1/4 of the bytes) shown in a reserved box with a
+      soft placeholder, faded in once loaded; warmed in the background when the app is idle. The full-size page is still used for zoom and print.
+   F8 Media (Photo Series + Videos): each tile floats in (fade + rise, staggered) as it scrolls into view, only once its thumbnail has loaded.
+      Space is reserved; only the poster/thumbnail images load (no video files).
+   F9 Insurance Certificates and Logos are manager-only (hidden in Crew view, re-hidden when the login runs out or on Log out). */
+(function () {
+  if (window.__storm202) return; window.__storm202 = true;
+  var BASE = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/';
+  var B = 'html body';
+  var EASE = 'cubic-bezier(.25,.6,.2,1)';
+  function mgr() { try { return !!(window.stormAccess && stormAccess.isMgr()); } catch (e) { return false; } }
+  var css = ''
+    /* ---- F1 cards ---- */
+    + B + ' #list > .card .card-main:has(> img.sup198) > img.photo { padding-top: 26px !important; object-fit: contain !important; object-position: 50% 50% !important; }'
+    + B + ' #list > .card .card-main > img.sup198 { top: 5px !important; right: 8px !important; height: 16px !important; max-height: 16px !important; width: auto !important; max-width: 52% !important; filter: none !important; }'
+    + '@media (min-width: 700px) { ' + B + ' #list > .card .card-main > img.sup198 { height: 17px !important; max-height: 17px !important; } }'
+    /* ---- F1 Item details (incl. the page riding in during a swipe) ---- */
+    + B + ' #detail .detail-body:has(> img.sup198d) > img.detail-photo { padding-top: 40px !important; object-fit: contain !important; object-position: 50% 50% !important; }'
+    + B + ' #detail .detail-body > img.sup198d { height: 24px !important; max-height: 24px !important; width: auto !important; max-width: min(42%, 170px) !important; filter: none !important; }'
+    + '@media (min-width: 700px) { ' + B + ' #detail .detail-body > img.sup198d { height: 22px !important; max-height: 22px !important; } }' /* v198 places it 2.5% of the photo width (15 px) down: 15 + 22 < 40 */
+    /* ---- F2 tabs row keeps its height in Crew view (the hidden Needs Ordering tab is the taller one) ---- */
+    + '@media (max-width: 699px) { ' + B + ' #topbar .toolbar .tabs > .tab { min-height: 44px; } }' /* Crew view: All Items alone was 43 px, with Needs Ordering 44 px */
+    /* ---- F4 ---- */
+    + B + ' #cl-menu [data-cl-go="pull"] { display: none !important; }'
+    /* ---- F5 closed Categories list: not one pixel, also before the accordion is set up ---- */
+    + B + ' #cl-menu .cl-cats:not(.st-cat-b) { max-height: 0 !important; overflow: hidden !important; visibility: hidden !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }'
+    + B + ' #cl-menu:not(.st-cats-open) .cl-cats.st-cat-b { visibility: hidden !important; border: 0 !important; transition: max-height .32s cubic-bezier(.4,0,.2,1), opacity .22s ease, margin .32s ease, padding .32s ease, visibility 0s linear .32s !important; }'
+    + B + ' #cl-menu.st-cats-open .cl-cats.st-cat-b { visibility: visible !important; transition: max-height .32s cubic-bezier(.4,0,.2,1), opacity .22s ease, margin .32s ease, padding .32s ease, visibility 0s !important; }'
+    + B + ' #cl-menu:not(.f5-picked) .st-cat-h .ch-v { visibility: hidden !important; }'
+    /* ---- F6 ---- */
+    + 'html, body, * { -webkit-tap-highlight-color: rgba(0,0,0,0) !important; }'
+    + 'button, a, [role="button"], .card, .cl-row, .cl-cat, .cl-lbl, .drawer-item, .drawer-section-head, .tab, header, .topbar, .toolbar, .detail-bar, #drawer, #cl-menu, .bl-card, #gd-chips, #gd-sum, .gd-badge, .pick-sheet-head, img'
+    + ' { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }'
+    + 'input, textarea, select, [contenteditable="true"], .sl-in, input *, textarea * { -webkit-user-select: text !important; user-select: text !important; -webkit-touch-callout: default !important; }'
+    + ':focus:not(:focus-visible) { outline: none !important; }'
+    + 'button:focus:not(:focus-visible), [role="button"]:focus:not(:focus-visible), .cl-row:focus:not(:focus-visible), .drawer-item:focus:not(:focus-visible) { box-shadow: none; }'
+    /* ---- F7 ---- */
+    + '#chk-view .f7-box { position: relative; display: block; width: 100%; aspect-ratio: 2550 / 3300; margin: 0 0 12px; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgba(15,23,32,.08); }'
+    + '#chk-view .f7-box::before { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, #F1F4F8 30%, #FAFBFD 50%, #F1F4F8 70%); background-size: 300% 100%; animation: f7Sk 1.2s linear infinite; }'
+    + '#chk-view .f7-box.f7-ok::before { animation: none; opacity: 0; transition: opacity .3s ease; }'
+    + '#chk-view .f7-box > img.chk-page { position: absolute; inset: 0; width: 100% !important; height: 100% !important; margin: 0 !important; object-fit: contain; opacity: 0; transition: opacity .28s ease; }'
+    + '#chk-view .f7-box.f7-ok > img.chk-page { opacity: 1; }'
+    + '@keyframes f7Sk { from { background-position: 100% 0; } to { background-position: -50% 0; } }'
+    /* ---- F8 ---- */
+    + '#res-media .res-mcard.f8-w { opacity: 0; transform: translate3d(0, 22px, 0); }'
+    + '#res-media .res-mcard.f8-in { opacity: 1; transform: none; transition: opacity .55s ease, transform .7s ' + EASE + '; }'
+    + '#res-media .res-mthumb img { opacity: 0; transition: opacity .3s ease; } #res-media .res-mthumb img.f8-ok { opacity: 1; }'
+    + '@media (prefers-reduced-motion: reduce) { #res-media .res-mcard.f8-w { transform: none; } #res-media .res-mcard.f8-in { transition: opacity .2s ease; } }'
+    /* ---- F9 ---- */
+    + 'html.storm-crew [data-ins-page], html.storm-crew [data-res-page="logos"], html:not(.storm-mgr) [data-ins-page], html:not(.storm-mgr) [data-res-page="logos"] { display: none !important; }';
+  var st = document.createElement('style'); st.id = 'storm-v202-css'; st.textContent = css;
+  function put() { (document.head || document.documentElement).appendChild(st); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+
+  /* ================= F2: manager login switches in place ================= */
+  function tabsHold() {}
+  function anchor() {
+    var tb = document.getElementById('topbar'), top = 0;
+    if (tb) { var r = tb.getBoundingClientRect(); top = Math.max(0, r.bottom); }
+    var cs = document.querySelectorAll('#list > .card[data-bin]');
+    /* the first card whose top is in view (the row the eye is on); else the card cut by the bar */
+    for (var i = 0; i < cs.length; i++) { var q = cs[i].getBoundingClientRect(); if (q.top >= top - 1 && q.top < window.innerHeight) return { el: cs[i], top: q.top }; }
+    for (var k = 0; k < cs.length; k++) { var q2 = cs[k].getBoundingClientRect(); if (q2.bottom > top + 10) return { el: cs[k], top: q2.top }; }
+    return null;
+  }
+  function frag(html) { var t = document.createElement('div'); t.innerHTML = html; return t.firstElementChild; }
+  var INFO_X = ['price', 'ft-note', 'ft-line', 'need-qty'];
+  function patchOne(el, it) {
+    var nw = frag(cardHtml(it)); if (!nw) return;
+    var info = el.querySelector('.info'), ninfo = nw.querySelector('.info');
+    if (info && ninfo) {
+      var sku = info.querySelector(':scope > .sku');
+      var olds = INFO_X.map(function (c) { return [].slice.call(info.querySelectorAll(':scope > .' + c)); }).reduce(function (a, b) { return a.concat(b); }, []);
+      var news = [].slice.call(ninfo.children).filter(function (c) { return INFO_X.some(function (k) { return c.classList.contains(k); }); });
+      var same = olds.length === news.length && olds.every(function (o, i) { return o.outerHTML === news[i].outerHTML; });
+      if (!same) {
+        olds.forEach(function (o) { o.remove(); });
+        var at = sku || null;
+        news.forEach(function (n) { if (at && at.parentNode === info) { at.insertAdjacentElement('afterend', n); at = n; } else info.appendChild(n); });
+      }
+    }
+    var inp = el.querySelector('input.count'), ninp = nw.querySelector('input.count');
+    if (inp && ninp) {
+      if (document.activeElement !== inp && inp.value !== ninp.value) inp.value = ninp.value;
+      if (inp.getAttribute('value') !== ninp.getAttribute('value')) inp.setAttribute('value', ninp.getAttribute('value') || '');
+      if (inp.getAttribute('aria-label') !== ninp.getAttribute('aria-label')) inp.setAttribute('aria-label', ninp.getAttribute('aria-label'));
+      var tag = inp.parentNode.querySelector(':scope > .ft-tag'), ntag = ninp.parentNode.querySelector(':scope > .ft-tag');
+      if (tag && !ntag) tag.remove(); else if (!tag && ntag) inp.insertAdjacentElement('afterend', ntag);
+    }
+    var pa = el.querySelector('.pick-add'), npa = nw.querySelector('.pick-add');
+    if (pa && npa) { if (pa.textContent !== npa.textContent) pa.textContent = npa.textContent; pa.classList.toggle('in-list', npa.classList.contains('in-list')); }
+    try { patchCard(it); } catch (e) {}
+  }
+  function canPatch() {
+    try {
+      if (tab === 'need') return false;
+      var want = filtered().map(function (x) { return x.bin; }), have = {};
+      var cards = document.querySelectorAll('#list > .card[data-bin]');
+      cards.forEach(function (c) { have[c.getAttribute('data-bin')] = 1; });
+      if (want.length !== cards.length) return false;
+      for (var i = 0; i < want.length; i++) if (!have[want[i]]) return false;
+      return true;
+    } catch (e) { return false; }
+  }
+  window.stormMgrSwitch202 = function (go, paintRole) {
+    var a = anchor();
+    var patch = canPatch();
+    if (typeof paintRole === 'function') paintRole();
+    tabsHold();
+    var target = (go === 'stock' || go === 'job') ? go : null;
+    if (target && target !== appMode) {
+      if (patch) {
+        try { savePickList(); } catch (e) {}
+        appMode = target; try { localStorage.setItem('stormModeV61', target); } catch (e) {}
+        try { loadPickList(); } catch (e) {}
+        try { updateModeSwitch(); } catch (e) {}
+      } else { try { setMode(target); } catch (e) {} }
+    } else { try { updateModeSwitch(); } catch (e) {} }
+    if (patch) {
+      document.querySelectorAll('#list > .card[data-bin]').forEach(function (el) { var it = null; try { it = findItem(el.getAttribute('data-bin')); } catch (e) {} if (it) patchOne(el, it); });
+      try { updateNeedBadge(); } catch (e) {}
+      try { updateCounts(); } catch (e) {}
+    } else { try { render(); } catch (e) {} }
+    /* the late restyle passes run now, in this frame, so nothing pops in afterwards */
+    try { if (typeof window.stormCl179All === 'function') window.stormCl179All(); } catch (e) {}
+    try { if (typeof window.stormOh181Pass === 'function') window.stormOh181Pass(); } catch (e) {}
+    try { if (typeof window.stormCl179All === 'function') window.stormCl179All(); } catch (e) {}
+    try { if (typeof window.stormEqCards202 === 'function') window.stormEqCards202(); } catch (e) {} /* F10: card height for this mode, same frame */
+    if (a) {
+      var el = a.el.isConnected ? a.el : document.querySelector('#list > .card[data-bin="' + a.el.getAttribute('data-bin') + '"]');
+      if (el) { var d = el.getBoundingClientRect().top - a.top; if (Math.abs(d) >= 1) { try { topbarLastY += d; } catch (e) {} window.scrollTo(0, (window.scrollY || 0) + d); } }
+    }
+  };
+  window.addEventListener('stormaccess', function () { setTimeout(tabsHold, 0); setTimeout(gate9, 0); });
+
+  /* ================= F3: Staging = Find a Job only ================= */
+  var fromStaging = 0, picked = 0;
+  function isJob() { try { return isJobMode(); } catch (e) { return false; } }
+  function openFindOnly() {
+    var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-jc-find', '1'); b.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none';
+    document.body.appendChild(b); try { b.click(); } finally { b.remove(); }
+  }
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var sg = t.closest('#cl-menu [data-cl-go="staging"]');
+    if (sg) {
+      e.stopImmediatePropagation(); e.preventDefault();
+      try { closeDrawer(); } catch (x) {}
+      fromStaging = Date.now();
+      if (!isJob()) { var seg = document.querySelector('#mode-switch .cl-seg-job') || document.getElementById('mode-switch'); if (seg) seg.click(); setTimeout(openFindOnly, 420); }
+      else setTimeout(openFindOnly, 200);
+      return;
+    }
+    if (t.closest('#job-find [data-jf-edit], #job-find [data-jf-load], #job-find [data-jf-jb-load]')) {
+      picked = Date.now();
+      setTimeout(function () {
+        var sh = document.getElementById('pull-sheet');
+        if (sh && sh.classList.contains('open')) return;
+        if (document.getElementById('job-find') && document.querySelector('#job-find.on')) return; /* the pick didn't go through */
+        var pf = document.getElementById('pull-fab'); if (pf) pf.click(); /* Customer Search slides up as Find a Job fades away */
+      }, 60);
+    }
+  }, true);
+
+  /* ================= F5: label beside Categories only for a category picked there ================= */
+  function sync5() {
+    var mn = document.getElementById('cl-menu'); if (!mn) return;
+    var c = 'All', s = 'All'; try { c = category; s = supplier; } catch (e) {}
+    if (c === 'All' || s !== 'All') mn.classList.remove('f5-picked');
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest('#cl-menu [data-cl-cat]')) { var mn = document.getElementById('cl-menu'); if (mn) mn.classList.add('f5-picked'); setTimeout(sync5, 50); }
+    else if (t.closest('#hamburger, [data-gd-sup], [data-cl-go], [data-drawer-category], [data-drawer-supplier], #tab-all')) setTimeout(sync5, 60);
+  }, true);
+  setInterval(sync5, 1500);
+
+  /* ================= F7: checklist pages ================= */
+  var MD = {
+    'box-truck-pre-check-hd-1.jpg': 'box-truck-pre-check-md-1.jpg',
+    'tool-checklist-hd-1.jpg': 'tool-checklist-md-1.jpg',
+    'tool-checklist-hd-2.jpg': 'tool-checklist-md-2.jpg'
+  };
+  function mdOf(src) { var m = /checklists\/([^?#\/]+)/.exec(src || ''); return m && MD[m[1]] ? BASE + 'checklists/' + MD[m[1]] + '?v=1' : ''; }
+  function fixChk(v) {
+    v.querySelectorAll('img.chk-page:not([data-f7])').forEach(function (im) {
+      im.setAttribute('data-f7', '1');
+      var hi = im.getAttribute('data-chk-zoom') || im.getAttribute('src'), md = mdOf(hi);
+      if (!im.getAttribute('data-chk-zoom')) im.setAttribute('data-chk-zoom', hi); /* zoom + print keep the full-size page */
+      var box = document.createElement('div'); box.className = 'f7-box';
+      im.parentNode.insertBefore(box, im); box.appendChild(im);
+      function ok() { box.classList.add('f7-ok'); }
+      im.addEventListener('load', ok); im.addEventListener('error', function () { if (md && im.src.indexOf(md) === 0 && hi) { im.src = hi; } else ok(); });
+      if (md) im.src = md;
+      if (im.complete && im.naturalWidth) ok();
+    });
+  }
+  (function watchChk(n) {
+    var v = document.getElementById('chk-view');
+    if (v) { new MutationObserver(function () { fixChk(v); }).observe(v, { childList: true, subtree: true }); fixChk(v); return; }
+    if (n < 400) setTimeout(function () { watchChk(n + 1); }, 150);
+  })(0);
+  /* chk-view is made on the first open: catch it the moment it is added */
+  new MutationObserver(function (ms) { for (var i = 0; i < ms.length; i++) for (var j = 0; j < ms[i].addedNodes.length; j++) { var nd = ms[i].addedNodes[j]; if (nd.id === 'chk-view') { fixChk(nd); new MutationObserver(function () { fixChk(nd); }).observe(nd, { childList: true, subtree: true }); } } }).observe(document.documentElement, { childList: true, subtree: true });
+  function warm() { Object.keys(MD).forEach(function (k, i) { setTimeout(function () { var im = new Image(); im.decoding = 'async'; im.src = BASE + 'checklists/' + MD[k] + '?v=1'; }, i * 400); }); }
+  setTimeout(function () { if (window.requestIdleCallback) requestIdleCallback(warm, { timeout: 8000 }); else warm(); }, 6000);
+
+  /* ================= F8: Media tiles float in ================= */
+  var q8 = [], t8 = 0, io8 = null;
+  function flush8() {
+    t8 = 0; var c = q8.shift(); if (!c) return;
+    if (c.isConnected) { c.classList.add('f8-in'); setTimeout(function () { c.classList.remove('f8-w'); }, 20); }
+    if (q8.length) t8 = setTimeout(flush8, 70);
+  }
+  function queue8(c) { if (c.__f8q) return; c.__f8q = 1; q8.push(c); if (!t8) t8 = setTimeout(flush8, 0); }
+  function ready8(c, cb) {
+    var im = c.querySelector('.res-mthumb img'); if (!im) { cb(); return; }
+    var done = false; function go() { if (done) return; done = true; im.classList.add('f8-ok'); cb(); }
+    if (im.complete && (im.naturalWidth || im.style.visibility === 'hidden')) { go(); return; }
+    im.addEventListener('load', go); im.addEventListener('error', function () { im.style.visibility = 'hidden'; go(); }); /* a missing thumbnail: the tile comes in with its plain grey box, never a broken image */
+    try { im.loading = 'eager'; } catch (e) {} /* it is on screen: fetch now */
+  }
+  function scan8() {
+    var box = document.getElementById('res-media'); if (!box) return;
+    if (!io8 && 'IntersectionObserver' in window) io8 = new IntersectionObserver(function (es) {
+      es.forEach(function (en) { if (!en.isIntersecting) return; io8.unobserve(en.target); var c = en.target; ready8(c, function () { queue8(c); }); });
+    }, { rootMargin: '0px 0px -24px 0px', threshold: 0.01 });
+    box.querySelectorAll('.res-mcard:not([data-f8])').forEach(function (c) {
+      c.setAttribute('data-f8', '1');
+      if (!io8) { var im = c.querySelector('.res-mthumb img'); if (im) im.classList.add('f8-ok'); return; }
+      c.classList.add('f8-w'); io8.observe(c);
+    });
+  }
+  new MutationObserver(function () { scan8(); }).observe(document.documentElement, { childList: true, subtree: true });
+
+  /* ================= F9: Insurance Certificates + Logos are manager-only ================= */
+  var shut9 = false;
+  function gate9(fromOpen) {
+    if (mgr()) return;
+    shut9 = false;
+    ['res-list', 'res-view'].forEach(function (id) {
+      var v = document.getElementById(id);
+      if (v && v.classList.contains('open') && v.querySelector('[data-res-logo], .st-ins-card, .st-ins-head, .res-fmt, [data-res-dl], a[href*="/assets/logos/"]')) {
+        var x = v.querySelector('[data-res-close]'); if (x) x.click(); else v.classList.remove('open');
+        if (v.classList.contains('open')) { v.classList.remove('open'); v.innerHTML = ''; }
+        shut9 = true;
+      }
+    });
+  }
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (!t.closest('[data-ins-page], [data-ins-contact], [data-res-page="logos"], [data-res-logo]')) return;
+    if (mgr()) return;
+    e.stopImmediatePropagation(); e.preventDefault();
+    try { stormAccess.ask(null, 'Insurance Certificates and Logos are for managers.'); } catch (x) {}
+  }, true);
+  setInterval(gate9, 5000);
+  /* any other way in (old links, the back button, a page re-opened): closed before it paints */
+  new MutationObserver(function () { if (mgr()) return; var a = document.getElementById('res-list'), b = document.getElementById('res-view'); if (!((a && a.classList.contains('open')) || (b && b.classList.contains('open')))) return; gate9(); if (shut9) { try { stormAccess.ask(null, 'Insurance Certificates and Logos are for managers.'); } catch (x) {} } }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
+/* v202 part 2 (Hark, 2026-11-11 21:10-21:13, Dave):
+   F10 every item card in the main grid is the same height (names clamp to 2 lines, one-line meta, controls sit at the bottom; one shared
+       height per mode and width, measured from the tallest card).
+   F11 Item details "Supplier" tile shows the supplier's transparent logo (same files as the photo corner), sized to the text line it replaces.
+   F12 main-grid photos: soft placeholder in the photo box, the picture fades + glides in once loaded and decoded; already-seen pictures never
+       fade again (patches, re-renders, cache); fetched about one screen ahead.
+   F13 the menu button's three lines morph to an X while the side menu is open (same timing curves as the + dock button) and back on close. */
+(function () {
+  if (window.__storm202b) return; window.__storm202b = true;
+  var EASE = 'cubic-bezier(.25,.6,.2,1)', B = 'html body';
+  var BASE = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/supplier-clear/';
+  var SUP = { 'Home Depot': 'hd', 'RichTech': 'rt', 'AutoZone': 'az', 'Hilti': 'hi' };
+  var css = ''
+    /* F10 */
+    + B + ' #list > .card .info .name { display: -webkit-box !important; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden !important; height: calc(2 * var(--f10-lh, 17.5px)) !important; min-height: 0 !important; max-height: none !important; }'
+    + B + ' #list > .card .info .sku, ' + B + ' #list > .card .info .price, ' + B + ' #list > .card .info .ft-note, ' + B + ' #list > .card .info .ft-line, ' + B + ' #list > .card .info .need-qty { white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }'
+    + B + ' #list > .card { min-height: var(--f10-h, 0px) !important; }'
+    + B + ' #list > .card > .controls { margin-top: auto !important; }'
+    /* F11 */
+    + B + ' #detail .cl-tile-sup .f11-lg { display: flex; align-items: center; justify-content: center; width: 100%; overflow: hidden; }'
+    + B + ' #detail .cl-tile-sup .f11-lg img { display: block; height: 100%; width: auto; max-width: 100%; object-fit: contain; filter: none; -webkit-user-drag: none; }'
+    + '.f11-sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }'
+    /* F12 */
+    + B + ' #list > .card .card-main::before { content: ""; position: absolute; left: 0; top: 0; width: var(--f12-w, 100%); height: var(--f12-h, 0px); border-radius: var(--f12-r, 12px); background: #EEF2F6; opacity: 0; pointer-events: none; transition: opacity .35s ease; z-index: 0; }'
+    + B + ' #list > .card .card-main.f12-wait::before { opacity: 1; transition: none; }'
+    + B + ' #list > .card .card-main > img.photo { position: relative; z-index: 1; }'
+    + B + ' #list > .card .card-main > img.photo.f12-w { opacity: 0 !important; transform: translate3d(0, 10px, 0); transition: none !important; }'
+    + B + ' #list > .card .card-main > img.photo.f12-in { opacity: 1; transform: none; transition: opacity .5s ease, transform .6s ' + EASE + ' !important; }'
+    + B + ' #list > .card .card-main > img.photo.f12-bad { visibility: hidden; }'
+    + '@media (prefers-reduced-motion: reduce) { ' + B + ' #list > .card .card-main > img.photo.f12-w { transform: none; } }'
+    /* F13 */
+    + B + ' #hamburger.hamburger span { transition: transform .55s cubic-bezier(.5,0,.3,1.25), opacity .3s ease; transform-origin: 50% 50%; }'
+    + B + ' #hamburger.hamburger.f13-x span { transition: transform .5s cubic-bezier(.34,1.4,.5,1), opacity .2s ease; }'
+    + B + ' #hamburger.hamburger.f13-x span:nth-child(1) { transform: translateY(var(--f13-d, 7px)) rotate(45deg); }'
+    + B + ' #hamburger.hamburger.f13-x span:nth-child(2) { opacity: 0; transform: scaleX(.2); }'
+    + B + ' #hamburger.hamburger.f13-x span:nth-child(3) { transform: translateY(calc(-1 * var(--f13-d, 7px))) rotate(-45deg); }'
+    + '@media (prefers-reduced-motion: reduce) { ' + B + ' #hamburger.hamburger span { transition: none !important; } }';
+  var st = document.createElement('style'); st.id = 'storm-v202b-css'; st.textContent = css;
+  function put() { (document.head || document.documentElement).appendChild(st); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+
+  /* ---------- F10: one card height ---------- */
+  var eqQ = 0;
+  function eq() {
+    eqQ = 0;
+    var list = document.getElementById('list'); if (!list || list.offsetParent === null) return;
+    var cs = list.querySelectorAll(':scope > .card'); if (!cs.length) return;
+    var nm = cs[0].querySelector('.info .name');
+    if (nm) { var lh = parseFloat(getComputedStyle(nm).lineHeight); if (!(lh > 0)) lh = parseFloat(getComputedStyle(nm).fontSize) * 1.25; list.style.setProperty('--f10-lh', lh + 'px'); }
+    var prev = list.style.getPropertyValue('--f10-h');
+    list.style.setProperty('--f10-h', '0px');
+    var mx = 0; for (var i = 0; i < cs.length; i++) { var h = cs[i].getBoundingClientRect().height; if (h > mx) mx = h; }
+    var v = Math.ceil(mx) + 'px';
+    list.style.setProperty('--f10-h', v);
+    return prev !== v;
+  }
+  window.stormEqCards202 = eq;
+  function eqSoon() { if (eqQ) return; eqQ = requestAnimationFrame(eq); }
+  (function w(n) {
+    var l = document.getElementById('list');
+    if (l) {
+      new MutationObserver(function () { if (!eqQ) Promise.resolve().then(eq); }).observe(l, { childList: true, subtree: true, characterData: true });
+      eq(); return;
+    }
+    if (n < 200) setTimeout(function () { w(n + 1); }, 150);
+  })(0);
+  window.addEventListener('resize', eqSoon);
+  window.addEventListener('stormaccess', function () { eq(); });
+  try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(eqSoon); } catch (e) {}
+  /* ---------- F11: supplier logo in the Supplier tile ---------- */
+  function f11() {
+    document.querySelectorAll('#detail .cl-tile-sup:not([data-f11])').forEach(function (t) {
+      var lab = t.querySelector('span'); var txt = ''; t.childNodes.forEach(function (n) { if (n.nodeType === 3) txt += n.nodeValue; });
+      txt = txt.trim(); var k = SUP[txt]; t.setAttribute('data-f11', '1'); if (!k) return;
+      var tn = null; t.childNodes.forEach(function (n) { if (n.nodeType === 3 && n.nodeValue.trim()) tn = n; }); if (!tn) return;
+      var r = document.createRange(); r.selectNodeContents(tn); var lh = r.getBoundingClientRect().height || 20;
+      var w = document.createElement('div'); w.className = 'f11-lg'; w.style.height = Math.round(lh) + 'px';
+      w.innerHTML = '<img alt="" aria-hidden="true" decoding="async" src="' + BASE + k + '.png?v=1">';
+      var sr = document.createElement('span'); sr.className = 'f11-sr'; sr.textContent = txt;
+      tn.parentNode.replaceChild(w, tn); t.appendChild(sr);
+    });
+  }
+  (function w(n) { var d = document.getElementById('detail'); if (d) { new MutationObserver(f11).observe(d, { childList: true, subtree: true }); f11(); return; } if (n < 200) setTimeout(function () { w(n + 1); }, 150); })(0);
+
+  /* ---------- F12: photos fade in once, after load + decode ---------- */
+  var seen = window.__f12seen = window.__f12seen || {};
+  var near = ('IntersectionObserver' in window) ? new IntersectionObserver(function (es) {
+    es.forEach(function (en) { if (!en.isIntersecting) return; near.unobserve(en.target); try { if (en.target.loading === 'lazy') en.target.loading = 'eager'; } catch (e) {} });
+  }, { rootMargin: '100% 0px 100% 0px' }) : null;
+  function boxVars() {
+    var l = document.getElementById('list'), im = l && l.querySelector(':scope > .card .card-main > img.photo'); if (!im) return;
+    var r = im.getBoundingClientRect(); if (!r.height) return;
+    l.style.setProperty('--f12-h', Math.round(r.height) + 'px'); l.style.setProperty('--f12-w', Math.round(r.width) + 'px');
+    l.style.setProperty('--f12-r', getComputedStyle(im).borderTopLeftRadius || '12px');
+  }
+  function done(im, host, fade) {
+    seen[im.getAttribute('src')] = 1;
+    if (!fade) { im.classList.remove('f12-w'); host.classList.remove('f12-wait'); return; }
+    requestAnimationFrame(function () { im.classList.add('f12-in'); im.classList.remove('f12-w'); host.classList.remove('f12-wait'); setTimeout(function () { im.classList.remove('f12-in'); }, 700); });
+  }
+  function one(im) {
+    if (im.__f12) return; im.__f12 = 1;
+    var host = im.parentNode; try { im.decoding = 'async'; } catch (e) {}
+    var src = im.getAttribute('src') || '';
+    if (seen[src] || (im.complete && im.naturalWidth)) { seen[src] = 1; return; } /* cached / already shown: no fade, ever */
+    im.classList.add('f12-w'); host.classList.add('f12-wait');
+    if (near) near.observe(im);
+    var fin = false;
+    function ok() { if (fin) return; fin = true; var p = null; try { p = im.decode ? im.decode() : null; } catch (e) {} if (p && p.then) p.then(function () { done(im, host, true); }, function () { done(im, host, true); }); else done(im, host, true); }
+    function bad() { if (fin) return; fin = true; im.classList.remove('f12-w'); im.classList.add('f12-bad'); /* placeholder stays, no broken icon */ }
+    im.addEventListener('load', ok); im.addEventListener('error', bad);
+    if (im.complete && im.naturalWidth) ok();
+  }
+  function scan12() { document.querySelectorAll('#list > .card .card-main > img.photo').forEach(one); }
+  (function w(n) {
+    var l = document.getElementById('list');
+    if (l) { new MutationObserver(function () { scan12(); }).observe(l, { childList: true, subtree: true }); scan12(); boxVars(); setTimeout(boxVars, 600); return; }
+    if (n < 200) setTimeout(function () { w(n + 1); }, 150);
+  })(0);
+  window.addEventListener('resize', function () { setTimeout(boxVars, 60); });
+
+  /* ---------- F13: menu button morphs with the side menu ---------- */
+  function hb() { return document.getElementById('hamburger'); }
+  function dist() { var b = hb(); if (!b || b.children.length < 3) return; var a = b.children[0].getBoundingClientRect(), c = b.children[1].getBoundingClientRect(); var d = (c.top + c.height / 2) - (a.top + a.height / 2); if (d > 0) b.style.setProperty('--f13-d', d + 'px'); }
+  function sync13() { var d = document.getElementById('drawer'), b = hb(); if (!d || !b) return; var o = d.classList.contains('open'); if (b.classList.contains('f13-x') !== o) { if (o) dist(); b.classList.toggle('f13-x', o); } }
+  (function w(n) { var d = document.getElementById('drawer'); if (d && hb()) { new MutationObserver(sync13).observe(d, { attributes: true, attributeFilter: ['class'] }); dist(); sync13(); return; } if (n < 200) setTimeout(function () { w(n + 1); }, 150); })(0);
+  document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('#hamburger')) { dist(); var b = hb(); if (b) b.classList.add('f13-x'); setTimeout(sync13, 0); setTimeout(sync13, 400); } }, true);
+  window.addEventListener('popstate', function () { setTimeout(sync13, 0); setTimeout(sync13, 350); });
 })();
