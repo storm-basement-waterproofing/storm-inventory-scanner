@@ -507,68 +507,123 @@ document.addEventListener('visibilitychange', function () {
   else if (!done && !stream && video && video.style.display !== 'none') { getSharpStream().then(function (s) { stream = s; video.srcObject = s; return video.play(); }).catch(function () {}); }
 });
 window.addEventListener('pagehide', function () { if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; } });
-function startNative() {
-  if (!('BarcodeDetector' in window)) { startFallback(); return; }
-  getSharpStream()
-    .then(function (s) {
-      stream = s;
-      video.srcObject = s;
-      return video.play();
-    })
-    .then(function () {
-      setMsg('Looking for a code…');
-      stillTimer = setTimeout(function () { setMsg('Still looking… hold the QR code steady inside the frame, a few inches from the camera'); }, 6000);
-      var detector = new BarcodeDetector({ formats: ['qr_code'] });
-      var scanning = true;
-      function tick() {
-        if (!scanning || done) return;
-        detector.detect(video).then(function (codes) {
-          if (done) return;
-          if (codes && codes.length) { try { showTrace(codes[0].cornerPoints, video.videoWidth, video.videoHeight); } catch (eT) {} onDecoded(codes[0].rawValue); }
-          setTimeout(tick, 150);
-        }).catch(function () { setTimeout(tick, 150); });
-      }
-      tick();
-    })
-    .catch(cameraError);
+/* scan v139 (Hark, 2026-11-12, Dave: "sort out any bugs that would cause the camera to not read 100%... taking out any lag").
+   New decode loop. Before: native reads waited 150 ms between tries (plus the read itself, so about 5 tries a second) and the
+   iPhone path waited 110 ms, shrank the picture to 720 px (small or far codes were lost) and only started the camera after the
+   decoder script had downloaded. Now: one read per new camera frame (requestVideoFrameCallback, rAF fallback), never two reads
+   at once (no queue), the camera opens while the decoder loads, the iPhone path alternates a whole-picture pass with a full
+   resolution pass of the framing box (plus an inverted pass now and then), and a native detector that cannot read QR codes or
+   keeps failing hands over to jsQR on the same camera. jsQR is served from this site (assets/jsqr.js), unpkg only as a backup.
+   Beep, haptic, tracing, popup and cart are unchanged. */
+var SITE = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/';
+function startCamera() {
+  return getSharpStream().then(function (s) { stream = s; video.srcObject = s; return video.play().catch(function () {}); });
 }
-// Fallback for browsers without BarcodeDetector: html5-qrcode on this
-// top-level page (its getUserMedia works here, unlike inside the app frame).
-function startFallback() {
-  var js = document.createElement('script');
-  js.src = 'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js';
-  js.onload = function () { if (typeof jsQR === 'function') startJsQR(); else startHtml5(); };
-  js.onerror = function () { startHtml5(); };
-  document.head.appendChild(js);
+function armStill() {
+  if (stillTimer) clearTimeout(stillTimer);
+  stillTimer = setTimeout(function () { setMsg('Still looking… hold the QR code steady inside the frame, a few inches from the camera'); }, 6000);
+}
+var scanLoop = null;
+function runLoop(decode) {
+  if (scanLoop) scanLoop.stop();
+  var busy = false, queued = false, stopped = false, lastStep = Date.now(), dog;
+  function next(cb) {
+    if (video.requestVideoFrameCallback) { try { video.requestVideoFrameCallback(function () { cb(); }); return; } catch (e) {} }
+    requestAnimationFrame(cb);
+  }
+  function step() {
+    queued = false; lastStep = Date.now();
+    if (stopped || done) return;
+    if (busy || document.hidden || video.readyState < 2 || !video.videoWidth) { schedule(); return; }
+    busy = true;
+    var p; try { p = Promise.resolve(decode()); } catch (e) { p = Promise.reject(e); }
+    p.then(function () { busy = false; schedule(); }, function () { busy = false; schedule(); });
+  }
+  function schedule() { if (queued || stopped || done) return; queued = true; next(step); }
+  /* watchdog: a frame callback can be lost when the stream is swapped (lens change, back from the background) */
+  dog = setInterval(function () { if (stopped || done) { clearInterval(dog); return; } if (!busy && Date.now() - lastStep > 600) { queued = false; step(); } }, 400);
+  schedule();
+  scanLoop = { stop: function () { stopped = true; clearInterval(dog); } };
+}
+function startNative() {
+  var hasNative = ('BarcodeDetector' in window);
+  var cam = startCamera();
+  var fmt = !hasNative ? Promise.resolve(false)
+    : (BarcodeDetector.getSupportedFormats ? BarcodeDetector.getSupportedFormats().then(function (f) { return f.indexOf('qr_code') !== -1; }, function () { return true; }) : Promise.resolve(true));
+  fmt.then(function (ok) {
+    if (!ok) { startFallback(cam); return; }
+    cam.then(function () {
+      setMsg('Looking for a code…'); armStill();
+      var detector; try { detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { startFallback(Promise.resolve()); return; }
+      var fails = 0, reads = 0;
+      runLoop(function () {
+        return detector.detect(video).then(function (codes) {
+          fails = 0; reads++;
+          if (done || !codes || !codes.length) return;
+          var c = codes[0];
+          for (var i = 1; i < codes.length; i++) if (area(codes[i]) > area(c)) c = codes[i];
+          try { showTrace(c.cornerPoints, video.videoWidth, video.videoHeight); } catch (eT) {}
+          onDecoded(c.rawValue);
+        }, function () {
+          /* a detector that never manages one read (broken Play services, odd browser) gives way to jsQR */
+          if (++fails >= 12 && !reads) startFallback(Promise.resolve());
+        });
+      });
+    }, cameraError);
+  });
+}
+function area(c) { var b = c && c.boundingBox; return b ? b.width * b.height : 0; }
+function loadJsQR() {
+  return new Promise(function (res, rej) {
+    if (typeof jsQR === 'function') { res(); return; }
+    var srcs = [SITE + 'assets/jsqr.js?v=139', 'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js'];
+    (function tryNext() {
+      var src = srcs.shift(); if (!src) { rej(new Error('jsQR')); return; }
+      var js = document.createElement('script'); js.src = src;
+      js.onload = function () { if (typeof jsQR === 'function') res(); else tryNext(); };
+      js.onerror = tryNext;
+      document.head.appendChild(js);
+    })();
+  });
+}
+// Fallback for browsers without BarcodeDetector (iPhone/iPad): jsQR on this page; html5-qrcode only if jsQR cannot load.
+var fellBack = false;
+function startFallback(cam) {
+  if (fellBack) return; fellBack = true;
+  cam = cam || startCamera();
+  var lib = loadJsQR();
+  lib.then(function () {
+    cam.then(startJsQR, cameraError);
+  }, function () { if (scanLoop) scanLoop.stop(); stopStream(); startHtml5(); });
 }
 function startJsQR() {
-  getSharpStream()
-    .then(function (s) { stream = s; video.srcObject = s; return video.play(); })
-    .then(function () {
-      setMsg('Looking for a code…');
-      stillTimer = setTimeout(function () { setMsg('Still looking… hold the QR code steady inside the frame, a few inches from the camera'); }, 6000);
-      var cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
-      function tick() {
-        if (done) return;
-        var vw = video.videoWidth, vh = video.videoHeight;
-        if (vw && vh) {
-          var k = Math.min(1, 720 / Math.max(vw, vh)); cv.width = Math.round(vw * k); cv.height = Math.round(vh * k);
-          try {
-            cx.drawImage(video, 0, 0, cv.width, cv.height);
-            var img = cx.getImageData(0, 0, cv.width, cv.height);
-            var q = jsQR(img.data, cv.width, cv.height, { inversionAttempts: 'dontInvert' });
-            if (q && q.data) {
-              var L = q.location, f = function (p) { return { x: p.x / k, y: p.y / k }; };
-              showTrace([f(L.topLeftCorner), f(L.topRightCorner), f(L.bottomRightCorner), f(L.bottomLeftCorner)], vw, vh);
-              onDecoded(q.data);
-            }
-          } catch (e) {}
-        }
-        setTimeout(tick, 110);
-      }
-      tick();
-    })
-    .catch(cameraError);
+  setMsg('Looking for a code…'); armStill();
+  var cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+  var n = 0;
+  runLoop(function () {
+    var vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return;
+    n++;
+    var sx, sy, sw, sh, k;
+    if (n % 2) {
+      /* whole picture, long edge 960 px */
+      sx = 0; sy = 0; sw = vw; sh = vh; k = Math.min(1, 960 / Math.max(vw, vh));
+    } else {
+      /* the framing box area at full camera resolution (capped at 900 px) for small or far codes */
+      var side = Math.round(Math.min(vw, vh) * 0.78);
+      sx = Math.round((vw - side) / 2); sy = Math.round((vh - side) / 2); sw = sh = side; k = Math.min(1, 900 / side);
+    }
+    var w = Math.round(sw * k), h = Math.round(sh * k);
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    cx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+    var img = cx.getImageData(0, 0, w, h);
+    /* every 4th pass of each kind also tries light-on-dark */
+    var q = jsQR(img.data, w, h, { inversionAttempts: (n % 8 < 2) ? 'attemptBoth' : 'dontInvert' });
+    if (q && q.data) {
+      var L = q.location, f = function (p) { return { x: sx + p.x / k, y: sy + p.y / k }; };
+      try { showTrace([f(L.topLeftCorner), f(L.topRightCorner), f(L.bottomRightCorner), f(L.bottomLeftCorner)], vw, vh); } catch (eT) {}
+      onDecoded(q.data);
+    }
+  });
 }
 function startHtml5() {
   var readerDiv = document.getElementById('reader');
@@ -579,7 +634,7 @@ function startHtml5() {
   script.onload = function () {
     var qr = new Html5Qrcode('reader');
     qr.start({ facingMode: 'environment' },
-      { fps: 10, qrbox: function (w, h) { return { width: Math.floor(w * 0.9), height: Math.floor(h * 0.9) }; } },
+      { fps: 15, qrbox: function (w, h) { return { width: Math.floor(w * 0.9), height: Math.floor(h * 0.9) }; } },
       function (text) { onDecoded(text); },
       function () {}
     ).catch(cameraError);
