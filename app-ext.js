@@ -1,3 +1,4 @@
+/* v203 (Hark, 2026-11-11 21:23-21:48, Dave): Truck Check: the Box Truck Pre Check and Tool Checklist rows open fillable phone forms that save to the "Truck Check" tab (anyone can fill them in; live across phones); "View / print paper copy" keeps the PDFs. Item details swipe: photo box no longer shrinks after the slide. See the v203 block at the end. */
 /* v202 (Hark, 2026-11-11 20:50-21:02, Dave batch F): supplier logos in a clear strip above the product photo; manager login switches in place (no flash/jump); Staging opens only Find a Job; side-menu Customer Search row removed; nothing peeks from the closed Categories list; no blue tap highlight; faster checklist pages; Media tiles float in; Insurance Certificates + Logos manager-only; equal-height item cards; supplier logo in the Supplier tile; photos fade in once loaded; menu button morphs to an X. See the v202 block at the end. */
 /* v201 (Hark, 2026-11-11, Dave asked 19:01): Receiving Orders screen - items on order (need > 0, same rule as Needs Ordering) grouped by supplier, received counter per row (big -/+ with hold-repeat, tap for number pad, Got all, Receive all per supplier), Add item search + Scan for extras (cart never touched), confirm summary -> new on hand = current + received via updateCount (manager-only, unchanged), Received check, local receiving log (Recent receipts). Replaces the v199 placeholder and hides the Restock Soon row. See the v201 block at the end. */
 /* v200 (Hark, 2026-11-11, Dave asked 18:58): quick count sheet - KEEP ON HAND and ON HAND side by side (big -/+ with hold-repeat, tap a number for a number pad, live Need + OK/LOW/OUT), one Save sends only what changed via updatePar / updateCount; replaces the v181 On hand sheet; opens from the card On hand pill, the card Keep on hand button, and Item details (Edit keep on hand | Edit on hand). Manager-only like the server; never touches the order. See the v200 block at the end. */
@@ -449,7 +450,9 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       + '<a class="chk-open" href="' + c.pdf + '" target="_blank" rel="noopener">Open PDF to print</a>';
     c.pages.forEach(function (p, i) { hh += '<img class="chk-page" data-chk-zoom="' + p + '" src="' + p + '" alt="' + h(c.name) + ' page ' + (i + 1) + '">'; });
     hh += '<div class="chk-hint">Tap a page to zoom</div>';
-    v.innerHTML = hh + '</div>';
+    /* v203: Box Truck Pre Check + Tool Checklist open as fillable phone forms (paper copy one tap away) */
+    var tc = false; try { tc = !!(window.stormTC203 && window.stormTC203.render(c, v, hh + '</div>')); } catch (x) { tc = false; }
+    if (!tc) v.innerHTML = hh + '</div>';
     v.classList.add('open'); v.scrollTop = 0; slideIn(v);
     pushOverlay('chk');
   }
@@ -502,7 +505,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     window.addEventListener('resize', function () { size(); if (!W) return; fit = Math.min(z.clientWidth / W, z.clientHeight / H); if (s < fit) s = fit; draw(false); });
   }
   function closeZoom() { var z = document.getElementById('chk-zoom'); if (!z) return false; z.id = 'chk-zoom-closing'; z.classList.remove('open'); setTimeout(function () { z.remove(); }, 200); return true; }
-  function closeChecklist(fromPop) { closeZoom(); var v = e$('chk-view'); if (!v || !v.classList.contains('open')) return; v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
+  function closeChecklist(fromPop) { closeZoom(); var v = e$('chk-view'); if (!v || !v.classList.contains('open')) return; try { if (window.stormTC203) window.stormTC203.close(); } catch (x) {} v.classList.remove('open'); v.innerHTML = ''; if (!fromPop) { try { history.back(); } catch (x) {} } }
 
   /* ---- Bin Labels grid ---- */
   var blStore = null;
@@ -1996,16 +1999,21 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var cw = w - n('borderLeftWidth') - n('borderRightWidth') - n('paddingLeft') - n('paddingRight');
     var ch = h - n('borderTopWidth') - n('borderBottomWidth') - n('paddingTop') - n('paddingBottom'); if (cw <= 0 || ch <= 0) return null;
     var dpr = Math.min(3, window.devicePixelRatio || 1);
-    cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+    /* v203: the bitmap covers the whole inside of the box (padding included, e.g. the 40 px supplier-logo strip) and the picture is drawn
+       inside the padding, exactly where the <img> draws it; before, the content-size bitmap was stretched over the padding too (taller picture
+       that then "sucked down" when the cover lifted) */
+    var iw = w - n('borderLeftWidth') - n('borderRightWidth'), ih = h - n('borderTopWidth') - n('borderBottomWidth');
+    cv.width = Math.round(iw * dpr); cv.height = Math.round(ih * dpr);
     var nw = src.naturalWidth, nh = src.naturalHeight, sx = 0, sy = 0, sw = nw, sh = nh, px = 0, py = 0, vw = nw, vh = nh;
     if (crop && crop.length === 7) { sx = crop[0] * nw; sy = crop[1] * nh; sw = crop[2] * nw; sh = crop[3] * nh; px = crop[4] * nw; py = crop[5] * nh; vw = sw + 2 * px; vh = sh + 2 * py; }
     var fit = cs.objectFit, k;
     if (fit === 'cover') k = Math.max(cw / vw, ch / vh); else if (fit === 'fill') k = 0; else { k = Math.min(cw / vw, ch / vh); if (fit === 'scale-down') k = Math.min(k, 1); }
-    var x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.scale(dpr, dpr);
+    var x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.scale(dpr * cv.width / (iw * dpr), dpr * cv.height / (ih * dpr)); x.translate(n('paddingLeft'), n('paddingTop'));
     var ox, oy, kx, ky;
     if (k) { kx = ky = k; ox = (cw - vw * k) / 2; oy = (ch - vh * k) / 2; } else { kx = cw / vw; ky = ch / vh; ox = oy = 0; }
     if (crop && crop.length === 7 && crop[6] !== 't') { x.fillStyle = 'rgb(' + crop[6] + ')'; x.fillRect(ox, oy, vw * kx, vh * ky); }
     x.drawImage(src, sx, sy, sw, sh, ox + px * kx, oy + py * ky, sw * kx, sh * ky);
+    cv.setAttribute('data-dr', [n('borderLeftWidth') + n('paddingLeft') + ox + px * kx, n('borderTopWidth') + n('paddingTop') + oy + py * ky, sw * kx, sh * ky].map(function (q) { return Math.round(q * 10) / 10; }).join(',')); /* v203: where the picture sits in the box (checks) */
     return cv;
   }
   function copy(cv) { var c = cv.cloneNode(false); c.width = cv.width; c.height = cv.height; c.getContext('2d').drawImage(cv, 0, 0); c.style.opacity = '1'; return c; }
@@ -2019,6 +2027,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var bin = (typeof currentDetailBin !== 'undefined') && currentDetailBin; if (!bin) return;
     var d = document.getElementById('detail'), im = d && d.querySelector('img.detail-photo'); if (!im || im.__st166 || !im.parentNode) return;
     im.__st166 = true;
+    try { if (typeof window.stormDetailLogo198 === 'function') window.stormDetailLogo198(); } catch (e) {} /* v203: the supplier-logo strip (F1, 40 px) is in place before the first frame is painted */
     var it = (typeof findItem === 'function') && findItem(bin), raw = it && it.photoUrl, crop = cropOf(bin), t0 = Date.now();
     var hd = HDU + encodeURIComponent(bin) + '.jpg';
     var snap = null, cover = null, tries = 0, lastUrl = '';
@@ -2044,7 +2053,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       if (im.decode) im.decode().then(ok, ok); else ok();
     }
     function coverNow() { if (cover || !snap || !im.isConnected) return; try { cover = copy(snap); place(im, cover); } catch (e) { cover = null; } }
-    try { snap = paint(im, shown(bin, raw), crop); } catch (e) { snap = null; }
+    /* v203: the sharp photo warmed for a swipe (v198 prefetch) is the final picture itself (crop = its own centering), so painting from it
+       means no size change when the cover lifts; the list card's copy is framed differently on some items (e.g. hd-08) */
+    var hdw = null; try { hdw = window.__stormHd203 && window.__stormHd203[bin]; if (!(hdw && hdw.complete && hdw.naturalWidth)) hdw = null; } catch (e) { hdw = null; }
+    try { snap = paint(im, hdw || shown(bin, raw), crop); } catch (e) { snap = null; }
     im.classList.remove('st164-pend', 'st-wait');
     Promise.resolve().then(function () { im.classList.remove('st164-pend', 'st-wait'); });
     if (snap) coverNow(); else settle();
@@ -3842,6 +3854,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function changed() {
     pullItems();
     try { if (window.stormStagingRefresh) window.stormStagingRefresh(); } catch (e) {}
+    try { if (window.stormTruckCheckRefresh) window.stormTruckCheckRefresh(); } catch (e) {} /* v203: an open Truck Check form picks up the other phones' boxes */
   }
   function schedule(ms) { clearTimeout(timer); timer = 0; if (visible()) timer = setTimeout(tick, ms); }
   function tick() {
@@ -5600,6 +5613,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     ph.addEventListener('load', function () { placeD(im, ph); });
   }
   window.addEventListener('resize', function () { var d = document.getElementById('detail'); var im = d && d.querySelector('img.sup198d'), ph = d && d.querySelector('img.detail-photo'); if (im && ph) placeD(im, ph); });
+  window.stormDetailLogo198 = detailLogo; /* v203: v166 calls it before painting its photo cover */
 
   /* ---------- 7. swipe between items ---------- */
   var busy = false;
@@ -5679,7 +5693,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       if (cim && cim.loading === 'lazy') { try { cim.loading = 'eager'; } catch (e) {} } /* the list card's own copy is what the detail paints first */
       [cim && cim.getAttribute('src'), it.photoUrl, A + 'items-hd/' + encodeURIComponent(bin) + '.jpg'].forEach(function (u) {
         if (!u || warm[u]) return; warm[u] = 1;
-        try { var i = new Image(); i.decoding = 'async'; i.src = u; if (i.decode) i.decode().catch(function () {}); } catch (e) {}
+        try { var i = new Image(); i.decoding = 'async'; i.src = u; if (i.decode) i.decode().catch(function () {}); if (u.indexOf('items-hd/') >= 0) { var HC = window.__stormHd203 = window.__stormHd203 || {}; HC[bin] = i; } } catch (e) {} /* v203: keep the sharp copy so a swipe paints the final picture from frame 1 */
       });
     });
   }
@@ -7233,4 +7247,725 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   (function w(n) { var d = document.getElementById('drawer'); if (d && hb()) { new MutationObserver(sync13).observe(d, { attributes: true, attributeFilter: ['class'] }); dist(); sync13(); return; } if (n < 200) setTimeout(function () { w(n + 1); }, 150); })(0);
   document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('#hamburger')) { dist(); var b = hb(); if (b) b.classList.add('f13-x'); setTimeout(sync13, 0); setTimeout(sync13, 400); } }, true);
   window.addEventListener('popstate', function () { setTimeout(sync13, 0); setTimeout(sync13, 350); });
+})();
+
+/* v203 (Hark, 2026-11-11, Dave approved 21:23): Truck Check fillable forms. Module window.stormTruckCheck (truck-check.js, inlined), then its wiring. */
+/* STORM Truck Check — fillable digital copies of the two paper sheets already in the app
+   (checklists/box-truck-pre-check.pdf and checklists/tool-checklist.pdf).
+   By Hark, 2026-11-11, for Dave. Inlined in app-ext.js v203 (wiring: window.stormTC203 below).
+
+   API
+     var h = window.stormTruckCheck.open(container, {
+       sheet: 'truck' | 'tools',           // which paper sheet
+       data: { sheet, truck, period, fields: { fieldId: { v, by, at } } },   // or a flat { fieldId: value } map
+       user: 'Mike Guelli', initials: 'MG',// used by tap-to-fill on EMPLOYEE / CHECKED BY / INIT.
+       assetBase: 'https://.../assets/truckcheck/',   // tool photos, logos, ProKit drawing
+       onChange: function (c) {},          // c = { sheet, truck, period, fieldId, value, by, at } — one call per field
+       onKey: function (k) {}              // k = { sheet, truck, period } when TRUCK # or DATE changes (load that record)
+     });
+     h.applyRemote(fields)  // patch values from another phone in place (never re-renders, never touches the field being typed in)
+     h.setData(record)      // load a different record in place
+     h.getData()            // { sheet, truck, period, fields }
+     h.progress()           // { done, total }
+     h.setStatus('Saved')   // tiny status pill in the header box (fixed size, no layout shift)
+     h.destroy()
+   Record key = sheet | truck | period, period = the sheet's DATE (YYYY-MM-DD): one record per truck per day per sheet. */
+(function () {
+  'use strict';
+  if (window.stormTruckCheck && window.stormTruckCheck.version) return;
+  var SPECS = {"truck": {"sheet": "truck", "source": "checklists/box-truck-pre-check.pdf (1 page; page image checklists/box-truck-pre-check-hd-1.jpg)", "brandHeader": {"logo": "STORM Basement Waterproofing", "title": "BOX TRUCK PRE CHECK", "subtitle": ["Isuzu Box Truck · Gas · Dually", "Six tires · 85 PSI all around"], "subtitleUnderlined": "85 PSI"}, "heading": "Box Truck Pre Check", "intro": "Check all six tires cold, before the truck rolls.", "header": [[{"id": "hdr.truck", "label": "TRUCK #", "type": "text"}, {"id": "hdr.employee", "label": "EMPLOYEE", "type": "text"}], [{"id": "hdr.date", "label": "DATE", "type": "date"}, {"id": "hdr.mileage", "label": "MILEAGE", "type": "number"}], [{"id": "hdr.jobName", "label": "JOB NAME", "type": "text"}, {"id": "hdr.jobNo", "label": "JOB #", "type": "text"}], [{"id": "hdr.reg", "label": "REGISTRATION", "type": "mdy", "parts": ["MO", "DY", "YR"]}, {"id": "hdr.insp", "label": "INSPECTION EXP", "type": "mdy", "parts": ["MO", "DY", "YR"]}]], "sections": [{"id": "tires", "title": "THE TRUCK — TOP VIEW", "legend": "COND:  G = good · OK = ok · P = poor", "diagram": {"top": "FRONT ▲", "cab": "CAB", "bottom": "REAR", "bodyLogo": "STORM Basement Waterproofing"}, "left": [{"id": "fl", "label": "FRONT LEFT", "target": "85 PSI", "fields": [{"id": "tire.fl.actual", "label": "ACTUAL", "type": "number", "unit": "PSI"}, {"id": "tire.fl.cond", "label": "COND", "type": "choice", "options": ["G", "OK", "P"]}, {"id": "tire.fl.tread", "label": "TREAD", "type": "number", "unit": "/32"}]}, {"id": "rlo", "label": "REAR LEFT OUTER", "target": "85 PSI", "fields": [{"id": "tire.rlo.actual", "label": "ACTUAL", "type": "number", "unit": "PSI"}, {"id": "tire.rlo.cond", "label": "COND", "type": "choice", "options": ["G", "OK", "P"]}, {"id": "tire.rlo.tread", "label": "TREAD", "type": "number", "unit": "/32"}]}, {"id": "rli", "label": "REAR LEFT INNER", "target": "85 PSI", "fields": [{"id": "tire.rli.actual", "label": "ACTUAL", "type": "number", "unit": "PSI"}, {"id": "tire.rli.cond", "label": "COND", "type": "choice", "options": ["G", "OK", "P"]}, {"id": "tire.rli.tread", "label": "TREAD", "type": "number", "unit": "/32"}]}], "right": [{"id": "fr", "label": "FRONT RIGHT", "target": "85 PSI", "fields": [{"id": "tire.fr.actual", "label": "ACTUAL", "type": "number", "unit": "PSI"}, {"id": "tire.fr.cond", "label": "COND", "type": "choice", "options": ["G", "OK", "P"]}, {"id": "tire.fr.tread", "label": "TREAD", "type": "number", "unit": "/32"}]}, {"id": "rro", "label": "REAR RIGHT OUTER", "target": "85 PSI", "fields": [{"id": "tire.rro.actual", "label": "ACTUAL", "type": "number", "unit": "PSI"}, {"id": "tire.rro.cond", "label": "COND", "type": "choice", "options": ["G", "OK", "P"]}, {"id": "tire.rro.tread", "label": "TREAD", "type": "number", "unit": "/32"}]}, {"id": "rri", "label": "REAR RIGHT INNER", "target": "85 PSI", "fields": [{"id": "tire.rri.actual", "label": "ACTUAL", "type": "number", "unit": "PSI"}, {"id": "tire.rri.cond", "label": "COND", "type": "choice", "options": ["G", "OK", "P"]}, {"id": "tire.rri.tread", "label": "TREAD", "type": "number", "unit": "/32"}]}]}, {"id": "windows", "title": "WINDOWS — CHECK THE GLASS", "groups": [{"id": "win.windshield", "label": "MAIN WINDSHIELD", "options": ["Good", "Chip", "Crack"]}, {"id": "win.driver", "label": "DRIVER WINDOW", "options": ["Good", "Chip", "Crack"]}, {"id": "win.passenger", "label": "PASSENGER WINDOW", "options": ["Good", "Chip", "Crack"]}]}, {"id": "lights", "title": "LIGHTS — CHECK EVERY ONE", "options": ["OK", "Out"], "columns": [[{"id": "light.lowBeam", "label": "Headlights — low beam"}, {"id": "light.turn", "label": "Turn signals (L + R)"}, {"id": "light.tail", "label": "Tail lights"}, {"id": "light.marker", "label": "Marker / clearance lights"}, {"id": "light.reverse", "label": "Reverse lights"}], [{"id": "light.highBeam", "label": "Headlights — high beam"}, {"id": "light.flashers", "label": "4-way flashers"}, {"id": "light.brake", "label": "Brake lights"}, {"id": "light.box", "label": "Box lights"}, {"id": "light.plate", "label": "License plate light"}]]}, {"id": "wrong", "title": "ANYTHING WRONG WITH THE TRUCK?", "note": "Paper grid is 4 columns x 2 rows, read left to right.", "options": [{"id": "wrong.none", "label": "Nothing wrong"}, {"id": "wrong.lowTire", "label": "Low tire"}, {"id": "wrong.flat", "label": "Flat or damage"}, {"id": "wrong.uneven", "label": "Uneven wear"}, {"id": "wrong.warning", "label": "Warning light"}, {"id": "wrong.pulls", "label": "Pulls to one side"}, {"id": "wrong.fuel", "label": "Low on fuel"}, {"id": "wrong.other", "label": "Other"}], "describe": {"id": "wrong.describe", "label": "DESCRIBE IT", "type": "text"}}], "warning": "If anything's wrong, tell Dave before the truck leaves.", "footer": [{"id": "foot.checkedBy", "label": "CHECKED BY", "type": "text"}, {"id": "foot.timeOut", "label": "TIME OUT", "type": "time"}], "footnote": "Storm Basement Waterproofing · box truck pre check."}, "tools": {"sheet": "tools", "source": "checklists/tool-checklist.pdf (2 pages; page images checklists/tool-checklist-hd-1.jpg, -hd-2.jpg)", "brandHeader": {"logo": "STORM Basement Waterproofing", "rightLogo": "HILTI", "title": "TOOL CHECKLIST"}, "heading": "Tool checklist", "intro": "Check every tool before the truck rolls.", "header": [[{"id": "hdr.truck", "label": "TRUCK #", "type": "text"}, {"id": "hdr.employee", "label": "EMPLOYEE", "type": "text"}], [{"id": "hdr.date", "label": "DATE", "type": "date"}, {"id": "hdr.jobLocation", "label": "JOB LOCATION", "type": "text"}]], "tableColumns": ["TOOL", "QTY", "ON TRUCK", "ON JOB SITE", "WORKING", "BROKEN", "INIT."], "rowFields": {"onTruck": "check", "onSite": "check", "working": "check", "broken": "check", "init": "text"}, "fieldIdPattern": "tool.<rowId>.<onTruck|onSite|working|broken|init>", "sections": [{"id": "power", "title": "POWER TOOLS", "page": 1, "rows": [{"id": "te3000", "name": "Jackhammer - Large", "model": "TE-3000", "qty": 1, "img": "tool-te3000.jpg"}, {"id": "te2000", "name": "Jackhammer - Small", "model": "TE-2000", "qty": 1, "img": "tool-te2000.jpg"}, {"id": "te2000-22", "name": "Jackhammer - Cordless", "model": "TE 2000-22", "qty": 1, "img": "tool-te2000-22.jpg"}, {"id": "te6-22", "name": "Rotary Hammer", "model": "TE 6-22", "qty": 2, "img": "tool-te6-22.jpg"}, {"id": "sid6-22", "name": "Impact Guns", "model": "SID 6-22", "qty": 2, "img": "tool-sid6-22.jpg"}, {"id": "sf6h-22", "name": "Drill / Hammer Drill", "model": "SF 6H-22", "qty": 2, "img": "tool-sf6h-22.jpg"}, {"id": "sr6-22", "name": "Recip Saw - Large", "model": "SR 6-22", "qty": 1, "img": "tool-sr6-22.jpg"}, {"id": "sl2-22", "name": "Work Light", "model": "SL 2-22 LED", "qty": 1, "img": "tool-sl2-22.jpg"}, {"id": "dsh600-22", "name": "Concrete Saw", "model": "DSH 600-22 · Truck 3 only", "qty": 1, "img": "tool-dsh600-22.jpg"}, {"id": "sr4-22", "name": "Recip Saw - Small", "model": "SR 4-22", "qty": 1, "img": "tool-sr4-22.jpg"}, {"id": "c6-22", "name": "Fast Chargers", "model": "C 6-22", "qty": 4, "img": "tool-c6-22.jpg"}, {"id": "b22-255", "name": "Battery Packs - Large", "model": "B22-255", "qty": 6, "img": "tool-b22-255.jpg"}, {"id": "b22-170", "name": "Battery Packs - Small", "model": "B22-170", "qty": 4, "img": "tool-b22-170.jpg"}, {"id": "ag5d-22", "name": "Angle Grinder 5\"", "model": "AG 5D-22", "qty": 1, "img": "tool-ag5d-22.jpg"}, {"id": "dgh-130", "name": "Resurfacing Grinder", "model": "DGH-130", "qty": 1, "img": "tool-dgh-130.jpg"}, {"id": "te70", "name": "Demo Hammer - Corded", "model": "TE-70", "qty": 1, "img": "tool-te70.jpg"}, {"id": "te60-22", "name": "Demo Hammer - Cordless", "model": "TE 60-22", "qty": 1, "img": "tool-te60-22.jpg"}]}, {"id": "dust", "title": "DUST CONTROL", "page": 2, "rows": [{"id": "aic1000e", "name": "Air Scrubber", "model": "AIC 1000 E", "qty": 1, "img": "tool-aic1000e.jpg"}, {"id": "vc150-10xe", "name": "Dust Extractor", "model": "VC 150-10 XE", "qty": 1, "img": "tool-vc150-10xe.jpg"}, {"id": "vac-hose", "name": "Vacuum Hose - Large", "model": "For dust extractor", "qty": 1, "img": "tool-vac-hose.jpg"}, {"id": "te-drs-b", "name": "Dust Removal Ends", "model": "TE-DRS-B", "qty": 2, "img": "tool-te-drs-b.jpg"}]}, {"id": "prokit-info", "type": "info", "page": 2, "img": "prokit-drawing.png", "brand": "PROKIT", "title": "Pro Kit — Modular Storage System", "lines": ["One set rides on each truck — Truck 2 and Truck 3.", "Check the cases the same as the tools."], "small": "Storm's own stack, as a line drawing."}, {"id": "prokit", "title": "PRO KIT — ON THE TRUCK", "page": 2, "rows": [{"id": "pk-trolley", "name": "ProKit Trolley", "model": "#2437388", "qty": 1, "img": "tool-pk-trolley.jpg"}, {"id": "pk-xl", "name": "XL Case", "model": "#2437389", "qty": 1, "img": "tool-pk-xl.jpg"}, {"id": "pk-large", "name": "Large Case", "model": "#2437395", "qty": 1, "img": "tool-pk-large.jpg"}, {"id": "pk-medium", "name": "Medium Case", "model": "#2437379", "qty": 1, "img": "tool-pk-medium.jpg"}, {"id": "pk-organizer", "name": "Full-size Organizer", "model": "#2437397", "qty": 1, "img": "tool-pk-organizer.jpg"}, {"id": "pkc18h", "name": "Case PKC 18-H", "model": "#2437357", "qty": 2, "img": "tool-pkc18h.jpg"}]}], "warning": {"bold": "Anything missing or broken? Tell Dave before the truck leaves.", "sub": "No guessing — if it's at a job site, mark it and move on."}, "footer": [{"id": "foot.checkedBy", "label": "CHECKED BY", "type": "text"}, {"id": "foot.timeOut", "label": "TIME OUT", "type": "time"}], "footnote": "Storm Basement Waterproofing — Hilti tool checklist.", "footnoteRepeatsOnEachPage": true}};
+  var VERSION = '1.0';
+  var BLUE = '#29A8E0', INK = '#0F1720', MUTE = '#6B7280', LINE = '#DCE4EE', RED = '#DC2626', AMBER = '#D97706';
+  var FONT = "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  var DEFAULT_ASSETS = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/truckcheck/';
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function todayISO() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function nowHM() { var d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function fmtDate(v) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ''); return m ? (+m[2]) + '/' + (+m[3]) + '/' + m[1] : (v || ''); }
+  function fmtTime(v) { var m = /^(\d{1,2}):(\d{2})/.exec(v || ''); if (!m) return v || ''; var h = +m[1], ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return h + ':' + m[2] + ' ' + ap; }
+
+  /* ---------- styles (scoped to .stc) ---------- */
+  function css() {
+    if (document.getElementById('stc-css')) return;
+    try {
+      if (!document.getElementById('cl-font') && !document.getElementById('stc-font')) {
+        var lk = document.createElement('link'); lk.id = 'stc-font'; lk.rel = 'stylesheet';
+        lk.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap';
+        document.head.appendChild(lk);
+      }
+    } catch (e) {}
+    var C = [
+      '.stc{font-family:' + FONT + ';color:' + INK + ';-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent;box-sizing:border-box;max-width:1000px;margin:0 auto}',
+      '.stc *,.stc *::before,.stc *::after{box-sizing:border-box}',
+      '.stc button{font-family:inherit;touch-action:manipulation;-webkit-user-select:none;user-select:none;cursor:pointer;margin:0}',
+      '.stc input,.stc textarea{font-family:inherit;font-size:16px;color:' + INK + ';margin:0}',
+      '.stc-card{background:#fff;border-radius:14px;box-shadow:0 1px 2px rgba(15,23,32,.05),0 4px 14px rgba(15,23,32,.06);padding:16px 14px 18px;overflow:hidden}',
+      /* brand header */
+      '.stc-brand{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-bottom:10px}',
+      '.stc-logo{height:38px;width:auto;flex:none;display:block}',
+      '.stc-brt{text-align:right;min-width:0}',
+      '.stc-brt b{display:inline-block;font-weight:800;font-size:15px;letter-spacing:.01em;border-bottom:2px solid ' + INK + ';padding-bottom:1px;white-space:nowrap}',
+      '.stc-brt div{font-size:11.5px;color:' + MUTE + ';font-weight:500;line-height:1.35;margin-top:3px}',
+      '.stc-brt u{text-decoration:none;border-bottom:1px solid ' + MUTE + '}',
+      '.stc-hilti{height:30px;width:auto;display:block;margin-left:auto}',
+      '.stc-rule{height:4px;background:' + BLUE + ';margin:0 -14px 14px}',
+      '.stc-h1{font-size:26px;font-weight:800;letter-spacing:-.01em;margin:0;line-height:1.15}',
+      '.stc-intro{color:' + MUTE + ';font-size:13.5px;font-weight:500;margin:4px 0 12px}',
+      /* header box */
+      '.stc-hbox{position:relative;border:1.5px solid ' + LINE + ';border-radius:12px;display:grid;grid-template-columns:1fr 1fr;padding:2px 10px}',
+      '.stc-hf{padding:8px 4px 6px;border-bottom:1px solid ' + LINE + ';min-width:0}',
+      '.stc-hbox .stc-hf.c1{border-right:1px solid ' + LINE + ';padding-right:10px}',
+      '.stc-hbox .stc-hf.c2{padding-left:10px}',
+      '.stc-hbox .stc-hf.last{border-bottom:0}',
+      '.stc-lab{display:block;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#5A6B80;text-transform:uppercase;line-height:1.2}',
+      '.stc-in{display:block;width:100%;height:40px;border:0;border-bottom:1.5px solid transparent;background:transparent;padding:6px 0 4px;font-weight:600;outline:none;border-radius:0}',
+      '.stc-in:focus{border-bottom-color:' + BLUE + '}',
+      '.stc-in::placeholder{color:#B4BECB;font-weight:500}',
+      '.stc-status{position:absolute;top:-11px;right:10px;height:20px;line-height:20px;padding:0 9px;border-radius:10px;background:#fff;border:1px solid ' + LINE + ';font-size:10.5px;font-weight:700;color:' + MUTE + ';opacity:0;transition:opacity .2s}',
+      '.stc-status.on{opacity:1}',
+      /* tap-to-fill date / time */
+      '.stc-dt{position:relative;display:flex;align-items:center;height:40px;font-weight:600;font-size:16px;cursor:pointer}',
+      '.stc-dt .stc-dtv{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.stc-dt .stc-dtv:empty::before{content:attr(data-ph);color:' + BLUE + ';font-weight:700;font-size:13px}',
+      '.stc-dt input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;-webkit-appearance:none;appearance:none;pointer-events:none}',
+      '.stc-dt.has input{pointer-events:auto}',
+      '.stc-dt .stc-now{flex:none;height:28px;padding:0 10px;border-radius:14px;border:1.5px solid ' + LINE + ';background:#fff;font-size:11.5px;font-weight:700;color:' + BLUE + ';position:relative;z-index:2;visibility:hidden}',
+      '.stc-dt.has .stc-now{visibility:visible}',
+      /* MO / DY / YR */
+      '.stc-mdy{display:flex;align-items:flex-end;gap:5px;height:40px}',
+      '.stc-mdy label{display:flex;align-items:flex-end;gap:3px;font-size:10px;font-weight:600;color:' + MUTE + ';min-width:0}',
+      '.stc-mdy input{width:34px;height:30px;border:0;border-bottom:1.5px solid #9AA7B8;text-align:center;font-weight:700;padding:0;background:transparent;outline:none;border-radius:0}',
+      '.stc-mdy input.yr{width:44px}',
+      '.stc-mdy input:focus{border-bottom-color:' + BLUE + '}',
+      /* section titles */
+      '.stc-sec{margin-top:18px}',
+      '.stc-st{display:flex;align-items:center;gap:8px;font-weight:800;font-size:16px;letter-spacing:.01em;margin:0 0 8px;text-transform:uppercase}',
+      '.stc-st::before{content:"";flex:none;width:4px;height:18px;border-radius:2px;background:' + BLUE + '}',
+      /* boxes + chips */
+      '.stc-chip{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 4px;border:0;background:transparent;font-size:15px;font-weight:600;color:' + INK + ';text-align:left;border-radius:10px}',
+      '.stc-sq{flex:none;position:relative;width:26px;height:26px;border-radius:7px;border:2px solid #9AA7B8;background:#fff;transition:background-color .12s,border-color .12s}',
+      '.stc-sq::after{content:"";position:absolute;left:7px;top:2.5px;width:7px;height:13px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg) scale(.4);opacity:0;transition:transform .12s,opacity .12s}',
+      '.on>.stc-sq{background:' + BLUE + ';border-color:' + BLUE + '}',
+      '.on.bad>.stc-sq{background:' + RED + ';border-color:' + RED + '}',
+      '.on.mid>.stc-sq{background:' + AMBER + ';border-color:' + AMBER + '}',
+      '.on>.stc-sq::after{opacity:1;transform:rotate(45deg) scale(1)}',
+      '.stc-chip:active>.stc-sq{transform:scale(.92)}',
+      /* tires */
+      '.stc-tv{border:1.5px solid ' + LINE + ';border-radius:14px;padding:12px 10px 12px}',
+      '.stc-tvh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}',
+      '.stc-tvh .stc-st{margin:0}',
+      '.stc-leg{font-size:11.5px;color:' + MUTE + ';font-weight:500}',
+      '.stc-tgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}',
+      '.stc-diag{grid-column:1/-1;display:flex;justify-content:center}',
+      '.stc-diag svg{width:100%;height:auto;display:block}',
+      '.stc-col{display:contents}','.stc-col .gap{display:none}',
+      '#stc-t-fl{grid-column:1;grid-row:2}#stc-t-fr{grid-column:2;grid-row:2}#stc-t-rlo{grid-column:1;grid-row:3}#stc-t-rro{grid-column:2;grid-row:3}#stc-t-rli{grid-column:1;grid-row:4}#stc-t-rri{grid-column:2;grid-row:4}',
+      '.stc-diag svg{max-width:250px}',
+      '.stc-tire{border:1.5px solid ' + LINE + ';border-radius:12px;overflow:hidden;min-width:0;background:#fff;scroll-margin-top:70px}',
+      '.stc-tire h4{margin:0;background:#EEF2F6;font-size:11.5px;font-weight:800;text-align:center;padding:6px 4px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.stc-tb{padding:6px 9px 8px}',
+      '.stc-tr{display:flex;align-items:center;gap:6px;min-height:36px}',
+      '.stc-tr .stc-lab{width:46px;flex:none;font-size:10px}',
+      '.stc-tgt{font-size:20px;font-weight:700;color:' + BLUE + '}',
+      '.stc-tr .stc-in{height:34px;width:46px;flex:none;text-align:center;border-bottom:1.5px solid #9AA7B8;padding:4px 0 2px}',
+      '.stc-tr .stc-in:focus{border-bottom-color:' + BLUE + '}',
+      '.stc-unit{font-size:12px;color:' + MUTE + ';font-weight:600}',
+      '.stc-cond{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;flex:1;min-width:0}',
+      '.stc-tr.cnd{flex-wrap:wrap;gap:0 6px}.stc-tr.cnd .stc-lab{width:100%;padding-top:4px}.stc-tr.cnd .stc-cond{flex:1 1 100%}',
+      '.stc-tv{padding:12px 8px}.stc-tb{padding:6px 8px 8px}',
+      '.stc-cond .stc-chip{min-height:38px;padding:0;gap:3px;font-size:12.5px;justify-content:flex-start}',
+      '.stc-cond .stc-sq{width:22px;height:22px;border-radius:6px}',
+      '.stc-cond .stc-sq::after{left:5.5px;top:1.5px;width:6px;height:11px;border-width:0 2.5px 2.5px 0}',
+      /* windows */
+      '.stc-win{display:grid;grid-template-columns:1fr;gap:4px 16px}',
+      '.stc-wg h5{margin:4px 0 0;font-size:13px;font-weight:800;letter-spacing:.02em}',
+      '.stc-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:0 6px}',
+      /* lights */
+      '.stc-lights{display:grid;grid-template-columns:1fr;gap:0 24px}',
+      '.stc-lrow{display:flex;align-items:center;gap:4px;border-bottom:1px solid #EEF2F6;min-height:46px}',
+      '.stc-lrow>span{flex:1;min-width:0;font-size:15px;font-weight:500}',
+      '.stc-lrow .stc-chip{width:66px;flex:none}',
+      /* anything wrong */
+      '.stc-wrong{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}',
+      '.stc-wrong .stc-chip{width:100%}',
+      '.stc-desc{display:flex;align-items:flex-end;gap:10px;margin-top:4px}',
+      '.stc-desc .stc-lab{flex:none;padding-bottom:9px}',
+      '.stc-desc textarea{flex:1;min-width:0;min-height:40px;height:40px;resize:none;border:0;border-bottom:1.5px solid #9AA7B8;padding:9px 0 6px;font-weight:600;background:transparent;outline:none;border-radius:0;line-height:1.4;overflow:hidden}',
+      '.stc-desc textarea:focus{border-bottom-color:' + BLUE + '}',
+      '.stc-warn{font-weight:800;font-size:15.5px;margin:20px 0 4px;padding-top:12px;border-top:1px solid ' + LINE + '}',
+      '.stc-foot{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin-top:6px}',
+      '.stc-foot .stc-hf{border:0;padding:6px 0 0}',
+      '.stc-foot .stc-in,.stc-foot .stc-dt{border-bottom:1.5px solid #9AA7B8}',
+      '.stc-foot .stc-in:focus{border-bottom-color:' + BLUE + '}',
+      '.stc-note{font-size:11.5px;color:' + MUTE + ';margin-top:22px}',
+      /* tool tables */
+      '.stc-tbl{border:1.5px solid ' + LINE + ';border-radius:12px;overflow:clip}',
+      '.stc-th,.stc-row{display:grid;align-items:center}',
+      '.stc-th{background:#EEF2F6;font-size:10.5px;font-weight:800;letter-spacing:.03em;text-align:center;line-height:1.15;position:sticky;top:0;z-index:3}',
+      '.stc-th span{padding:8px 2px}',
+      '.stc-row:nth-child(odd){background:#F6F8FB}',
+      '.stc-row{border-top:1px solid #E6ECF2}',
+      '.stc-row img{width:40px;height:34px;object-fit:contain;display:block;margin:0 auto;mix-blend-mode:multiply}',
+      '.stc-tn{min-width:0;padding:6px 4px}',
+      '.stc-tn b{display:block;font-size:14.5px;font-weight:700;line-height:1.2}',
+      '.stc-tn small{display:block;font-size:11.5px;color:' + MUTE + ';font-weight:500;margin-top:1px}',
+      '.stc-q{text-align:center;font-weight:800;font-size:17px}',
+      '.stc-cb{display:flex;align-items:center;justify-content:center;min-height:48px;width:100%;border:0;background:transparent;padding:0}',
+      '.stc-init{width:100%;max-width:70px;height:36px;margin:0 auto;display:block;border:0;border-bottom:1.5px solid #B9C4D2;background:transparent;text-align:center;font-weight:700;text-transform:uppercase;outline:none;border-radius:0;padding:0}',
+      '.stc-init:focus{border-bottom-color:' + BLUE + '}',
+      /* wide rows (iPad / landscape) */
+      '.stc.wide .stc-th,.stc.wide .stc-row{grid-template-columns:56px minmax(0,1fr) 44px repeat(4,74px) 92px}',
+      '.stc.wide .stc-th .tn{text-align:left}',
+      '.stc.wide .stc-th .l2,.stc.wide .stc-row .l2{display:contents}',
+      /* narrow rows (phones): name line, then the five boxes under the same five headings */
+      '.stc:not(.wide) .stc-th{grid-template-columns:44px minmax(0,1fr) 40px}',
+      '.stc:not(.wide) .stc-th .tn{text-align:left}',
+      '.stc:not(.wide) .stc-th .l2{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid #DCE4EE}',
+      '.stc:not(.wide) .stc-row{grid-template-columns:44px minmax(0,1fr) 40px;padding-top:2px}',
+      '.stc:not(.wide) .stc-row .l2{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,1fr);margin-top:-4px}',
+      '.stc:not(.wide) .stc-cb{min-height:46px}',
+      '.stc-info{display:flex;gap:14px;align-items:center;background:#F1F6FA;border:1.5px solid #D5E2EC;border-radius:12px;padding:12px 14px;margin-top:16px}',
+      '.stc-info img{width:64px;height:auto;flex:none;mix-blend-mode:multiply}',
+      '.stc-info .pk{color:#D2051E;font-weight:800;font-size:28px;line-height:1}',
+      '.stc-info b{display:block;font-size:14.5px;margin:6px 0 4px}',
+      '.stc-info p{margin:2px 0;color:' + MUTE + ';font-size:13px;font-weight:500}',
+      '.stc-info small{display:block;color:' + MUTE + ';font-size:11px;margin-top:6px}',
+      '.stc-wbox{background:#F1F6FA;border:1.5px solid #D5E2EC;border-radius:12px;padding:12px 14px;margin-top:18px}',
+      '.stc-wbox b{display:block;font-size:14.5px;font-weight:800}',
+      '.stc-wbox span{display:block;color:' + MUTE + ';font-size:13px;font-weight:500;margin-top:3px}',
+      /* wheels */
+      '.stc-wh{cursor:pointer}',
+      '.stc-wh rect.t{fill:#2B3442;transition:fill .15s}',
+      '.stc-wh.g rect.t{fill:#1F9D55}.stc-wh.ok rect.t{fill:' + AMBER + '}.stc-wh.p rect.t{fill:' + RED + '}',
+      /* tablet layout */
+      '@media (min-width:700px){',
+      ' .stc-card{padding:26px 28px 26px}.stc-rule{margin:0 -28px 18px}.stc-logo{height:52px}.stc-brt b{font-size:22px}.stc-brt div{font-size:15px}.stc-hilti{height:44px}',
+      ' .stc-h1{font-size:34px}.stc-intro{font-size:15px}',
+      ' .stc-tgrid{grid-template-columns:200px minmax(0,1fr) 200px;gap:0 12px}',
+      ' .stc-col{display:flex;flex-direction:column;gap:12px}.stc-col .gap{display:block;flex:1}',
+      ' .stc-tire{grid-column:auto!important;grid-row:auto!important}',
+      ' .stc-tr.cnd{flex-wrap:nowrap}.stc-tr.cnd .stc-lab{width:46px;padding-top:0}.stc-tr.cnd .stc-cond{flex:1}',
+      ' .stc-tr{min-height:34px}.stc-tv{padding:14px 14px}',
+      ' .stc-diag{align-self:stretch;align-items:stretch}',
+      ' .stc-diag{grid-column:2;grid-row:1}.stc-col.l{grid-column:1;grid-row:1}.stc-col.r{grid-column:3;grid-row:1}',
+      ' .stc-diag svg{max-width:none;width:100%;height:100%}',
+      ' .stc-win{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 12px}.stc-opts{grid-template-columns:repeat(3,auto);justify-content:start;gap:0 8px}.stc-win .stc-chip{gap:5px;padding:0;font-size:14.5px}',
+      ' .stc-lights{grid-template-columns:1fr 1fr}',
+      ' .stc-wrong{grid-template-columns:repeat(4,1fr)}',
+      '}'
+    ].join('\n');
+    var st = document.createElement('style'); st.id = 'stc-css'; st.textContent = C; document.head.appendChild(st);
+  }
+
+  /* ---------- tones: which picks read as bad (red) or so-so (amber) ---------- */
+  function tone(fid, v) {
+    if (v === 'Out' || v === 'P' || v === 'Crack' || /\.broken$/.test(fid)) return ' bad';
+    if (v === 'Chip' || (v === 'OK' && /^tire\./.test(fid))) return ' mid';
+    if (/^wrong\./.test(fid) && fid !== 'wrong.none') return ' bad';
+    return '';
+  }
+  /* one-of groups: picking one clears the others */
+  function exclusive(sheet, fid) {
+    var m = /^tool\.(.+)\.(onTruck|onSite|working|broken)$/.exec(fid);
+    if (m) return ['tool.' + m[1] + '.' + ({ onTruck: 'onSite', onSite: 'onTruck', working: 'broken', broken: 'working' })[m[2]]];
+    if (fid === 'wrong.none') return SPECS.truck.sections[3].options.filter(function (o) { return o.id !== 'wrong.none'; }).map(function (o) { return o.id; });
+    if (/^wrong\./.test(fid) && fid !== 'wrong.describe') return ['wrong.none'];
+    return [];
+  }
+
+  /* ---------- builders ---------- */
+  function chip(fid, v, label, extra) { return '<button type="button" class="stc-chip' + (extra || '') + '" data-f="' + fid + '" data-v="' + esc(v) + '" aria-pressed="false"><span class="stc-sq"></span>' + (label == null ? '' : '<span>' + esc(label) + '</span>') + '</button>'; }
+  function field(f, fill) {
+    var lab = '<span class="stc-lab">' + esc(f.label) + '</span>';
+    if (f.type === 'date' || f.type === 'time') {
+      return lab + '<label class="stc-dt" data-dt="' + f.type + '" data-f="' + f.id + '"><span class="stc-dtv" data-ph="' + (f.type === 'date' ? 'Tap for today' : 'Tap for now') + '"></span>'
+        + '<input type="' + f.type + '" tabindex="-1" aria-label="' + esc(f.label) + '"><button type="button" class="stc-now" data-now="' + f.id + '">' + (f.type === 'date' ? 'Today' : 'Now') + '</button></label>';
+    }
+    if (f.type === 'mdy') {
+      return lab + '<div class="stc-mdy">' + f.parts.map(function (p, i) {
+        return '<label>' + p + '<input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="' + (i === 2 ? 4 : 2) + '" class="' + (i === 2 ? 'yr' : '') + '" data-f="' + f.id + '.' + p.toLowerCase() + '" data-mdy="1" aria-label="' + esc(f.label + ' ' + p) + '"></label>';
+      }).join('') + '</div>';
+    }
+    var num = f.type === 'number';
+    return lab + '<input class="stc-in" type="text" ' + (num ? 'inputmode="numeric" pattern="[0-9]*" ' : 'autocapitalize="words" ') + 'autocomplete="off" data-f="' + f.id + '"' + (fill ? ' data-fill="' + fill + '"' : '') + ' aria-label="' + esc(f.label) + '">';
+  }
+  function fillFor(id) { return (id === 'hdr.employee' || id === 'foot.checkedBy') ? 'user' : ''; }
+  function brand(spec, A) {
+    var logo = '<img class="stc-logo" src="' + A + 'storm-logo.svg" alt="STORM Basement Waterproofing">';
+    if (spec.sheet === 'tools') return '<div class="stc-brand">' + logo + '<div class="stc-brt"><img class="stc-hilti" src="' + A + 'hilti.png" alt="HILTI"><b>' + esc(spec.brandHeader.title) + '</b></div></div>';
+    var s = spec.brandHeader.subtitle;
+    return '<div class="stc-brand">' + logo + '<div class="stc-brt"><b>' + esc(spec.brandHeader.title) + '</b><div>' + esc(s[0]) + '<br>' + esc(s[1]).replace('85 PSI', '<u>85 PSI</u>') + '</div></div></div>';
+  }
+  function headerBox(spec) {
+    var h = '<div class="stc-hbox"><span class="stc-status" aria-live="polite"></span>', rows = spec.header;
+    rows.forEach(function (r, ri) { r.forEach(function (f, ci) { h += '<div class="stc-hf c' + (ci + 1) + (ri === rows.length - 1 ? ' last' : '') + '">' + field(f, fillFor(f.id)) + '</div>'; }); });
+    return h + '</div>';
+  }
+  function footer(spec) {
+    return '<div class="stc-foot">' + spec.footer.map(function (f) { return '<div class="stc-hf">' + field(f, fillFor(f.id)) + '</div>'; }).join('') + '</div><div class="stc-note">' + esc(spec.footnote) + '</div>';
+  }
+  function tireCard(t) {
+    var a = t.fields[0], c = t.fields[1], r = t.fields[2];
+    return '<div class="stc-tire" id="stc-t-' + t.id + '"><h4>' + esc(t.label) + '</h4><div class="stc-tb">'
+      + '<div class="stc-tr"><span class="stc-lab">TARGET</span><span class="stc-tgt">' + esc(t.target) + '</span></div>'
+      + '<div class="stc-tr"><span class="stc-lab">ACTUAL</span><input class="stc-in" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-f="' + a.id + '" aria-label="' + esc(t.label) + ' actual PSI"><span class="stc-unit">PSI</span></div>'
+      + '<div class="stc-tr cnd"><span class="stc-lab">COND</span><div class="stc-cond">' + c.options.map(function (o) { return chip(c.id, o, o, tone(c.id, o)); }).join('') + '</div></div>'
+      + '<div class="stc-tr"><span class="stc-lab">TREAD</span><input class="stc-in" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" data-f="' + r.id + '" aria-label="' + esc(t.label) + ' tread"><span class="stc-unit">/32</span></div>'
+      + '</div></div>';
+  }
+  function truckSvg(A) {
+    /* proportions taken from the paper top view: box 413x496 (drawn longer so the tire cards line up on a tablet), cab 387x165, front wheels beside the cab, duals outside the box */
+    function wheel(id, x, y) { return '<g class="stc-wh" data-wheel="' + id + '"><rect class="t" x="' + x + '" y="' + y + '" width="30" height="36" rx="7"/><rect x="' + (x + 11) + '" y="' + (y + 9) + '" width="8" height="18" rx="4" fill="#AEB8C6"/><circle cx="' + (x + 15) + '" cy="' + (y + 18) + '" r="2" fill="#2B3442"/></g>'; }
+    return '<svg viewBox="0 0 360 400" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Truck top view, tap a tire">'
+      + '<text x="180" y="16" text-anchor="middle" font-size="12" font-weight="800" fill="' + INK + '" font-family="Montserrat,Arial">FRONT \u25B2</text>'
+      + '<rect x="110" y="26" width="140" height="62" rx="9" fill="#E3E9F1" stroke="#2B3442" stroke-width="2"/>'
+      + '<rect x="118" y="34" width="124" height="12" rx="5" fill="#BFE6F8"/>'
+      + '<rect x="114" y="29" width="10" height="5" rx="2" fill="#F8C537"/><rect x="236" y="29" width="10" height="5" rx="2" fill="#F8C537"/>'
+      + '<rect x="104" y="33" width="5" height="11" rx="2" fill="#2B3442"/><rect x="251" y="33" width="5" height="11" rx="2" fill="#2B3442"/>'
+      + '<path d="M120 50 L120 66 M240 50 L240 66 M120 50 L240 50" stroke="#9AA7B8" stroke-width="1" fill="none"/>'
+      + '<text x="180" y="78" text-anchor="middle" font-size="9" font-weight="700" fill="#5A6B80" font-family="Montserrat,Arial">CAB</text>'
+      + '<rect x="105" y="91" width="150" height="279" rx="5" fill="#F6F8FB" stroke="#2B3442" stroke-width="2"/>'
+      + '<image href="' + A + 'storm-logo.svg" x="118" y="196" width="124" height="32"/>'
+      + '<rect x="112" y="352" width="136" height="12" rx="2" fill="none" stroke="#B9C4D2" stroke-width="1"/><path d="M180 352 v12" stroke="#B9C4D2"/>'
+      + wheel('fl', 72, 36) + wheel('fr', 258, 36)
+      + wheel('rli', 72, 266) + wheel('rlo', 38, 266) + wheel('rri', 258, 266) + wheel('rro', 292, 266)
+      + '<text x="180" y="392" text-anchor="middle" font-size="12" font-weight="800" fill="' + INK + '" font-family="Montserrat,Arial">REAR</text>'
+      + '</svg>';
+  }
+  function buildTruck(spec, A) {
+    var s = spec.sections, tv = s[0], win = s[1], li = s[2], wr = s[3];
+    var h = brand(spec, A) + '<div class="stc-rule"></div><h1 class="stc-h1">' + esc(spec.heading) + '</h1><p class="stc-intro">' + esc(spec.intro) + '</p>' + headerBox(spec);
+    h += '<div class="stc-sec stc-tv"><div class="stc-tvh"><h3 class="stc-st">' + esc(tv.title) + '</h3><span class="stc-leg">' + esc(tv.legend) + '</span></div><div class="stc-tgrid">'
+      + '<div class="stc-diag">' + truckSvg(A) + '</div>';
+    /* phone: cards pair up left/right in paper order; tablet: left column, truck, right column like the paper */
+    h += '<div class="stc-col l">' + tireCard(tv.left[0]) + '<div class="gap"></div>' + tireCard(tv.left[1]) + tireCard(tv.left[2]) + '</div>';
+    h += '<div class="stc-col r">' + tireCard(tv.right[0]) + '<div class="gap"></div>' + tireCard(tv.right[1]) + tireCard(tv.right[2]) + '</div>';
+    h += '</div></div>';
+    h += '<div class="stc-sec"><h3 class="stc-st">' + esc(win.title) + '</h3><div class="stc-win">' + win.groups.map(function (g) {
+      return '<div class="stc-wg"><h5>' + esc(g.label) + '</h5><div class="stc-opts">' + g.options.map(function (o) { return chip(g.id, o, o, tone(g.id, o)); }).join('') + '</div></div>';
+    }).join('') + '</div></div>';
+    h += '<div class="stc-sec"><h3 class="stc-st">' + esc(li.title) + '</h3><div class="stc-lights">' + li.columns.map(function (col) {
+      return '<div>' + col.map(function (l) { return '<div class="stc-lrow"><span>' + esc(l.label) + '</span>' + li.options.map(function (o) { return chip(l.id, o, o, tone(l.id, o)); }).join('') + '</div>'; }).join('') + '</div>';
+    }).join('') + '</div></div>';
+    h += '<div class="stc-sec"><h3 class="stc-st">' + esc(wr.title) + '</h3><div class="stc-wrong">' + wr.options.map(function (o) { return chip(o.id, '1', o.label, tone(o.id, '1')); }).join('') + '</div>'
+      + '<div class="stc-desc"><span class="stc-lab">' + esc(wr.describe.label) + '</span><textarea rows="1" data-f="' + wr.describe.id + '" aria-label="Describe it"></textarea></div></div>';
+    h += '<div class="stc-warn">' + esc(spec.warning) + '</div>' + footer(spec);
+    return h;
+  }
+  function toolTable(sec, A, cols) {
+    var h = '<div class="stc-sec"><h3 class="stc-st">' + esc(sec.title) + '</h3><div class="stc-tbl"><div class="stc-th"><span></span><span class="tn">TOOL</span><span>QTY</span><div class="l2">'
+      + cols.map(function (c) { return '<span>' + esc(c).replace('ON JOB SITE', 'ON JOB<br>SITE') + '</span>'; }).join('') + '</div></div>';
+    sec.rows.forEach(function (r) {
+      var b = 'tool.' + r.id + '.';
+      h += '<div class="stc-row"><img src="' + A + r.img + '" alt="" loading="lazy" width="40" height="34"><div class="stc-tn"><b>' + esc(r.name) + '</b><small>' + esc(r.model) + '</small></div><div class="stc-q">' + r.qty + '</div><div class="l2">'
+        + ['onTruck', 'onSite', 'working', 'broken'].map(function (k, i) { return '<button type="button" class="stc-cb stc-chip' + tone(b + k, '1') + '" data-f="' + b + k + '" data-v="1" aria-pressed="false" aria-label="' + esc(r.name + ' ' + cols[i]) + '"><span class="stc-sq"></span></button>'; }).join('')
+        + '<div><input class="stc-init" type="text" maxlength="4" autocapitalize="characters" autocomplete="off" data-f="' + b + 'init" data-fill="initials" aria-label="' + esc(r.name) + ' initials"></div></div></div>';
+    });
+    return h + '</div></div>';
+  }
+  function buildTools(spec, A) {
+    var cols = spec.tableColumns.slice(2);
+    var h = brand(spec, A) + '<div class="stc-rule"></div><h1 class="stc-h1">' + esc(spec.heading) + '</h1><p class="stc-intro">' + esc(spec.intro) + '</p>' + headerBox(spec);
+    spec.sections.forEach(function (sec) {
+      if (sec.type === 'info') {
+        h += '<div class="stc-info"><img src="' + A + sec.img + '" alt="ProKit stack line drawing"><div><div class="pk">' + esc(sec.brand) + '</div><b>' + esc(sec.title) + '</b>'
+          + sec.lines.map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') + '<small>' + esc(sec.small) + '</small></div></div>';
+      } else h += toolTable(sec, A, cols);
+    });
+    h += '<div class="stc-wbox"><b>' + esc(spec.warning.bold) + '</b><span>' + esc(spec.warning.sub) + '</span></div>' + footer(spec);
+    return h;
+  }
+
+  /* ---------- field list (for progress) ---------- */
+  function allFields(spec) {
+    var out = [];
+    spec.header.forEach(function (r) { r.forEach(function (f) { if (f.type === 'mdy') f.parts.forEach(function (p) { out.push(f.id + '.' + p.toLowerCase()); }); else out.push(f.id); }); });
+    if (spec.sheet === 'truck') {
+      var s = spec.sections;
+      s[0].left.concat(s[0].right).forEach(function (t) { t.fields.forEach(function (f) { out.push(f.id); }); });
+      s[1].groups.forEach(function (g) { out.push(g.id); });
+      s[2].columns.forEach(function (c) { c.forEach(function (l) { out.push(l.id); }); });
+      out.push('wrong'); out.push('wrong.describe');
+    } else {
+      spec.sections.forEach(function (sec) { (sec.rows || []).forEach(function (r) { ['loc', 'cond', 'init'].forEach(function (k) { out.push('tool.' + r.id + '.' + k); }); }); });
+    }
+    spec.footer.forEach(function (f) { out.push(f.id); });
+    return out;
+  }
+
+  /* ---------- open ---------- */
+  function open(container, opts) {
+    opts = opts || {};
+    css();
+    var sheet = opts.sheet === 'tools' ? 'tools' : 'truck', spec = SPECS[sheet];
+    var A = opts.assetBase || DEFAULT_ASSETS;
+    var vals = {}, meta = {}, localAt = {}, timers = {}, rec = { sheet: sheet, truck: '', period: '' };
+    var root = document.createElement('div');
+    root.className = 'stc stc-' + sheet;
+    root.innerHTML = '<div class="stc-card">' + (sheet === 'tools' ? buildTools(spec, A) : buildTruck(spec, A)) + '</div>';
+    container.innerHTML = ''; container.appendChild(root);
+    var statusEl = root.querySelector('.stc-status'), statusT = 0;
+
+    function wide() { var w = root.clientWidth || container.clientWidth || window.innerWidth; root.classList.toggle('wide', w >= 600); }
+    wide();
+    var ro = null;
+    if (window.ResizeObserver) { ro = new ResizeObserver(wide); ro.observe(root); } else window.addEventListener('resize', wide);
+
+    function els(fid) { return root.querySelectorAll('[data-f="' + fid + '"]'); }
+    function paint(fid) {
+      var v = vals[fid] == null ? '' : String(vals[fid]);
+      Array.prototype.forEach.call(els(fid), function (el) {
+        if (el.tagName === 'BUTTON') { var on = v !== '' && el.getAttribute('data-v') === v; el.classList.toggle('on', on); el.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+        else if (el.tagName === 'LABEL') {
+          var t = el.getAttribute('data-dt');
+          el.querySelector('.stc-dtv').textContent = t === 'date' ? fmtDate(v) : fmtTime(v);
+          var inp = el.querySelector('input'); if (inp.value !== v) inp.value = v;
+          el.classList.toggle('has', !!v);
+        } else if (document.activeElement !== el && el.value !== v) { el.value = v; if (el.tagName === 'TEXTAREA') grow(el); }
+      });
+      var m = /^tire\.(\w+)\./.exec(fid); if (m) paintWheel(m[1]);
+    }
+    function paintWheel(id) {
+      var g = root.querySelector('[data-wheel="' + id + '"]'); if (!g) return;
+      var c = vals['tire.' + id + '.cond'];
+      g.setAttribute('class', 'stc-wh' + (c === 'G' ? ' g' : c === 'OK' ? ' ok' : c === 'P' ? ' p' : ''));
+    }
+    function grow(t) { t.style.height = '40px'; t.style.height = Math.max(40, t.scrollHeight) + 'px'; }
+
+    /* A change is only sent once the record has its key (TRUCK # and DATE). Taps made before that wait in pending
+       and go out, with their own times, as soon as both are filled. */
+    var pending = {};
+    function send(fid, value, at) {
+      if (typeof opts.onChange !== 'function') return;
+      try { opts.onChange({ sheet: sheet, truck: rec.truck, period: rec.period, fieldId: fid, value: value, by: (meta[fid] || {}).by || opts.user || '', at: at }); } catch (e) { if (window.console) console.error(e); }
+    }
+    function emit(fid, value) {
+      var at = Date.now(); localAt[fid] = at; meta[fid] = { by: opts.user || '', at: at };
+      if (fid === 'hdr.truck' || fid === 'hdr.date') { pending[fid] = at; rekey(); return; }
+      if (rec.truck && rec.period) send(fid, value, at); else pending[fid] = at;
+    }
+    function set(fid, value, silent) {
+      value = value == null ? '' : String(value);
+      if ((vals[fid] || '') === value) return;
+      if (value === '') delete vals[fid]; else vals[fid] = value;
+      paint(fid);
+      if (!silent) emit(fid, value);
+    }
+    function rekey() {
+      var t = (vals['hdr.truck'] || '').trim(), p = vals['hdr.date'] || '';
+      var moved = t !== rec.truck || p !== rec.period, had = !!(rec.truck && rec.period);
+      rec.truck = t; rec.period = p;
+      if (!t || !p) return;
+      if (moved && typeof opts.onKey === 'function') { try { opts.onKey({ sheet: sheet, truck: t, period: p }); } catch (e) {} }
+      /* new key: send everything typed so far under it (a corrected TRUCK # or DATE carries the entries with it) */
+      var ids = moved && had ? Object.keys(vals) : Object.keys(pending);
+      if (moved && had) Object.keys(pending).forEach(function (k) { if (ids.indexOf(k) < 0) ids.push(k); });
+      ids.forEach(function (k) { send(k, vals[k] == null ? '' : vals[k], (meta[k] || {}).at || Date.now()); });
+      pending = {};
+    }
+    function flushText(el) {
+      var fid = el.getAttribute('data-f'); clearTimeout(timers[fid]); delete timers[fid];
+      var v = el.value.replace(/\s+$/, ''); if (el.classList.contains('stc-init')) v = v.toUpperCase();
+      set(fid, v);
+    }
+
+    /* taps */
+    function onClick(e) {
+      var now = e.target.closest('[data-now]');
+      if (now && root.contains(now)) {
+        e.preventDefault(); e.stopPropagation();
+        var lab = now.closest('[data-dt]'); set(lab.getAttribute('data-f'), lab.getAttribute('data-dt') === 'date' ? todayISO() : nowHM()); return;
+      }
+      var dt = e.target.closest('[data-dt]');
+      if (dt && root.contains(dt) && !dt.classList.contains('has')) {
+        e.preventDefault(); set(dt.getAttribute('data-f'), dt.getAttribute('data-dt') === 'date' ? todayISO() : nowHM()); return;
+      }
+      var wh = e.target.closest('[data-wheel]');
+      if (wh && root.contains(wh)) {
+        var card = root.querySelector('#stc-t-' + wh.getAttribute('data-wheel'));
+        if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); var inp = card.querySelector('input'); setTimeout(function () { try { inp.focus({ preventScroll: true }); } catch (x) {} }, 350); }
+        return;
+      }
+      var b = e.target.closest('button[data-f]');
+      if (!b || !root.contains(b) || opts.readOnly) return;
+      var fid = b.getAttribute('data-f'), v = b.getAttribute('data-v'), cur = vals[fid] || '';
+      var next = cur === v ? '' : v;
+      set(fid, next);
+      if (next) exclusive(sheet, fid).forEach(function (o) { if (vals[o]) set(o, ''); });
+    }
+    function onInput(e) {
+      var el = e.target, fid = el.getAttribute && el.getAttribute('data-f');
+      if (!fid) {
+        var lab = el.closest && el.closest('[data-dt]');
+        if (lab && el.tagName === 'INPUT') set(lab.getAttribute('data-f'), el.value); /* native date/time picker */
+        return;
+      }
+      if (el.getAttribute('data-mdy')) {
+        el.value = el.value.replace(/\D/g, '');
+        if (el.value.length >= +el.getAttribute('maxlength') || (el.maxLength === 2 && el.value.length === 2)) {
+          var nx = el.parentNode.nextElementSibling; nx = nx && nx.querySelector('input'); if (nx) nx.focus();
+        }
+      }
+      if (el.getAttribute('inputmode') === 'numeric') el.value = el.value.replace(/[^\d.]/g, '');
+      if (el.tagName === 'TEXTAREA') grow(el);
+      clearTimeout(timers[fid]);
+      if (fid === 'hdr.truck') { delete timers[fid]; return; } /* v203: TRUCK # picks the record, so it only counts once typed (change / blur / Enter), never "1" on the way to "12" */
+      timers[fid] = setTimeout(function () { flushText(el); }, 600);
+    }
+    function onChangeEv(e) {
+      var el = e.target;
+      if (el.getAttribute && el.getAttribute('data-f') && el.tagName !== 'BUTTON' && el.tagName !== 'LABEL') { flushText(el); return; }
+      var lab = el.closest && el.closest('[data-dt]'); if (lab && el.tagName === 'INPUT') set(lab.getAttribute('data-f'), el.value);
+    }
+    /* tap an empty EMPLOYEE / CHECKED BY / INIT. box: it fills with this phone's name or initials, selected, so typing replaces it */
+    function onFill(e) {
+      var el = e.target, f = el.getAttribute && el.getAttribute('data-fill');
+      if (!f || el.value || opts.readOnly) return;
+      var v = f === 'initials' ? (opts.initials || '') : (opts.user || '');
+      if (!v) return;
+      el.value = v; set(el.getAttribute('data-f'), v);
+      try { el.setSelectionRange(0, v.length); } catch (x) {}
+    }
+    function onBlur(e) { var el = e.target; if (el.getAttribute && el.getAttribute('data-f') && timers[el.getAttribute('data-f')]) flushText(el); }
+    function onKeyDown(e) { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); e.target.blur(); } }
+    root.addEventListener('click', onClick);
+    root.addEventListener('input', onInput);
+    root.addEventListener('change', onChangeEv);
+    root.addEventListener('click', onFill);
+    root.addEventListener('focusout', onBlur);
+    root.addEventListener('keydown', onKeyDown);
+
+    /* data */
+    function load(data, isRemote) {
+      data = data || {};
+      var f = data.fields || data;
+      Object.keys(f).forEach(function (k) {
+        if (k === 'sheet' || k === 'truck' || k === 'period') return;
+        var x = f[k], v = x && typeof x === 'object' ? x.v : x, at = x && typeof x === 'object' ? +x.at || 0 : 0;
+        if (isRemote) {
+          if (localAt[k] && at && at < localAt[k]) return;          /* our newer tap wins */
+          var el = root.querySelector('[data-f="' + k + '"]');
+          if (el && document.activeElement === el) return;           /* never yank a field out from under a thumb */
+        }
+        if (x && typeof x === 'object') meta[k] = { by: x.by || '', at: at };
+        set(k, v, true);
+      });
+    }
+    function setData(record) {
+      Object.keys(vals).forEach(function (k) { delete vals[k]; paint(k); });
+      record = record || {}; pending = {};
+      rec.truck = record.truck || ''; rec.period = record.period || '';
+      load(record, false);
+      if (!vals['hdr.truck'] && rec.truck) set('hdr.truck', rec.truck, true);
+      if (!vals['hdr.date'] && rec.period) set('hdr.date', rec.period, true);
+      rec.truck = (vals['hdr.truck'] || '').trim(); rec.period = vals['hdr.date'] || '';
+    }
+    setData(opts.data);
+    if (opts.readOnly) root.querySelectorAll('input,textarea').forEach(function (x) { x.readOnly = true; });
+
+    var total = allFields(spec);
+    return {
+      el: root, sheet: sheet,
+      applyRemote: function (fields) { load({ fields: fields || {} }, true); },
+      setData: setData,
+      getData: function () { var o = {}; Object.keys(vals).forEach(function (k) { o[k] = { v: vals[k], by: (meta[k] || {}).by || '', at: (meta[k] || {}).at || 0 }; }); return { sheet: sheet, truck: rec.truck, period: rec.period, fields: o }; },
+      progress: function () {
+        var d = 0;
+        total.forEach(function (id) {
+          if (id === 'wrong') { if (Object.keys(vals).some(function (k) { return /^wrong\./.test(k) && k !== 'wrong.describe'; })) d++; return; }
+          var m = /^tool\.(.+)\.(loc|cond)$/.exec(id);
+          if (m) { var b = 'tool.' + m[1] + '.'; if (m[2] === 'loc' ? (vals[b + 'onTruck'] || vals[b + 'onSite']) : (vals[b + 'working'] || vals[b + 'broken'])) d++; return; }
+          if (vals[id]) d++;
+        });
+        return { done: d, total: total.length };
+      },
+      setStatus: function (t) { clearTimeout(statusT); statusEl.textContent = t || ''; statusEl.classList.toggle('on', !!t); if (t && /saved/i.test(t)) statusT = setTimeout(function () { statusEl.classList.remove('on'); }, 1600); },
+      destroy: function () {
+        Object.keys(timers).forEach(function (k) { clearTimeout(timers[k]); });
+        root.querySelectorAll('[data-f]').forEach(function (el) { if (timers[el.getAttribute('data-f')]) flushText(el); });
+        if (ro) ro.disconnect(); else window.removeEventListener('resize', wide);
+        if (root.parentNode) root.parentNode.removeChild(root);
+      }
+    };
+  }
+
+  window.stormTruckCheck = { version: VERSION, specs: SPECS, open: open, today: todayISO };
+})();
+
+
+/* v203 wiring (Hark, 2026-11-11, Dave approved 21:23): Box Truck Pre Check and Tool Checklist open as fillable phone forms.
+   - MORE / Resource Center > Checklists rows (and the old drawer rows) go through openChecklist(); the v75 code asks
+     window.stormTC203.render() first, which fills #chk-view with the form (window.stormTruckCheck, above). The paper sheet
+     (pages, zoom, Print) is one tap away: "View / print paper copy" (and "Fill it in on the phone" to come back).
+   - One record per sheet + TRUCK # + DATE. DATE starts as today; the record loads as soon as TRUCK # is filled.
+   - Every tap / typed box is queued (localStorage, survives a reload or no signal) and sent with saveTruckCheckFields,
+     one call at a time, retried 2 s -> 5 -> 10 -> 30 s, on 'online' and on every live-sync stamp change.
+     Anyone can fill it in (crew or manager); no manager token.
+   - Live: the v180 stamp poll calls window.stormTruckCheckRefresh() when the stamp moves; the open record is re-read
+     (getTruckCheck) and patched in place with applyRemote. A box with a change of ours that is queued, in flight, or newer
+     than the read is left alone, and the module never touches the box being typed in. */
+(function () {
+  if (window.stormTC203) return;
+  var BASE = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/';
+  var AB = BASE + 'assets/truckcheck/';
+  var MAP = { 'box-truck': 'truck', 'tools': 'tools' };
+  var QK = 'stormTruckCheckQueueV1';
+  var DELAYS = [2000, 5000, 10000, 30000];
+  var cur = null, lastTruck = {}, inflight = null, retryT = 0, err = 0, flushT = 0, fetchSeq = 0;
+  var lastLocal = {}, savedAt = {};
+  var queue = (function () { try { var q = JSON.parse(localStorage.getItem(QK) || '{}'); return q && typeof q === 'object' ? q : {}; } catch (e) { return {}; } })();
+  function persist() { try { if (Object.keys(queue).length) localStorage.setItem(QK, JSON.stringify(queue)); else localStorage.removeItem(QK); } catch (e) {} }
+  function run() { try { return (window.google && google.script && google.script.run) ? google.script.run : null; } catch (e) { return null; } }
+  function isMgr() { try { return !!(window.stormAccess && window.stormAccess.isMgr && window.stormAccess.isMgr()); } catch (e) { return false; } }
+  function devName() { try { return String(localStorage.getItem('stormDeviceNameV1') || '').trim().slice(0, 60); } catch (e) { return ''; } }
+  function who() { return devName() || (isMgr() ? 'Manager' : 'Crew'); }
+  function initials(n) { return String(n || '').split(/\s+/).filter(Boolean).map(function (w) { return w.charAt(0); }).join('').slice(0, 3).toUpperCase(); }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function keyOf(s, t, p) { return s + '|' + t + '|' + p; }
+  function status(t) { try { if (cur && cur.h) cur.h.setStatus(t); } catch (e) {} }
+
+  var css = document.createElement('style'); css.id = 'storm-v203-css';
+  css.textContent = ''
+    + '#chk-view .tc203-body { padding: 10px 12px calc(28px + env(safe-area-inset-bottom, 0px)) !important; max-width: 1000px !important; margin: 0 auto !important; box-sizing: border-box; }'
+    + '#chk-view .tc203-links { display: flex; justify-content: flex-end; margin: 0 2px 8px; }'
+    + '#chk-view .tc203-link { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 0; border-radius: 17px; background: #fff; color: #1A8FC4; font-family: Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 13px; font-weight: 700; box-shadow: 0 1px 2px rgba(15,23,32,.06); cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }'
+    + '#chk-view .tc203-link svg { width: 16px; height: 16px; flex: none; }'
+    + '#chk-view .tc203-link:active { background: rgba(41,168,224,.08); }'
+    + '#chk-view .tc203-host { min-height: 60vh; }'
+    + '#chk-view[data-tc203] > .detail-bar { position: sticky; top: 0; z-index: 6 !important; background: #EEF2F7 !important; }'
+    + '#chk-view .stc .stc-tbl, #chk-view .stc .stc-card { overflow: visible !important; }' /* overflow: clip stopped the heading row from sticking */
+    + '#chk-view .stc .stc-tbl > :first-child { border-radius: 11px 11px 0 0; } #chk-view .stc .stc-tbl > :last-child { border-radius: 0 0 11px 11px; }'
+    + '#chk-view .stc .stc-th { top: var(--tc203-top, 0px) !important; z-index: 4 !important; box-shadow: 0 1px 0 #DCE4EE; }'
+    /* the overlay pages' boxed white inputs (v176) are not for this form: its boxes are the paper's write-on lines */
+    + 'html body #chk-view .stc input, html body #chk-view .stc textarea { background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }'
+    + 'html body #chk-view .stc .stc-hbox .stc-in { border-bottom: 1.5px solid transparent !important; }'
+    + 'html body #chk-view .stc .stc-tr .stc-in, html body #chk-view .stc .stc-mdy input, html body #chk-view .stc .stc-desc textarea, html body #chk-view .stc .stc-foot .stc-in { border-bottom: 1.5px solid #9AA7B8 !important; }'
+    + 'html body #chk-view .stc .stc-init { border-bottom: 1.5px solid #B9C4D2 !important; }'
+    + 'html body #chk-view .stc input:focus, html body #chk-view .stc textarea:focus { border-bottom-color: #29A8E0 !important; }'
+    + '@media (max-width: 380px) { html body #chk-view .stc .stc-logo { height: 30px; } html body #chk-view .stc .stc-brt b { font-size: 12.5px; } html body #chk-view .stc .stc-brt div { font-size: 10.5px; } html body #chk-view .stc .stc-hilti { height: 24px; } html body #chk-view .stc .stc-mdy { gap: 3px; } html body #chk-view .stc .stc-mdy input { width: 28px; } html body #chk-view .stc .stc-mdy input.yr { width: 36px; } }' /* the tool table's heading row sticks under the page bar, not over it */
+    /* Item details swipe (Dave 21:48): the v166 photo cover is drawn edge to edge of the box (strip included), so it never takes padding */
+    + 'html body #detail canvas.st166-cover { padding: 0 !important; }';
+  document.head.appendChild(css);
+  var PAPER_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>';
+  var FORM_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 11l2 2 4-4"/><path d="M8.5 17h7"/></svg>';
+
+  /* ---------- sending ---------- */
+  function enqueue(c) {
+    if (!c || !c.truck || !c.period || !c.fieldId) return;
+    var k = keyOf(c.sheet, c.truck, c.period);
+    var q = queue[k] || (queue[k] = { sheet: c.sheet, truck: c.truck, period: c.period, by: who(), f: {} });
+    q.f[c.fieldId] = c.value == null ? '' : String(c.value); q.by = who();
+    lastLocal[k + '|' + c.fieldId] = Date.now();
+    persist(); status('Saving\u2026');
+    clearTimeout(flushT); flushT = setTimeout(flush, 120);
+  }
+  function retryLater() { clearTimeout(retryT); retryT = setTimeout(function () { retryT = 0; flush(); }, DELAYS[err]); err = Math.min(err + 1, DELAYS.length - 1); }
+  function flush() {
+    clearTimeout(flushT); flushT = 0;
+    if (inflight) return;
+    var keys = Object.keys(queue); if (!keys.length) return;
+    var r = run(); if (!r) { retryLater(); return; }
+    var k = keys[0], q = queue[k]; delete queue[k]; persist();
+    var changes = Object.keys(q.f).map(function (f) { return { fieldId: f, value: q.f[f] }; });
+    inflight = { k: k, q: q };
+    r.withSuccessHandler(function () {
+      inflight = null; err = 0; var now = Date.now();
+      Object.keys(q.f).forEach(function (f) { savedAt[k + '|' + f] = now; });
+      try { localStorage.setItem(QK + '.ok', String(now)); } catch (e) {}
+      if (cur && cur.key === k && !queue[k]) status('Saved');
+      if (Object.keys(queue).length) flush();
+    }).withFailureHandler(function () {
+      inflight = null;
+      /* put back what was not changed again meanwhile */
+      var back = queue[k] || (queue[k] = { sheet: q.sheet, truck: q.truck, period: q.period, by: q.by, f: {} });
+      Object.keys(q.f).forEach(function (f) { if (!(f in back.f)) back.f[f] = q.f[f]; });
+      persist();
+      if (cur && cur.key === k) status('Not saved yet \u00b7 retrying');
+      retryLater();
+    }).saveTruckCheckFields(q.truck, q.period, changes, q.by, q.sheet);
+  }
+  function busyField(k, f, since) {
+    if (queue[k] && f in queue[k].f) return true;
+    if (inflight && inflight.k === k && f in inflight.q.f) return true;
+    return (lastLocal[k + '|' + f] || 0) >= since || (savedAt[k + '|' + f] || 0) >= since;
+  }
+
+  /* ---------- reading ---------- */
+  function fetchRec() {
+    if (!cur || !cur.truck || !cur.period) return;
+    var r = run(); if (!r) return;
+    var seq = ++fetchSeq, k = cur.key, since = Date.now(), h = cur.h;
+    r.withSuccessHandler(function (res) {
+      if (seq !== fetchSeq || !cur || cur.key !== k || cur.h !== h || !res || !res.fields) return;
+      var out = {};
+      Object.keys(res.fields).forEach(function (f) {
+        if (f === 'hdr.truck' || f === 'hdr.date' || busyField(k, f, since)) return;
+        var x = res.fields[f] || {};
+        out[f] = { v: x.v == null ? '' : String(x.v), by: x.by || '', at: 0 }; /* at 0: phone clocks differ from the server's; our own changes are held back above */
+      });
+      try { h.applyRemote(out); } catch (e) {}
+    }).withFailureHandler(function () {}).getTruckCheck(cur.truck, cur.period, cur.sheet);
+  }
+  window.stormTruckCheckRefresh = function () { if (Object.keys(queue).length) flush(); if (cur) fetchRec(); };
+  window.addEventListener('online', function () { err = 0; flush(); if (cur) fetchRec(); });
+
+  /* ---------- the page ---------- */
+  function render(c, v, paper) {
+    var sheet = MAP[c && c.id]; if (!sheet || !window.stormTruckCheck || !v) return false;
+    close();
+    v.setAttribute('data-tc203', c.id);
+    v.innerHTML = '<div class="detail-bar"><button class="detail-close" type="button" data-chk-close aria-label="Close">&times;</button><div style="font-weight:700;font-size:17px">' + esc(c.name) + '</div></div>'
+      + '<div class="detail-body tc203-body"><div class="tc203-links"><button type="button" class="tc203-link" data-tc203-paper>' + PAPER_ICO + 'View / print paper copy</button></div><div class="tc203-host"></div></div>';
+    var user = devName();
+    var period = window.stormTruckCheck.today(), truck = lastTruck[sheet] || '';
+    cur = { c: c, v: v, paper: paper, sheet: sheet, truck: truck, period: period, key: keyOf(sheet, truck, period), h: null };
+    var me = cur;
+    me.h = window.stormTruckCheck.open(v.querySelector('.tc203-host'), {
+      sheet: sheet, user: user, initials: initials(user), assetBase: AB,
+      data: { sheet: sheet, truck: truck, period: period, fields: {} },
+      onChange: function (ch) { enqueue(ch); },
+      onKey: function (k) {
+        if (cur !== me) return;
+        me.truck = k.truck; me.period = k.period; me.key = keyOf(sheet, k.truck, k.period); lastTruck[sheet] = k.truck;
+        fetchRec();
+      }
+    });
+    function barTop() { try { var bar = v.querySelector('.detail-bar'), bs = bar && getComputedStyle(bar), hh = bar ? Math.round(bar.getBoundingClientRect().height) : 0; if (hh && (bs.position === 'sticky' || bs.position === 'fixed')) v.style.setProperty('--tc203-top', hh + 'px'); return hh; } catch (e) { return 1; } }
+    if (!barTop()) requestAnimationFrame(function () { if (!barTop()) setTimeout(barTop, 400); }); /* the page is still hidden on the first call */
+    if (truck) fetchRec();
+    if (Object.keys(queue).length) flush();
+    return true;
+  }
+  function close() {
+    if (!cur) return;
+    var c = cur; cur = null; fetchSeq++;
+    try { if (c.h) { var d = c.h.getData(); if (d && d.truck) lastTruck[c.sheet] = d.truck; } } catch (e) {}
+    /* destroy() sends any box still waiting on its typing pause; route it to the queue even though cur is gone */
+    try { c.h && c.h.destroy(); } catch (e) {}
+    try { if (c.v) c.v.removeAttribute('data-tc203'); } catch (e) {}
+  }
+  function showPaper(v) {
+    if (!cur || cur.v !== v) return;
+    var c = cur.c, paper = cur.paper; close();
+    v.innerHTML = paper;
+    var body = v.querySelector('.detail-body');
+    if (body) body.insertAdjacentHTML('afterbegin', '<div class="tc203-links"><button type="button" class="tc203-link" data-tc203-form="' + esc(c.id) + '">' + FORM_ICO + 'Fill it in on the phone</button></div>');
+    v.__tc203c = c; v.__tc203p = paper; v.scrollTop = 0;
+  }
+  function showForm(v) {
+    var c = v.__tc203c, paper = v.__tc203p; if (!c) return;
+    if (render(c, v, paper)) v.scrollTop = 0;
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var p = t.closest('#chk-view [data-tc203-paper]'); if (p) { e.preventDefault(); showPaper(p.closest('#chk-view')); return; }
+    var f = t.closest('#chk-view [data-tc203-form]'); if (f) { e.preventDefault(); showForm(f.closest('#chk-view')); return; }
+  });
+  /* the app closes or reuses #chk-view without us in a few places: drop the form when its host leaves the page */
+  setInterval(function () { if (cur && (!cur.v.isConnected || !cur.v.classList.contains('open') || !cur.v.contains(cur.h && cur.h.el))) close(); }, 1000);
+  setTimeout(function () { if (Object.keys(queue).length) flush(); }, 4000);
+
+  window.stormTC203 = { render: render, close: close, flush: flush, queue: function () { return JSON.parse(JSON.stringify(queue)); }, current: function () { return cur; } };
 })();
