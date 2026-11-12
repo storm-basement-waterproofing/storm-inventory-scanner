@@ -1,3 +1,4 @@
+/* v197 (Hark, 2026-11-11 19:20, Dave fix list 1-6): main-screen Category dropdown hidden (side menu keeps Categories); Stocked-to-par card + supplier chips ride in the top bar and come back on scroll up; iPad toolbar at normal size in one row; smooth mode switch; rings update in place (no flash on Add to Order / saves); Keep on hand save patches the card in place. See the v197 block at the end. */
 /* v196 (Hark, 2026-11-11 15:10, Dave approved): pairs with app v148. "Pull List" reads "Customer Search" (printout: "Staging List"), top switch "Staging Job | Inventory". Checks only track the staging cart (shared + offline queue, no stock change). Big "Staged Job Complete" button at the bottom of Customer Search -> confirm sheet -> completeStaging; staged banner, checks locked, unchecked lines flagged Not staged; manager-only Unstage. How to Use guide + explainer rewritten for the new flow. See the v196 block at the end. */
 /* v195 (Hark, 2026-11-11 12:35, Dave): pairs with app v147. Customer Search always in the + dock (crew + manager, first open); guide Next lands exactly on the next chapter; printed Pull List / Print Preview carry the main-screen STORM logo centered (app side); Pull List progress ring follows you as a slim bar while you scroll; Categories are a closed dropdown on the main screen and a collapsed section in the side menu. See the v195 block at the end. */
 /* v194 (Hark, 2026-11-11 11:28, Dave): pairs with app v146 (Manager Login in place: no reload, video or picker). Side menu bottom rows spaced out (Jobber | CompanyCam, then Manager Login and How to Use the App as full rows; safe area from the wrapper); Insurance Certificates pages show the main-screen STORM logo centered at the top; help guide bottom spacing + new app-specific explainer. See the v194 block at the end. */
@@ -3124,7 +3125,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
         var bd = host.querySelector(':scope > .gd-badge');
         if (!bd) { bd = document.createElement('span'); bd.className = 'gd-badge'; host.insertBefore(bd, info); }
         var key = st + '|' + v + '|' + par;
-        if (bd.__k !== key) {
+        if (bd.__k !== key && !bd.__cl) { /* v197: once the v179 ring owns this badge, this older v178 pass leaves it alone (it read the order box as on hand, so the ring flashed a wrong value) */
           bd.__k = key;
           var frac = st === 'out' ? 0 : (st === 'low' ? (par > 0 ? Math.max(.12, Math.min(.92, v / par)) : .5) : 1);
           bd.innerHTML = ring(40, 4, frac, st === 'low' ? '#F59E0B' : BLUE, st === 'out' ? '#C7CED8' : '#E3E8EF', v == null ? '\u2013' : v);
@@ -3136,15 +3137,15 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       if (v != null && v >= par) ok++;
       if (st === 'out') out++; else if (st === 'low') low++;
     });
-    sum.hidden = !tot || list.offsetParent === null;
-    if (tot) {
+    var hid197 = !tot || list.offsetParent === null; if (sum.hidden !== hid197) sum.hidden = hid197; /* v197: only touch it when it changes */
+    if (tot && !sum.__cl) { /* v197: v179 owns the summary ring once it has drawn it; redrawing it here flashed the top graph on Add to Order and on saves */
       var pct = Math.round(ok / tot * 100);
       sum.querySelector('.gd-ring').innerHTML = ring(76, 8, ok / tot, BLUE, '#E3E8EF', pct + '%');
       sum.querySelector('.gd-t2').textContent = ok + ' of ' + tot + ' line' + (tot === 1 ? '' : 's') + ' full';
       var bits = []; if (low) bits.push(low + ' low'); if (out) bits.push(out + ' out');
       sum.querySelector('.gd-t3').textContent = bits.join(' \u00b7 ');
     }
-    chips.style.display = list.offsetParent === null ? 'none' : '';
+    var cd197 = list.offsetParent === null ? 'none' : ''; if (chips.style.display !== cd197) chips.style.display = cd197;
   }
   document.addEventListener('click', function (e) {
     var b = e.target && e.target.closest && e.target.closest('[data-gd-sup]'); if (!b) return;
@@ -3512,7 +3513,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       var key = s.tot + '|' + s.ok + '|' + s.low + '|' + s.out;
       if (s.tot && (sum.__cl !== key || !(rg && rg.querySelector('svg[data-cl]')))) {
         sum.__cl = key;
-        if (rg) rg.innerHTML = ring(76, 8, s.ok / s.tot, BLUE, TRACK, s.pct + '%');
+        if (rg) (window.stormSetSvg197 || function (h, x) { h.innerHTML = x; })(rg, ring(76, 8, s.ok / s.tot, BLUE, TRACK, s.pct + '%')); /* v197: update the ring in place (no new svg, no flash) */
         var t2 = sum.querySelector('.gd-t2'), t3 = sum.querySelector('.gd-t3');
         if (t2) t2.textContent = s.ok + ' of ' + s.tot + ' line' + (s.tot === 1 ? '' : 's') + ' full';
         if (t3) t3.innerHTML = [s.low ? s.low + ' low' : '', s.out ? '<span class="cl-out">' + s.out + ' out</span>' : ''].filter(Boolean).join(' \u00b7 ');
@@ -3524,7 +3525,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       var key = 'cl|' + stt + '|' + v + '|' + par;
       if (bd.__cl === key && bd.querySelector('svg[data-cl]')) return;
       var frac = stt === 'out' ? 0 : stt === 'low' ? (par > 0 ? Math.max(.12, Math.min(.92, v / par)) : .5) : stt === 'none' ? 0 : 1;
-      bd.innerHTML = ring(40, 3.5, frac, stt === 'low' ? AMB : BLUE, stt === 'out' ? '#F3C9C9' : TRACK, v == null ? '\u2013' : v);
+      (window.stormSetSvg197 || function (h, x) { h.innerHTML = x; })(bd, ring(40, 3.5, frac, stt === 'low' ? AMB : BLUE, stt === 'out' ? '#F3C9C9' : TRACK, v == null ? '\u2013' : v)); /* v197: in place */
       if (stt === 'out') { var tx = bd.querySelector('text'); if (tx) tx.setAttribute('fill', RED); }
       bd.__cl = key;
     });
@@ -5321,4 +5322,186 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && cf) closeCf(); });
   window.stormStagedPaint = function () { lastKey = ''; paint(); };
+})();
+
+/* v197 (Hark, 2026-11-11 19:20, Dave's fix list items 1-6 + 19:10 "take the categories icon off the main screen"):
+   - The main-screen Category dropdown (#st-catdd, v195) is hidden on phone and iPad, both modes. Categories stay in the side menu.
+   - Scroll up: the "Stocked to par" card (ring) and the supplier chips (#gd-sum, #gd-chips) now ride in the sticky top bar
+     (#topbar > #st-follow), so they slide back on scroll up with the search bar, logo and tabs instead of only at the very top.
+     The bar reveals proportionally faster so search/logo come back after the same thumb travel as before.
+   - iPad / large screens (min-width 700px and min-height 560px, so no phone in any orientation): search + All Items/Needs Ordering
+     share one row at normal size, the content column matches the item grid. Phone layout unchanged.
+   - Mode switch: the knob slides first, the list dips out, re-renders, keeps the same item under the thumb, and fades back in.
+   - Add to Order / saves: rings update in place (stormSetSvg197); the v178 pass no longer redraws the v179 ring with wrong numbers;
+     a "Keep on hand" save patches the card in place instead of rebuilding all cards. */
+(function () {
+  if (window.__storm197) return; window.__storm197 = true;
+  var reduce = false; try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+  /* ---- in-place svg update: same structure -> copy attributes/text; otherwise replace ---- */
+  window.stormSetSvg197 = function (host, html) {
+    if (!host) return;
+    if (host.__svg197 === html && host.firstElementChild) return;
+    var old = host.firstElementChild;
+    var t = document.createElement('div'); t.innerHTML = html;
+    var nw = t.firstElementChild;
+    function sameShape(a, b) {
+      if (!a || !b || a.tagName !== b.tagName || a.children.length !== b.children.length || host.children.length !== 1) return false;
+      for (var i = 0; i < a.children.length; i++) if (a.children[i].tagName !== b.children[i].tagName) return false;
+      return true;
+    }
+    function copy(a, b) {
+      var i, n = {};
+      for (i = 0; i < b.attributes.length; i++) { var at = b.attributes[i]; n[at.name] = 1; if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value); }
+      for (i = a.attributes.length - 1; i >= 0; i--) { if (!n[a.attributes[i].name]) a.removeAttribute(a.attributes[i].name); }
+    }
+    if (sameShape(old, nw)) {
+      copy(old, nw);
+      for (var i = 0; i < nw.children.length; i++) {
+        var a = old.children[i], b = nw.children[i];
+        copy(a, b);
+        if (!b.children.length && a.textContent !== b.textContent) a.textContent = b.textContent;
+      }
+    } else host.innerHTML = html;
+    host.__svg197 = html;
+  };
+
+  var css = document.createElement('style'); css.id = 'storm-v197-css';
+  css.textContent = ''
+    + 'html body #st-catdd { display: none !important; }' /* Dave 19:10: redundant on the main screen; side menu keeps Categories */
+    + '#st-follow { display: block; }'
+    + '@media (min-width: 700px) and (min-height: 560px) {'
+    + '  html body #topbar > .toolbar { display: flex !important; align-items: center; gap: 12px; max-width: 1240px; margin: 0 auto; padding: 12px 14px 0 !important; box-sizing: border-box; }'
+    + '  html body #topbar > .toolbar > .search-row { flex: 1 1 auto; min-width: 0; }'
+    + '  html body #topbar #search { height: 42px !important; padding-top: 0 !important; padding-bottom: 0 !important; }'
+    + '  html body #topbar > .toolbar > .tabs { flex: 0 0 auto; width: 380px; height: 42px !important; margin: 0 !important; padding: 3px !important; box-sizing: border-box; }'
+    + '  html body #topbar .tabs > .tab { display: flex !important; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; height: 36px !important; padding: 0 10px !important; font-size: 14px !important; line-height: 1 !important; }'
+    + '  html body #topbar .tabs > .tab .badge { margin: 0 !important; position: static !important; }'
+    + '  html body #st-follow { max-width: 1240px; margin: 0 auto; padding: 0 14px; box-sizing: border-box; }'
+    + '  html body #st-follow > #gd-sum { margin: 14px 0 0 !important; }'
+    + '  html body #st-follow > #gd-chips { margin: 12px 0 0 !important; padding: 2px 0 6px !important; }'
+    + '}';
+  (document.head || document.documentElement).appendChild(css);
+  window.addEventListener('load', function () { document.head.appendChild(css); }); /* stay after late style tags */
+
+  /* ---- 1. the summary card + supplier chips ride in the sticky top bar ---- */
+  function follow() {
+    var tb = document.getElementById('topbar'); if (!tb) return;
+    var f = document.getElementById('st-follow');
+    if (!f) { f = document.createElement('div'); f.id = 'st-follow'; tb.appendChild(f); }
+    else if (f.parentNode !== tb || f.nextElementSibling) tb.appendChild(f);
+    ['gd-sum', 'gd-chips', 'st-catdd'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && el.parentNode !== f) f.appendChild(el);
+    });
+    /* keep the order sum, chips, (hidden) dropdown */
+    var s = document.getElementById('gd-sum'), c = document.getElementById('gd-chips'), d = document.getElementById('st-catdd');
+    if (s && f.firstElementChild !== s) f.insertBefore(s, f.firstElementChild);
+    if (c && s && s.nextElementSibling !== c) s.insertAdjacentElement('afterend', c);
+    if (d && c && c.nextElementSibling !== d) c.insertAdjacentElement('afterend', d);
+  }
+  var fq = false;
+  function followSoon() { if (fq) return; fq = true; Promise.resolve().then(function () { fq = false; try { follow(); } catch (e) {} }); }
+  function startFollow() {
+    follow();
+    /* the cards/chips are (re)inserted before #list by older blocks: move them before the frame paints */
+    new MutationObserver(function (ms) {
+      for (var i = 0; i < ms.length; i++) for (var j = 0; j < ms[i].addedNodes.length; j++) {
+        var n = ms[i].addedNodes[j]; if (n.id === 'gd-sum' || n.id === 'gd-chips' || n.id === 'st-catdd') { followSoon(); return; }
+      }
+    }).observe(document.body, { childList: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startFollow); else startFollow();
+
+  /* ---- 2/3. scroll: same 1:1 hide; on the way back the taller bar reveals proportionally, so search/logo return after
+     the same thumb travel as before and the summary + chips come with them ---- */
+  window.onScrollTopbar = onScrollTopbar = function () {
+    var tb = document.getElementById('topbar');
+    var y = window.scrollY || 0;
+    var h = (tb && tb.offsetHeight) || 160;
+    var f = document.getElementById('st-follow'), fh = f ? f.offsetHeight : 0;
+    var k = Math.max(1, Math.min(2.4, h / Math.max(80, h - fh)));
+    var dy = y - topbarLastY;
+    topbarLastY = y;
+    if (y <= 0) { topbarHide = 0; }
+    else if (dy > 0) { topbarUp = 0; topbarHide = Math.min(h, topbarHide + dy); }
+    else if (dy < 0) {
+      topbarUp += -dy; var need = topbarHide >= h ? TOPBAR_REVEAL_DELAY : 0;
+      if (topbarUp > need) topbarHide = Math.max(0, topbarHide - k * Math.min(-dy, topbarUp - need));
+    }
+    if (topbarHide > y) topbarHide = Math.max(0, y);
+    topbarTicking = false;
+    applyTopbar();
+  };
+
+  /* ---- 4. mode switch: knob first, list dips, renders once, same item stays put, fades back ---- */
+  var userTap = 0, deferring = false, pendingRender = false, busy = false;
+  document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('#mode-switch')) userTap = Date.now(); }, true);
+  function anchor() {
+    var tb = document.getElementById('topbar'), top = 0;
+    if (tb) { var r = tb.getBoundingClientRect(); top = Math.max(0, r.bottom); }
+    var cs = document.querySelectorAll('#list .card[data-bin]');
+    for (var i = 0; i < cs.length; i++) { var q = cs[i].getBoundingClientRect(); if (q.bottom > top + 10) return { bin: cs[i].getAttribute('data-bin'), top: q.top }; }
+    return null;
+  }
+  function install() {
+    var _render = render;
+    window.render = render = function () {
+      if (deferring) { pendingRender = true; return; }
+      return _render.apply(this, arguments);
+    };
+    var _setMode = setMode;
+    window.setMode = setMode = function (m) {
+      var list = document.getElementById('list');
+      var fromTap = Date.now() - userTap < 400;
+      var target = (m === 'stock' || m === 'job') ? m : 'stock';
+      try { if (window.stormAccess && stormAccess.isCrew()) target = 'job'; } catch (e) {}
+      if (!fromTap || busy || reduce || !list || list.offsetParent === null || target === appMode || !(items && items.length)) return _setMode.apply(this, arguments);
+      var a = anchor(), y0 = window.scrollY || 0;
+      deferring = true; pendingRender = false;
+      var r;
+      try { r = _setMode.apply(this, arguments); } finally { deferring = false; }
+      if (!pendingRender) return r;
+      busy = true;
+      list.style.transition = 'opacity .2s ease';
+      list.style.willChange = 'opacity';
+      requestAnimationFrame(function () { list.style.opacity = '0'; });
+      setTimeout(function () {
+        try { _render(); } catch (e) {}
+        if (a && y0 > 0) {
+          var c = document.querySelector('#list .card[data-bin="' + a.bin + '"]');
+          if (c) { var d = c.getBoundingClientRect().top - a.top; if (Math.abs(d) > 1) { topbarLastY += d; window.scrollTo(0, (window.scrollY || 0) + d); } }
+        }
+        var imgs = [].slice.call(document.querySelectorAll('#list .card img')).filter(function (im) { var q = im.getBoundingClientRect(); return q.bottom > 0 && q.top < window.innerHeight; });
+        var waits = imgs.map(function (im) { return im.decode ? im.decode().catch(function () {}) : Promise.resolve(); });
+        var done = false;
+        function show() {
+          if (done) return; done = true;
+          requestAnimationFrame(function () { requestAnimationFrame(function () {
+            list.style.transition = 'opacity .22s ease'; list.style.opacity = '';
+            setTimeout(function () { list.style.transition = ''; list.style.willChange = ''; busy = false; }, 260);
+          }); });
+        }
+        Promise.all(waits).then(function () { setTimeout(show, 60); }); setTimeout(show, 320);
+      }, 330); /* the knob slide is .32 s: render after it so the slide never stutters */
+      return r;
+    };
+    /* ---- 6. "Keep on hand" save: patch the card in place (no rebuild of every card) ---- */
+    var _rps = renderPreservingScroll;
+    window.renderPreservingScroll = renderPreservingScroll = function () {
+      var ins = document.querySelectorAll('#list .card[data-bin] input.par-input');
+      if (!ins.length || tab === 'need') return _rps.apply(this, arguments);
+      try {
+        for (var i = 0; i < ins.length; i++) {
+          var card = ins[i].closest('.card'), bin = card.getAttribute('data-bin'), it = findItem(bin);
+          var t = document.createElement('div'); t.innerHTML = cardHtml(it);
+          var btn = t.querySelector('.par');
+          if (!btn) return _rps.apply(this, arguments);
+          ins[i].replaceWith(btn);
+          patchCard(it);
+        }
+      } catch (e) { return _rps.apply(this, arguments); }
+    };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
 })();
