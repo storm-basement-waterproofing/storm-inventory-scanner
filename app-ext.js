@@ -1,3 +1,4 @@
+/* v200 (Hark, 2026-11-11, Dave asked 18:58): quick count sheet - KEEP ON HAND and ON HAND side by side (big -/+ with hold-repeat, tap a number for a number pad, live Need + OK/LOW/OUT), one Save sends only what changed via updatePar / updateCount; replaces the v181 On hand sheet; opens from the card On hand pill, the card Keep on hand button, and Item details (Edit keep on hand | Edit on hand). Manager-only like the server; never touches the order. See the v200 block at the end. */
 /* v199 (Hark, 2026-11-11, Dave fix list 10, 11, 14-tab, 15): Find a Job search field gets a one-tap clear X; Customer Search gets an X by the customer name that clears the retained customer in place (cart kept, Find a Job not reopened); side menu "Receiving Orders" row under Staging (restock icon, placeholder screen); Staging icon is a flat utility cart loaded with boxes. Pairs with app v151 (manager-only Delete job in Find a Job, search alias for SKU 100348474). See the v199 block at the end. */
 /* v198 (Hark, 2026-11-11, Dave fix list 7-9): swipe left / right in Item details = next / previous item in the on-screen list order (drag + carousel slide; taps and vertical scrolls never swipe; touch + pointer); full STORM logo with blue BASEMENT WATERPROOFING in Item details and the side menu; supplier logo (transparent, no box) in the top-right of the item photo on cards and in Item details. See the v198 block at the end. */
 /* v197 (Hark, 2026-11-11 19:20, Dave fix list 1-6): main-screen Category dropdown hidden (side menu keeps Categories); Stocked-to-par card + supplier chips ride in the top bar and come back on scroll up; iPad toolbar at normal size in one row; smooth mode switch; rings update in place (no flash on Add to Order / saves); Keep on hand save patches the card in place. See the v197 block at the end. */
@@ -5941,4 +5942,332 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     all();
     if (n < 240 && (!sh || !dr || !document.querySelector('#cl-menu [data-ro199]'))) setTimeout(function () { watch(n + 1); }, 500);
   })(0);
+})();
+
+/* v200 (Hark, 2026-11-11, Dave asked 18:58 "make it easier for the user to update the keep on hand and on hand. It should be fast and quick:
+   a menu that comes up with both side by side so they can easily click how many for both."):
+   - One quick count sheet (#qc-sheet) replaces the v181 On hand sheet: KEEP ON HAND (par) on the left, ON HAND on the right, each a big
+     number with large - / + (56px+; hold = repeat, speeding up). Tap a number = in-sheet number pad (types over the value; Backspace, Clear, Done;
+     a hardware keyboard works too). Header: photo, name, bin · supplier, and a live "Need N" with an OK / LOW / OUT pill.
+   - Opens from the card "On hand" pill, the card "Keep on hand" button (replaces the old inline par box in Inventory mode), the Item details
+     ring card / "Edit on hand", and a new "Edit keep on hand" pill beside it. window.stormOpenOnHand(bin) and window.stormOpenCount(bin, 'par'|'oh').
+   - Save sends only what changed, through the existing server functions: par -> updatePar(bin, v, token), on hand -> saveCount(bin, v) -> updateCount.
+     When both changed: updatePar first, then saveCount (one 'Saved' at the end, the card never flickers back to an old value). Optimistic:
+     the card is patched in place (patchCard), no list re-render. The order / cart / pick list is never touched.
+   - Both server functions are manager-only (requireManager_). Without a manager login the sheet opens read-only (both columns locked) with a
+     "Manager login" button; crew normally never see it, because crew stay in Staging Job mode, where the sheet stays hidden (as v181).
+   - Cancel, the scrim, Escape, or a swipe down closes it without saving. While it is open (and while a par save is in flight) live sync
+     leaves the bin alone (window.stormOnHandSheetBin + data-bin on the sheet, read by the v180 busy() check). */
+(function () {
+  if (window.__stormQuickCount200) return; window.__stormQuickCount200 = true;
+  var BLUE = '#29A8E0', BLUED = '#1A8FC4', INK = '#0F1720', MUTE = '#6B7280', MUTE2 = '#8A94A3', LINE = '#DCE4EE', BG = '#EEF3F8', AMBER = '#D97706', RED = '#DC2626', GREEN = '#15803D';
+  var FONT = "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function find(bin) { try { return findItem(bin); } catch (e) { return null; } }
+  function jobMode() { try { return typeof isJobMode === 'function' ? !!isJobMode() : false; } catch (e) { return false; } }
+  function isMgr() { try { return !!(window.stormAccess && window.stormAccess.isMgr()); } catch (e) { return false; } }
+  function tok() { try { return window.stormCrewPin ? stormCrewPin.get() : (window.stormAccess ? stormAccess.token() : ''); } catch (e) { return ''; } }
+  function numOf(v) { return v == null || v === '' || isNaN(Number(v)) ? null : Math.max(0, Math.floor(Number(v))); }
+  function buzz() { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) {} }
+
+  var css = document.createElement('style'); css.id = 'storm-v200-css';
+  css.textContent = ''
+    + '#qc-scrim { position: fixed; inset: 0; z-index: 200; background: rgba(15,23,32,.42); opacity: 0; pointer-events: none; transition: opacity .22s ease; touch-action: none; }'
+    + '#qc-scrim.open { opacity: 1; pointer-events: auto; }'
+    + '#qc-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 201; box-sizing: border-box; max-width: 600px; margin: 0 auto; padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); background: #fff; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 24px rgba(15,23,32,.18); font-family: ' + FONT + '; color: ' + INK + '; transform: translateY(105%); transition: transform .24s cubic-bezier(.2,.8,.2,1); visibility: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }'
+    + '#qc-sheet.open { transform: translateY(0); visibility: visible; }'
+    + '#qc-sheet.qc-drag { transition: none; }'
+    + '#qc-sheet * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; } #qc-sheet button { -webkit-appearance: none; appearance: none; }'
+    + '#qc-sheet .qc-grab { width: 40px; height: 4px; margin: 0 auto 10px; border-radius: 2px; background: ' + LINE + '; }'
+    + '#qc-sheet .qc-head { display: flex; align-items: center; gap: 12px; min-height: 56px; }'
+    + '#qc-sheet .qc-ph { flex: none; width: 56px; height: 56px; border-radius: 10px; background: #fff; border: 1px solid #EEF2F6; object-fit: contain; }'
+    + '#qc-sheet .qc-ph.qc-none { visibility: hidden; }'
+    + '#qc-sheet .qc-ht { min-width: 0; flex: 1 1 auto; }'
+    + '#qc-sheet .qc-nm { font-size: 15.5px; font-weight: 700; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }'
+    + '#qc-sheet .qc-sub { margin-top: 2px; font-size: 12.5px; font-weight: 500; color: ' + MUTE2 + '; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + '#qc-sheet .qc-need { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 0 2px; min-height: 26px; font-size: 14px; font-weight: 700; color: ' + INK + '; }'
+    + '#qc-sheet .qc-need .qc-nt { color: ' + MUTE + '; font-weight: 600; } #qc-sheet .qc-need .qc-nt b { color: ' + INK + '; font-weight: 800; }'
+    + '#qc-sheet .qc-pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 11px; font-size: 11.5px; font-weight: 800; letter-spacing: .06em; }'
+    + '#qc-sheet .qc-pill.ok { background: #E7F6EC; color: ' + GREEN + '; } #qc-sheet .qc-pill.low { background: #FEF3E2; color: ' + AMBER + '; } #qc-sheet .qc-pill.out { background: #FDECEC; color: ' + RED + '; } #qc-sheet .qc-pill.none { background: ' + BG + '; color: ' + MUTE + '; }'
+    + '#qc-sheet .qc-cols { display: flex; gap: 10px; margin-top: 10px; }'
+    + '#qc-sheet .qc-col { flex: 1 1 0; min-width: 0; padding: 10px 8px 10px; border: 1.5px solid #EEF2F6; border-radius: 14px; background: #fff; transition: border-color .15s ease, background-color .15s ease; }'
+    + '#qc-sheet .qc-col.qc-act { border-color: ' + BLUE + '; background: #F5FBFE; }'
+    + '#qc-sheet .qc-lbl { text-align: center; font-size: 11px; font-weight: 800; letter-spacing: .1em; color: ' + MUTE2 + '; white-space: nowrap; }'
+    + '#qc-sheet .qc-col.qc-act .qc-lbl { color: ' + BLUED + '; }'
+    + '#qc-sheet .qc-num { display: block; width: 100%; height: 62px; margin: 6px 0 2px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: ' + INK + '; font-family: ' + FONT + '; font-size: 42px; font-weight: 800; line-height: 62px; text-align: center; font-variant-numeric: tabular-nums; cursor: text; }'
+    + '#qc-sheet .qc-num:active { background: ' + BG + '; } #qc-sheet .qc-num:focus, #qc-sheet .qc-num:focus-visible { outline: none; box-shadow: none; }'
+    + '#qc-sheet .qc-num.qc-typing { background: ' + BG + '; }'
+    + '#qc-sheet .qc-num.qc-typing::after { content: ""; display: inline-block; width: 3px; height: 34px; margin-left: 3px; vertical-align: -3px; background: ' + BLUE + '; border-radius: 2px; animation: qcblink 1s steps(1) infinite; }'
+    + '@keyframes qcblink { 50% { opacity: 0; } }'
+    + '#qc-sheet .qc-was { height: 16px; text-align: center; font-size: 12px; font-weight: 600; color: ' + MUTE2 + '; }'
+    + '#qc-sheet .qc-row { display: flex; gap: 8px; margin-top: 6px; }'
+    + '#qc-sheet .qc-step { flex: 1 1 0; min-width: 56px; height: 58px; border: 0; border-radius: 14px; background: ' + BG + '; color: ' + INK + '; font-family: ' + FONT + '; font-size: 30px; font-weight: 600; line-height: 1; touch-action: none; transition: transform .06s ease, background-color .1s ease; }'
+    + '#qc-sheet .qc-step[data-qc-d="1"] { background: ' + BLUE + '; color: #fff; }'
+    + '#qc-sheet .qc-step.qc-down { transform: scale(.95); background: #DCE6F0; } #qc-sheet .qc-step[data-qc-d="1"].qc-down { background: ' + BLUED + '; }'
+    + '#qc-sheet .qc-col.qc-lock .qc-step { visibility: hidden; }'
+    + '#qc-sheet .qc-col.qc-lock .qc-num { cursor: default; color: ' + MUTE + '; pointer-events: none; } #qc-sheet .qc-col.qc-lock .qc-num:active { background: transparent; }'
+    + '#qc-sheet .qc-lk { display: none; height: 58px; margin-top: 6px; align-items: center; justify-content: center; gap: 6px; border-radius: 14px; background: ' + BG + '; color: ' + MUTE + '; font-size: 12.5px; font-weight: 700; }'
+    + '#qc-sheet .qc-col.qc-lock .qc-row { display: none; } #qc-sheet .qc-col.qc-lock .qc-lk { display: flex; }'
+    + '#qc-sheet .qc-pad { display: none; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }'
+    + '#qc-sheet.qc-padon .qc-pad { display: grid; } #qc-sheet.qc-padon .qc-row { display: none; }'
+    + '#qc-sheet .qc-pad button { height: 50px; border: 0; border-radius: 12px; background: ' + BG + '; color: ' + INK + '; font-family: ' + FONT + '; font-size: 22px; font-weight: 700; touch-action: manipulation; }'
+    + '#qc-sheet .qc-pad button:active { background: #DCE6F0; }'
+    + '#qc-sheet .qc-pad .qc-k-done { background: ' + BLUE + '; color: #fff; font-size: 16px; } #qc-sheet .qc-pad .qc-k-done:active { background: ' + BLUED + '; }'
+    + '#qc-sheet .qc-pad .qc-k-clr { font-size: 14px; color: ' + MUTE + '; }'
+    + '#qc-sheet .qc-btns { display: flex; gap: 10px; margin-top: 14px; }'
+    + '#qc-sheet .qc-btns button { flex: 1 1 0; min-height: 52px; border-radius: 14px; font-family: ' + FONT + '; font-size: 16px; font-weight: 700; touch-action: manipulation; }'
+    + '#qc-sheet .qc-cancel { border: 1px solid ' + LINE + '; background: #fff; color: ' + INK + '; }'
+    + '#qc-sheet .qc-save { border: 0; background: ' + BLUE + '; color: #fff; transition: opacity .15s ease; } #qc-sheet .qc-save:active { background: ' + BLUED + '; }'
+    + '#qc-sheet .qc-save.qc-idle { opacity: .55; }'
+    + '#qc-sheet .qc-note { display: none; margin-top: 10px; text-align: center; font-size: 12.5px; font-weight: 600; color: ' + MUTE + '; }'
+    + '#qc-sheet.qc-locked .qc-note { display: block; }'
+    + '@media (min-width: 700px) and (min-height: 560px) {'
+    + '  #qc-sheet { padding: 10px 22px calc(20px + env(safe-area-inset-bottom)); }'
+    + '  #qc-sheet .qc-ph { width: 64px; height: 64px; } #qc-sheet .qc-nm { font-size: 17px; }'
+    + '  #qc-sheet .qc-cols { gap: 14px; } #qc-sheet .qc-col { padding: 14px 12px; }'
+    + '  #qc-sheet .qc-lbl { font-size: 12px; } #qc-sheet .qc-num { height: 72px; line-height: 72px; font-size: 50px; }'
+    + '  #qc-sheet .qc-step { height: 64px; font-size: 32px; } #qc-sheet .qc-lk { height: 64px; } #qc-sheet .qc-pad button { height: 56px; }'
+    + '}'
+    + '@media (max-width: 370px) { #qc-sheet { padding-left: 12px; padding-right: 12px; } #qc-sheet .qc-cols { gap: 8px; } #qc-sheet .qc-col { padding: 10px 6px; } #qc-sheet .qc-row { gap: 6px; } #qc-sheet .qc-lbl { font-size: 10.5px; letter-spacing: .07em; } }'
+    /* Item details: "Edit keep on hand" | "Edit on hand" side by side */
+    + '#detail .cl-stock .qc-dbtns { flex: 1 1 100%; display: flex; gap: 10px; margin: 2px 0 0; }'
+    + '#detail .cl-stock .qc-dbtns > button { flex: 1 1 0 !important; min-width: 0; margin: 0 !important; white-space: nowrap; padding-left: 6px !important; padding-right: 6px !important; }'
+    + '#detail .cl-stock .qc-dpar { min-height: 36px; padding: 6px 8px; border: 1px solid rgba(41,168,224,.45); border-radius: 14px; background: #fff; color: ' + BLUED + '; font-family: ' + FONT + '; font-size: 14px; font-weight: 700; -webkit-tap-highlight-color: transparent; }'
+    + '#detail .cl-stock .qc-dpar:active { background: rgba(41,168,224,.08); }'
+    + '@media (max-width: 370px) { #detail .cl-stock .qc-dbtns > button { font-size: 13px !important; } }'
+    + 'body.oh-job #detail .qc-dpar, body.oh-job #detail .qc-dbtns { display: none !important; }';
+  document.head.appendChild(css);
+
+  var COLS = [['par', 'KEEP ON HAND', 'Keep on hand'], ['oh', 'ON HAND', 'On hand']];
+  function colHtml(c) {
+    return '<div class="qc-col" data-qc-col="' + c[0] + '"><div class="qc-lbl">' + c[1] + '</div>'
+      + '<button class="qc-num" type="button" data-qc-num="' + c[0] + '" aria-label="' + c[2] + ', tap to type"></button>'
+      + '<div class="qc-was"></div>'
+      + '<div class="qc-row"><button class="qc-step" type="button" data-qc-step="' + c[0] + '" data-qc-d="-1" aria-label="' + c[2] + ' one less">\u2212</button>'
+      + '<button class="qc-step" type="button" data-qc-step="' + c[0] + '" data-qc-d="1" aria-label="' + c[2] + ' one more">+</button></div>'
+      + '<div class="qc-lk"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Manager only</div></div>';
+  }
+  var scrim = document.createElement('div'); scrim.id = 'qc-scrim';
+  var sheet = document.createElement('div'); sheet.id = 'qc-sheet'; sheet.setAttribute('role', 'dialog'); sheet.setAttribute('aria-modal', 'true'); sheet.setAttribute('aria-label', 'Keep on hand and On hand');
+  sheet.innerHTML = '<div class="qc-grab"></div>'
+    + '<div class="qc-head"><img class="qc-ph" alt=""><div class="qc-ht"><div class="qc-nm"></div><div class="qc-sub"></div></div></div>'
+    + '<div class="qc-need" aria-live="polite"></div>'
+    + '<div class="qc-cols">' + COLS.map(colHtml).join('') + '</div>'
+    + '<div class="qc-pad">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(function (k) { return '<button type="button" data-qc-k="' + k + '">' + k + '</button>'; }).join('')
+    + '<button type="button" class="qc-k-clr" data-qc-k="clr">Clear</button><button type="button" data-qc-k="0">0</button><button type="button" data-qc-k="bs" aria-label="Backspace">\u232b</button>'
+    + '<button type="button" class="qc-k-done" data-qc-k="done" style="grid-column: 1 / -1;">Done</button></div>'
+    + '<div class="qc-note">Counts and Keep on hand are for managers.</div>'
+    + '<div class="qc-btns"><button class="qc-cancel" type="button">Cancel</button><button class="qc-save" type="button">Save</button></div>';
+  function mount() { if (!scrim.parentNode) document.body.appendChild(scrim); if (!sheet.parentNode) document.body.appendChild(sheet); }
+  function q(s) { return sheet.querySelector(s); }
+
+  var S = null; /* { bin, par0, oh0, par, oh, typing: 'par'|'oh'|null, fresh } */
+  window.stormOnHandSheetBin = window.stormOnHandSheetBin || null;
+  function locked() { return !isMgr(); }
+  function stateOf(par, v) { if (v == null) return 'none'; if (v === 0) return 'out'; if (par != null && par > 0 && v < par) return 'low'; return 'ok'; }
+  function paint() {
+    if (!S) return;
+    COLS.forEach(function (c) {
+      var k = c[0], col = q('[data-qc-col="' + k + '"]'), v = S[k], v0 = S[k + '0'];
+      var t = v == null ? '\u2013' : String(v), n = col.querySelector('.qc-num');
+      if (n.textContent !== t) n.textContent = t;
+      n.classList.toggle('qc-typing', S.typing === k);
+      col.classList.toggle('qc-act', S.typing === k);
+      var w = col.querySelector('.qc-was'), wt = v !== v0 ? 'was ' + (v0 == null ? '\u2013' : v0) : '';
+      if (w.textContent !== wt) w.textContent = wt;
+      col.querySelectorAll('[data-qc-d="-1"]').forEach(function (b) { b.disabled = v == null || v <= 0; b.style.opacity = b.disabled ? '.45' : ''; });
+    });
+    var st = stateOf(S.par, S.oh), need = q('.qc-need');
+    var lbl = { ok: 'OK', low: 'LOW', out: 'OUT', none: 'NO COUNT' }[st];
+    var txt = S.par == null ? 'No keep-on-hand set' : (S.oh == null ? 'Need \u2013' : 'Need <b>' + Math.max(0, S.par - S.oh) + '</b>');
+    need.innerHTML = '<span class="qc-pill ' + st + '">' + lbl + '</span><span class="qc-nt">' + txt + '</span>';
+    var dirty = S.par !== S.par0 || S.oh !== S.oh0, lk = locked();
+    var sv = q('.qc-save'); sv.textContent = lk ? 'Manager login' : 'Save'; sv.classList.toggle('qc-idle', !lk && !dirty);
+    sheet.classList.toggle('qc-locked', lk);
+    sheet.classList.toggle('qc-padon', !!S.typing);
+    COLS.forEach(function (c) { q('[data-qc-col="' + c[0] + '"]').classList.toggle('qc-lock', lk); });
+  }
+  function photoSrc(bin, it) {
+    var img = document.querySelector('#list .card[data-bin="' + bin + '"] img.photo');
+    if (!img) { try { if (currentDetailBin === bin) img = document.querySelector('#detail .detail-photo'); } catch (e) {} }
+    return (img && (img.currentSrc || img.getAttribute('src'))) || it.photoUrl || '';
+  }
+  function open(bin, focus) {
+    var it = find(bin); if (!it || jobMode()) return false;
+    mount();
+    if (S && sheet.classList.contains('open')) stopRep();
+    S = { bin: bin, par0: numOf(it.par), oh0: numOf(it.onHand), typing: null, fresh: false };
+    S.par = S.par0; S.oh = S.oh0;
+    window.stormOnHandSheetBin = bin;
+    sheet.setAttribute('data-bin', bin); /* v180 busy(): taps in the sheet count as editing this bin */
+    var ph = q('.qc-ph'), src = photoSrc(bin, it);
+    if (src) { if (ph.getAttribute('src') !== src) ph.src = src; ph.classList.remove('qc-none'); } else { ph.removeAttribute('src'); ph.classList.add('qc-none'); }
+    q('.qc-nm').textContent = it.name || bin;
+    q('.qc-sub').textContent = [String(it.bin).toUpperCase(), it.supplier || ''].filter(Boolean).join(' \u00b7 ');
+    paint();
+    sheet.style.transform = '';
+    scrim.classList.add('open'); void sheet.offsetWidth; sheet.classList.add('open');
+    if (focus === 'par' || focus === 'oh') { var col = q('[data-qc-col="' + focus + '"]'); col.classList.add('qc-act'); setTimeout(function () { if (S && !S.typing) col.classList.remove('qc-act'); }, 700); }
+    return true;
+  }
+  function close() {
+    stopRep();
+    if (S) S.typing = null;
+    sheet.classList.remove('open', 'qc-padon', 'qc-drag'); scrim.classList.remove('open'); sheet.style.transform = '';
+    var b = S && S.bin; S = null;
+    setTimeout(function () { if (window.stormOnHandSheetBin === b && !sheet.classList.contains('open') && !inflight[b]) window.stormOnHandSheetBin = null; }, 600);
+  }
+  function setVal(k, v) { if (!S || locked()) return; v = v == null ? null : Math.max(0, Math.min(99999, v)); if (S[k] === v) return; S[k] = v; paint(); }
+  function step(k, d) { if (!S) return; var v = S[k]; v = v == null ? 0 : v; if (d < 0 && v <= 0 && S[k] != null) return; setVal(k, Math.max(0, v + d)); buzz(); }
+
+  /* ---- hold to repeat, speeding up ---- */
+  var rep = { t: 0, k: null, d: 0, n: 0, el: null };
+  function stopRep() { clearTimeout(rep.t); rep.t = 0; if (rep.el) rep.el.classList.remove('qc-down'); rep.el = null; rep.k = null; }
+  function tick() {
+    if (!rep.k || !S) return stopRep();
+    rep.n++;
+    var by = rep.n > 30 ? 5 : 1; /* after ~2.5 s of holding, jump by 5 */
+    if (by > 1 && rep.d > 0) { var cur = S[rep.k] == null ? 0 : S[rep.k]; setVal(rep.k, cur + by); }
+    else if (by > 1) { var c2 = S[rep.k] == null ? 0 : S[rep.k]; setVal(rep.k, Math.max(0, c2 - by)); }
+    else step(rep.k, rep.d);
+    if (rep.d < 0 && (S[rep.k] == null || S[rep.k] <= 0)) return stopRep();
+    rep.t = setTimeout(tick, Math.max(45, Math.round(150 * Math.pow(0.9, rep.n))));
+  }
+  sheet.addEventListener('pointerdown', function (e) {
+    var b = e.target.closest && e.target.closest('[data-qc-step]'); if (!b || !S || locked() || b.disabled) return;
+    e.preventDefault(); stopRep();
+    if (S.typing) { S.typing = null; paint(); }
+    rep.k = b.getAttribute('data-qc-step'); rep.d = Number(b.getAttribute('data-qc-d')); rep.n = 0; rep.el = b; b.classList.add('qc-down');
+    try { b.setPointerCapture(e.pointerId); } catch (x) {}
+    step(rep.k, rep.d);
+    rep.t = setTimeout(tick, 420);
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (t) { sheet.addEventListener(t, function () { if (rep.k) stopRep(); }); });
+  sheet.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  /* ---- number pad ---- */
+  function typeKey(k) {
+    if (!S || !S.typing) return;
+    var f = S.typing, cur = S[f];
+    if (k === 'done') { S.typing = null; paint(); return; }
+    if (k === 'clr') { S.fresh = false; setVal(f, null); paint(); return; }
+    if (k === 'bs') { S.fresh = false; var s = cur == null ? '' : String(cur); s = s.slice(0, -1); setVal(f, s === '' ? null : Number(s)); paint(); return; }
+    if (/^[0-9]$/.test(k)) { var base = S.fresh || cur == null ? '' : String(cur); S.fresh = false; var ns = (base + k).replace(/^0+(?=\d)/, ''); if (ns.length > 5) return; setVal(f, Number(ns)); paint(); }
+  }
+  sheet.addEventListener('click', function (e) {
+    var t = e.target; if (!t.closest || !S) return;
+    var st = t.closest('[data-qc-step]');
+    if (st) { if (e.detail === 0 && !locked()) step(st.getAttribute('data-qc-step'), Number(st.getAttribute('data-qc-d'))); return; } /* keyboard / switch access; pointer taps are handled on pointerdown */
+    var n = t.closest('[data-qc-num]');
+    if (n) { if (locked()) return; var f = n.getAttribute('data-qc-num'); S.typing = S.typing === f ? null : f; S.fresh = true; paint(); return; }
+    var k = t.closest('[data-qc-k]'); if (k) { typeKey(k.getAttribute('data-qc-k')); return; }
+    if (t.closest('.qc-cancel')) { close(); return; }
+    if (t.closest('.qc-save')) { if (locked()) { askLogin(); return; } save(); return; }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!S || !sheet.classList.contains('open')) return;
+    if (e.key === 'Escape') { e.preventDefault(); if (S.typing) { S.typing = null; paint(); } else close(); return; }
+    if (S.typing) {
+      if (/^[0-9]$/.test(e.key)) { e.preventDefault(); typeKey(e.key); return; }
+      if (e.key === 'Backspace') { e.preventDefault(); typeKey('bs'); return; }
+      if (e.key === 'Enter') { e.preventDefault(); typeKey('done'); return; }
+    } else if (e.key === 'Enter' && !(e.target && e.target.closest && e.target.closest('button'))) { e.preventDefault(); if (!locked()) save(); }
+  }, true);
+  function askLogin() {
+    if (!window.stormAccess) return;
+    var bin = S && S.bin;
+    try { stormAccess.ask(function (ok) { if (ok && S && S.bin === bin) paint(); }, 'Counts and Keep on hand are for managers.'); } catch (e) {}
+  }
+
+  /* ---- swipe down to close ---- */
+  var dg = null;
+  sheet.addEventListener('touchstart', function (e) {
+    if (!S || e.touches.length !== 1) return;
+    if (e.target.closest && e.target.closest('[data-qc-step], .qc-pad button')) return;
+    dg = { y: e.touches[0].clientY, x: e.touches[0].clientX, t: Date.now(), dy: 0, on: false };
+  }, { passive: true });
+  sheet.addEventListener('touchmove', function (e) {
+    if (e.cancelable) e.preventDefault(); /* nothing in the sheet scrolls; never scroll the list behind it */
+    if (!dg) return;
+    var dy = e.touches[0].clientY - dg.y, dx = e.touches[0].clientX - dg.x;
+    if (!dg.on) { if (Math.abs(dy) < 8 || Math.abs(dx) > Math.abs(dy)) return; dg.on = true; sheet.classList.add('qc-drag'); stopRep(); }
+    dg.dy = Math.max(0, dy); sheet.style.transform = 'translateY(' + (dy < 0 ? dy / 6 : dy) + 'px)';
+  }, { passive: false });
+  function endDrag() {
+    if (!dg) return; var d = dg; dg = null; if (!d.on) return;
+    sheet.classList.remove('qc-drag');
+    var v = d.dy / Math.max(1, Date.now() - d.t);
+    if (d.dy > 90 || (d.dy > 30 && v > 0.5)) close(); else sheet.style.transform = '';
+  }
+  sheet.addEventListener('touchend', endDrag); sheet.addEventListener('touchcancel', endDrag);
+  scrim.addEventListener('click', close);
+  scrim.addEventListener('touchmove', function (e) { if (e.cancelable) e.preventDefault(); }, { passive: false });
+
+  /* ---- save ---- */
+  var inflight = {};
+  function nudgeDetail() { var d = document.getElementById('detail'); if (d && d.classList.contains('open')) { d.classList.add('oh-t'); setTimeout(function () { d.classList.remove('oh-t'); }, 0); } }
+  function patch(it) { try { patchCard(it); } catch (e) {} try { syncDetailStepper(it.bin); } catch (e) {} nudgeDetail(); }
+  function sameItem(a, b) { return a && b && numOf(a.onHand) === numOf(b.onHand) && numOf(a.par) === numOf(b.par) && numOf(a.need) === numOf(b.need); }
+  function done(bin) { delete inflight[bin]; setTimeout(function () { if (window.stormOnHandSheetBin === bin && !(S && S.bin === bin) && !inflight[bin]) window.stormOnHandSheetBin = null; }, 600); }
+  function sendPar(bin, v, then) {
+    inflight[bin] = true;
+    google.script.run
+      .withSuccessHandler(function (updated) {
+        if (then) { then(); return; } /* the count save that follows returns both new values */
+        done(bin);
+        var it = find(bin); if (updated && it && !sameItem(it, updated)) { try { applyUpdate(updated); } catch (e) {} try { syncDetailStepper(bin); } catch (e) {} nudgeDetail(); }
+        showToast('Saved');
+      })
+      .withFailureHandler(function (err) {
+        if (window.stormCrewPin && stormCrewPin.isPinErr(err)) {
+          stormCrewPin.ask(function (ok) { if (ok) sendPar(bin, v, then); else { done(bin); showToast('Not saved \u2014 manager code needed', true); try { load(); } catch (e) {} } });
+          return;
+        }
+        done(bin);
+        showToast(window.stormCrewPin && stormCrewPin.isLocked(err) ? 'Too many wrong codes \u2014 wait 10 minutes' : 'Couldn\'t save \u2014 try again', true);
+        try { load(); } catch (e) {}
+      })
+      .updatePar(bin, v == null ? '' : String(v), tok());
+  }
+  function save() {
+    if (!S) return;
+    var bin = S.bin, it = find(bin); if (!it) { close(); return; }
+    var dp = S.par !== S.par0, dc = S.oh !== S.oh0, par = S.par, oh = S.oh;
+    close();
+    if (!dp && !dc) return;
+    /* optimistic: this card only */
+    if (dp) it.par = par;
+    if (dc) it.onHand = oh;
+    it.need = (it.onHand == null || it.par == null || it.par === '') ? null : Math.max(0, Number(it.par) - Number(it.onHand));
+    window.stormOnHandSheetBin = bin;
+    patch(it);
+    var sendCount = function () { done(bin); saveCount(bin, oh == null ? '' : String(oh)); };
+    if (dp) sendPar(bin, par, dc ? sendCount : null); else sendCount();
+  }
+
+  /* ---- entry points (window capture: runs before the v181 document handler and the base #list handler) ---- */
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest || jobMode()) return;
+    var b = t.closest('.oh-btn[data-oh-bin]');
+    if (b) { if (open(b.getAttribute('data-oh-bin'), 'oh')) { e.preventDefault(); e.stopPropagation(); } return; }
+    var p = t.closest('#list .card[data-bin] button.par');
+    if (p) { if (open(p.closest('.card').getAttribute('data-bin'), 'par')) { e.preventDefault(); e.stopPropagation(); } return; }
+    var s = t.closest('#detail .cl-stock');
+    if (s) { var bin = null; try { bin = currentDetailBin; } catch (x) {} if (bin && open(bin, t.closest('.qc-dpar') ? 'par' : 'oh')) { e.preventDefault(); e.stopPropagation(); } }
+  }, true);
+  function addDetailBtn() {
+    var d = document.getElementById('detail'); if (!d || !d.classList.contains('open')) return;
+    var oe = d.querySelector('.cl-stock .oh-edit'); if (!oe || (oe.parentNode.classList.contains('qc-dbtns') && oe.parentNode.querySelector('.qc-dpar'))) return;
+    var w = document.createElement('div'); w.className = 'qc-dbtns';
+    w.innerHTML = '<button class="qc-dpar" type="button">Edit keep on hand</button>';
+    oe.parentNode.insertBefore(w, oe); w.appendChild(oe);
+  }
+  var dq = 0; function soon() { if (dq) return; dq = setTimeout(function () { dq = 0; try { addDetailBtn(); } catch (e) {} }, 30); }
+  (function attach(n) { var d = document.getElementById('detail'); if (!d) { if (n < 120) setTimeout(function () { attach(n + 1); }, 250); return; } new MutationObserver(soon).observe(d, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }); soon(); })(0);
+  try { var _p181 = window.stormOh181Pass; if (typeof _p181 === 'function') window.stormOh181Pass = function () { var r = _p181.apply(this, arguments); try { addDetailBtn(); } catch (e) {} return r; }; } catch (e) {}
+  /* job mode switched while open: close (the sheet is Inventory-only) */
+  setInterval(function () { if (S && jobMode()) close(); }, 500);
+
+  window.stormOpenOnHand = function (bin) { return open(bin, 'oh'); };
+  window.stormOpenCount = function (bin, focus) { return open(bin, focus === 'par' ? 'par' : 'oh'); };
 })();
