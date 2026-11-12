@@ -1,3 +1,4 @@
+/* v207 (Hark, 2026-11-11, Dave 21:02-21:03, batch G): How to Use the App rewritten for the app as it is now, and the animation at its top replaced by a real screen recording of the current app (assets/howto/how-to-use.mp4, muted, loops while the guide is open, tap to pause, jump-to chips). Guide in the app's look (Montserrat, #EAF0F7, 14px cards). See the v207 block at the end. Pairs with app v159. */
 /* v206 (Hark, 2026-11-11, Dave approved 22:55, batch T2): Truck Check part 2 - side menu rows Box Truck Check + Tool Checklist under Receiving Orders; big Save & Submit at the bottom of each form (fieldId __submitted in the Truck Check tab, banner Submitted by NAME . time, Update submission); Past checks list (read-only getTruckCheckHistory) opening a read-only copy. See the v206 block at the end. Pairs with app v158. */
 /* v205 (Hark, 2026-11-11, Dave batch H): forgiving search - typos, slang and sizes find the item; ranked best match first (flat list while searching), "Closest matches" when nothing matches; Receiving Orders add-by-search ranked the same way. See the v205 block at the end. Pairs with app v157. */
 /* v204 (Hark, 2026-11-11, Dave 21:15): Insurance Certificates > Email opens a Jobber customer search (all clients incl. quotes/leads, read-only searchJobberClients) or "Skip, continue to email"; new body with a Customer information section. Pairs with app v156. */
@@ -4456,6 +4457,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var el = null, body = null, chips = null, bar = null;
   function build() {
     if (el) return el;
+    try { if (window.stormHelpCH207) { var ch207 = window.stormHelpCH207(k); if (ch207 && ch207.length) CH = ch207; } } catch (x207) {} /* v207: chapters for the app as it is now */
     el = document.createElement('div'); el.id = 'st-help'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'How to Use the App');
     var top = '<div class="sh-top"><div class="sh-bar"><h2>How to Use the App</h2><button class="sh-x" type="button" data-sh-x aria-label="Close">&times;</button></div>'
       + '<div class="sh-chips">' + CH.map(function (c, i) { return '<button class="sh-chip" type="button" data-sh-go="' + i + '"><b>' + (i + 1) + '</b>' + c.s + '</button>'; }).join('') + '</div>'
@@ -8832,4 +8834,219 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   })(0);
 
   window.stormTC206 = { remote: remote, paint: paint, submit: submit, openList: function (id) { openList(SHEET_OF[id] || id, true); }, menuRows: menuRows, state: function () { return JSON.parse(JSON.stringify(sub)); }, view: function () { return view; } };
+})();
+
+/* v207 (Hark, 2026-11-11, Dave 21:02-21:03, batch G): How to Use the App rewritten for the app as it is now (v206 / app v159).
+   1. The phone animation at the top is replaced by a real screen recording of the current app (crew view, real buttons and animations):
+      main list + supplier chips, forgiving search, Item details + swipe, Staging -> Find a Job -> Load items -> Add to order ->
+      check onto the cart, Receiving Orders, Box Truck Check -> Save & Submit. assets/howto/how-to-use.mp4 (H.264, muted, ~1 min) +
+      poster. Same behaviour as the old animation: plays by itself on a silent loop while the guide is open (paused when it closes);
+      the picture fades in over the poster once loaded. Tap = pause / play. "Jump to" chips seek to each part. prefers-reduced-motion:
+      no autoplay, poster + play button. The file is only fetched when the guide is opened.
+   2. Chapters rewritten so every step matches the app now (v192 build() reads window.stormHelpCH207 when present).
+   3. Guide look matches the rest of the app: page #EAF0F7, white cards ~14px corners, accent #29A8E0, Montserrat. Layout unchanged. */
+(function () {
+  if (window.__stormV207) return; window.__stormV207 = 1;
+  var A = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/howto/';
+  var VID = A + 'how-to-use.mp4?v=207', POSTER = A + 'how-to-use-poster.jpg?v=207';
+  var BL = '#29A8E0', INK = '#0F1720', PAGE = '#EAF0F7';
+  var FONT = "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  var H = 'html body #st-help#st-help';
+  var css = ''
+    + H + ' { background: ' + PAGE + ' !important; font-family: ' + FONT + ' !important; font-size: 15px; line-height: 1.5; }'
+    + H + ' .sh-top { background: #fff !important; }'
+    + H + ' .sh-bar h2 { font-family: ' + FONT + '; font-weight: 800; font-size: 19px; letter-spacing: -.01em; }'
+    + H + ' .sh-x { border-radius: 14px !important; }'
+    + H + ' .sh-chip { font-family: ' + FONT + ' !important; font-weight: 700 !important; font-size: 13px !important; border-color: #DCE4EE !important; }'
+    + H + ' .sh-chip.on { border-color: ' + BL + ' !important; background: #E6F5FC !important; }'
+    + H + ' .sh-chip.on b, ' + H + ' .sh-chip.seen b { background: ' + BL + ' !important; color: #fff !important; }'
+    + H + ' .sh-prog i { background: ' + BL + ' !important; }'
+    + H + ' .sh-card { border-radius: 14px !important; box-shadow: 0 1px 2px rgba(15,23,32,.05), 0 6px 18px rgba(15,23,32,.06) !important; }'
+    + H + ' .sh-card h3 { font-family: ' + FONT + '; font-size: 18px !important; font-weight: 800 !important; letter-spacing: -.01em; }'
+    + H + ' .sh-card h3 b { width: 32px !important; height: 32px !important; font-size: 15px !important; background: ' + BL + ' !important; }'
+    + H + ' .sh-card p { color: #3B4754; }'
+    + H + ' .sh-steps li { padding: 9px 0 9px 40px !important; color: #24303C; }'
+    + H + ' .sh-steps li::before { border-radius: 8px !important; background: #E6F5FC !important; color: #0B6F99 !important; font-family: ' + FONT + '; font-size: 13px !important; }'
+    + H + ' .sh-steps.sh-do li::before { background: #E7F7EC !important; color: #15803D !important; } ' + H + ' .sh-steps.sh-dont li::before { background: #FDECEC !important; color: #B42318 !important; }'
+    + H + ' .sh-k { font-family: ' + FONT + '; font-weight: 700; font-size: .92em; background: #EEF3F8; border-radius: 6px; padding: 0 6px; }'
+    + H + ' .sh-tip { border-radius: 12px !important; background: #E6F5FC !important; color: #0B4F6E !important; font-size: 14px !important; }'
+    + H + ' .sh-mgr { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 6px; background: #FFF4DB; color: #8A5A00; font-size: 11px; font-weight: 800; letter-spacing: .02em; vertical-align: 2px; white-space: nowrap; }'
+    + H + ' .sh-next { border-radius: 14px !important; font-family: ' + FONT + ' !important; font-weight: 700 !important; }'
+    + H + ' .sh-two h4 { font-family: ' + FONT + '; font-weight: 800; }'
+    /* the recording */
+    + H + ' .g207 { display: flex; flex-direction: column; align-items: center; padding: 16px 14px 18px !important; }'
+    + H + ' .g207-frame { position: relative; height: min(62vh, 640px); max-width: 100%; aspect-ratio: 780 / 1688; border-radius: 26px; padding: 7px; box-sizing: border-box; background: ' + INK + '; box-shadow: 0 10px 28px rgba(15,23,32,.20); }'
+    + H + ' .g207-scr { position: relative; width: 100%; height: 100%; border-radius: 20px; overflow: hidden; background: ' + PAGE + ' url("' + POSTER + '") center / cover no-repeat; -webkit-tap-highlight-color: transparent; cursor: pointer; }'
+    + H + ' .g207-scr video { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .35s ease; background: transparent; }'
+    + H + ' .g207-scr.on video { opacity: 1; }'
+    + H + ' .g207-pp { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border: 0; border-radius: 50%; background: rgba(15,23,32,.62); display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(.9); transition: opacity .2s ease, transform .2s ease; pointer-events: none; }'
+    + H + ' .g207-scr.paused .g207-pp { opacity: 1; transform: none; }'
+    + H + ' .g207-pp svg { width: 28px; height: 28px; margin-left: 4px; }'
+    + H + ' .g207-cap { margin: 12px 0 2px; font-weight: 800; font-size: 15px; color: ' + INK + '; text-align: center; }'
+    + H + ' .g207-sub { margin: 0 0 10px; font-size: 13px; color: #5B6775; text-align: center; }'
+    + H + ' .g207-jump { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 520px; }'
+    + H + ' .g207-jump button { min-height: 34px; padding: 0 11px; border-radius: 17px; border: 1px solid #DCE4EE; background: #fff; color: ' + INK + '; font: 700 12.5px/1 ' + FONT + '; cursor: pointer; -webkit-tap-highlight-color: transparent; }'
+    + H + ' .g207-jump button i { font-style: normal; color: #0B6F99; margin-right: 5px; font-weight: 800; }'
+    + H + ' .g207-jump button.on { border-color: ' + BL + '; background: #E6F5FC; }'
+    + H + ' .g207-jump button:active { transform: scale(.97); }'
+    + '@media (max-height: 760px) { ' + H + ' .g207-frame { height: min(58vh, 640px); } }'
+    + '@media (min-width: 700px) { ' + H + ' .g207-frame { height: min(60vh, 680px); } }';
+  var st = document.createElement('style'); st.id = 'storm-v207-css'; st.textContent = css; document.head.appendChild(st);
+
+  /* ---------- the recording ---------- */
+  var PARTS = [[0, 'Main list'], [8.3, 'Search'], [12.0, 'Item details'], [21.0, 'Staging a job'], [40.3, 'Receiving Orders'], [47.0, 'Box Truck Check']];
+  function mmss(t) { t = Math.floor(t); return Math.floor(t / 60) + ':' + ('0' + (t % 60)).slice(-2); }
+  var PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#fff"/></svg>';
+  window.stormHelpAnim = function () {
+    return '<div class="sh-card sh-anim g207" aria-label="Screen recording of the app">'
+      + '<div class="g207-frame"><div class="g207-scr paused" data-g207-scr role="button" tabindex="0" aria-label="Play or pause the video">'
+      + '<video muted playsinline webkit-playsinline loop preload="none" disablepictureinpicture disableremoteplayback aria-label="The app, start to finish: main list, search, item details, staging a job, receiving orders, box truck check"></video>'
+      + '<span class="g207-pp">' + PLAY + '</span></div></div>'
+      + '<div class="g207-cap">The real app, start to finish</div>'
+      + '<div class="g207-sub">About 1 minute, no sound. Tap the video to pause.</div>'
+      + '<div class="g207-jump">' + PARTS.map(function (p, i) { return '<button type="button" data-g207-t="' + p[0] + '"><i>' + mmss(p[0]) + '</i>' + p[1] + '</button>'; }).join('') + '</div>'
+      + '</div>';
+  };
+  function reduce() { try { return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+  function parts() { var g = document.getElementById('st-help'); if (!g) return null; var s = g.querySelector('[data-g207-scr]'); return s ? { g: g, s: s, v: s.querySelector('video') } : null; }
+  function wire(p) {
+    if (p.v.__g207) return; p.v.__g207 = 1;
+    var on = function () { p.s.classList.add('on'); };
+    p.v.addEventListener('loadeddata', on); p.v.addEventListener('playing', function () { on(); p.s.classList.remove('paused'); });
+    p.v.addEventListener('pause', function () { p.s.classList.add('paused'); });
+    p.v.addEventListener('timeupdate', function () {
+      var t = p.v.currentTime, cur = 0; PARTS.forEach(function (x, i) { if (t >= x[0] - 0.05) cur = i; });
+      if (p.v.__cur !== cur) { p.v.__cur = cur; p.g.querySelectorAll('.g207-jump button').forEach(function (b, i) { b.classList.toggle('on', i === cur); }); }
+    });
+  }
+  function load(p) { if (!p.v.getAttribute('src')) { p.v.setAttribute('src', VID); p.v.preload = 'auto'; try { p.v.load(); } catch (e) {} } }
+  function play(p) { load(p); var r; try { r = p.v.play(); } catch (e) {} if (r && r.catch) r.catch(function () { p.s.classList.add('paused'); }); }
+  function top0() { var g = document.getElementById('st-help'), b = g && g.querySelector('.sh-body'); if (b && b.scrollTop) b.scrollTop = 0; } /* v192 reset scrollTop while the guide was still hidden, so a second open came back at the old spot */
+  function opened() { top0(); requestAnimationFrame(top0); var p = parts(); if (!p) return; wire(p); load(p); try { p.v.currentTime = 0; } catch (e) {} if (!reduce()) play(p); else p.s.classList.add('paused'); }
+  function closed() { var p = parts(); if (p) { try { p.v.pause(); } catch (e) {} } }
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var j = t.closest('#st-help [data-g207-t]');
+    if (j) { var p = parts(); if (!p) return; wire(p); load(p); try { p.v.currentTime = +j.getAttribute('data-g207-t'); } catch (x) {} play(p); return; }
+    var s = t.closest('#st-help [data-g207-scr]');
+    if (s) { var q = parts(); if (!q) return; wire(q); if (q.v.paused) play(q); else q.v.pause(); }
+  });
+  document.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.matches && e.target.matches('#st-help [data-g207-scr]')) { e.preventDefault(); e.target.click(); } });
+  (function watch(n) {
+    var g = document.getElementById('st-help');
+    if (!g) { if (n < 2400) setTimeout(function () { watch(n + 1); }, 250); return; }
+    var was = g.classList.contains('open'); if (was) opened();
+    new MutationObserver(function () { var o = g.classList.contains('open'); if (o && !was) opened(); else if (!o && was) closed(); was = o; }).observe(g, { attributes: true, attributeFilter: ['class'] });
+  })(0);
+  document.addEventListener('visibilitychange', function () { var p = parts(); if (!p) return; if (document.hidden) { try { p.v.pause(); } catch (e) {} } else if (p.g.classList.contains('open') && !reduce()) play(p); });
+
+  /* ---------- chapters (v192 build() reads these) ---------- */
+  window.stormHelpCH207 = function (k) {
+    var M = '<span class="sh-mgr">MANAGER</span>';
+    return [
+      { t: 'Getting around', s: 'Getting around', h:
+        '<ol class="sh-steps">'
+        + '<li><b>Top switch: ' + k('Staging Job') + ' | ' + k('Inventory') + '.</b> Staging Job = getting material ready for a job. Inventory = counts, ordering and prices (manager only). The crew view always opens in Staging Job.</li>'
+        + '<li><b>Stocked to par</b> card: how many items are at their keep-on-hand amount, and how many are low or out. It slides away when you scroll down and comes back when you scroll up.</li>'
+        + '<li><b>Supplier chips</b> under it: ' + k('All') + ', ' + k('Home Depot') + ', ' + k('RichTech') + ', ' + k('Hilti') + ', ' + k('AutoZone') + '. Tap one to see only that supplier, ' + k('All') + ' to see everything.</li>'
+        + '<li><b>Item cards</b>: photo, name, SKU and the supplier logo on top. The ring shows how many are on the shelf.</li>'
+        + '<li><b>Round ' + k('+') + ' bottom right</b>: tap it and the buttons pop out: Camera, Cart (Inventory) and ' + k('Customer Search') + ' (clipboard, with the number of items on the job). Tap the X to tuck them away.</li>'
+        + '<li><b>Menu ' + k('&#9776;') + ' top left</b> (it turns into an X): Home, Staging, Receiving Orders, Box Truck Check, Tool Checklist, Categories, Products by supplier, Quote Templates, Resource Center, Jobber, CompanyCam, Manager Login and this guide.</li>'
+        + '</ol><div class="sh-tip">Lost? Close what\'s open with its X or back arrow. You\'re back on the main list. On an iPad it\'s the same app, just wider: search and the tabs sit in one row and more cards fit across.</div>' },
+      { t: 'Search', s: 'Search', h:
+        '<ol class="sh-steps">'
+        + '<li>Tap ' + k('Search items, SKU, bin\u2026') + ' at the top and type. Name, SKU or bin number all work.</li>'
+        + '<li>It forgives typos, shop slang and sizes: <b>sump pmp</b> finds the sump pumps, <b>1 1/2 pvc</b> finds the 1-1/2 in. pipe and fittings.</li>'
+        + '<li>Best match comes first under <b>Search results</b>. Nothing matches exactly? You get <b>Closest matches</b> instead.</li>'
+        + '<li>Tap the X in the search box to clear it and get the full list back.</li>'
+        + '</ol>' },
+      { t: 'Item details', s: 'Item details', h:
+        '<ol class="sh-steps">'
+        + '<li>Tap an item\'s photo to open <b>Item details</b>: big photo, on hand ring, ' + k('Keep on hand') + ', ' + k('Bin') + ', ' + k('Need') + ', and the key features.</li>'
+        + '<li><b>Swipe left</b> for the next item, <b>swipe right</b> for the one before, in the same order as the list you came from.</li>'
+        + '<li>The store\'s logo sits above the photo, and the <b>Supplier</b> tile shows it too, so you know where it comes from.</li>'
+        + '<li>Managers also see the price and ' + k('Edit keep on hand') + ' | ' + k('Edit on hand') + ' (see Counts).' + M + '</li>'
+        + '<li>Back arrow top left goes back to the list.</li>'
+        + '</ol>' },
+      { t: 'Staging a job', s: 'Staging', h:
+        '<p>Pick the job, load what it needs, check each item as it goes on the staging cart. Nothing comes out of inventory until Staged Job Complete.</p><ol class="sh-steps">'
+        + '<li>Menu &rarr; ' + k('Staging') + ' (the cart-with-boxes icon). <b>Find a Job</b> opens.</li>'
+        + '<li>Saved jobs are on top. Under <b>From Jobber</b>: upcoming jobs first, ' + k('Not scheduled') + ' = signed, no date yet, ' + k('Past') + ' = last 7 days. Or type the customer name or address (the X clears it).</li>'
+        + '<li>Tap the job, then ' + k('Load items') + '. If the job has a Jobber quote, its items load for you. Not in Jobber? ' + k('New Job') + ' and type the name and address.</li>'
+        + '<li>Need more? Close the sheet and tap ' + k('+ Add to order') + ' on any item. The card turns to ' + k('\u2713 In order') + ' and the clipboard on the ' + k('+') + ' counts it.</li>'
+        + '<li>Open the list again: ' + k('+') + ' &rarr; ' + k('Customer Search') + ' (clipboard). The ring at the top counts what\'s <b>loaded</b>.</li>'
+        + '<li>Tap the circle on a line when that item is <b>on the cart</b>. It turns blue and the line is crossed off. Tap again if it comes back off.</li>'
+        + '<li>Tap ' + k('Save Job') + '. Want paper? ' + k('Print Preview') + ' shows the Staging List, then ' + k('Print') + '.</li>'
+        + '<li>Saved job later: Find a Job &rarr; tap it &rarr; ' + k('Edit list') + ' (or ' + k('Print list') + ').</li>'
+        + '</ol><div class="sh-tip">Checks show up on the rest of the crew\'s phones too, so two people can stage the same job. No signal? Checks wait on the phone and send when it\'s back.</div>' },
+      { t: 'Staged Job Complete', s: 'Complete', h:
+        '<p>This is the step that takes the stock out of inventory. Do it once the cart is loaded.</p><ol class="sh-steps">'
+        + '<li>At the bottom of Customer Search tap the big ' + k('Staged Job Complete') + '.</li>'
+        + '<li>Check the list: every checked item and how many. Lines not checked are listed as not on the cart. Those don\'t come out of inventory.</li>'
+        + '<li>Tap ' + k('Stage') + '. The checked items come off ' + k('On hand') + ', once.</li>'
+        + '<li>The job shows a green <b>Staged &middot; date and time</b> banner, the circles lock, and lines that weren\'t checked say <b>Not staged</b>.</li>'
+        + '<li>Mistake? A manager taps ' + k('Unstage') + ' on the banner; that puts back exactly what came out.' + M + '</li>'
+        + '<li>Old saved job you don\'t need? A manager can open it in Find a Job and tap ' + k('Delete job') + '.' + M + '</li>'
+        + '</ol>' },
+      { t: 'Ordering & the Cart', s: 'Order', h:
+        '<ol class="sh-steps">'
+        + '<li>Switch to ' + k('Inventory') + '.' + M + '</li>'
+        + '<li>' + k('Needs Ordering') + ' (next to ' + k('All Items') + ') lists everything below its keep-on-hand amount, by supplier, with how many to order.</li>'
+        + '<li>Tap ' + k('+ Add to order') + ' on a card, or use its ' + k('\u2212') + ' / ' + k('+') + '. The card and the Cart stay in step.</li>'
+        + '<li>Open the Cart: ' + k('+') + ' &rarr; Cart (shows the item count and $ total). Items are grouped by supplier with a total.</li>'
+        + '<li>Tick each line as you check it. Then the supplier\'s button: ' + k('Order') + ' for RichTech copies the order and opens RichTech, ' + k('Copy &amp; open') + ' for the other stores.</li>'
+        + '<li>' + k('Clear') + ' empties the Cart (it asks first).</li>'
+        + '</ol>' },
+      { t: 'Counts (On hand & Keep on hand)', s: 'Counts', h:
+        '<ol class="sh-steps">'
+        + '<li>In Inventory, tap a card\'s ' + k('On hand') + ' ring or ' + k('Keep on hand') + ' button, or ' + k('Edit on hand') + ' / ' + k('Edit keep on hand') + ' in Item details. The <b>count sheet</b> opens.' + M + '</li>'
+        + '<li><b>Keep on hand</b> is on the left, <b>On hand</b> on the right. Tap ' + k('\u2212') + ' / ' + k('+') + ', or hold to count fast.</li>'
+        + '<li>Tap the big number to type it on the number pad.</li>'
+        + '<li>It shows <b>Need</b> and OK / LOW / OUT as you go. ' + k('Save') + ' sends only what changed. ' + k('Cancel') + ' or swipe down leaves it as it was.</li>'
+        + '</ol><div class="sh-tip">Count the bin. Don\'t guess.</div>' },
+      { t: 'Receiving Orders', s: 'Receiving', h:
+        '<p>When a delivery shows up, count it in so On hand goes up.</p><ol class="sh-steps">'
+        + '<li>Menu &rarr; ' + k('Receiving Orders') + '. Everything on order is listed by supplier with how many were ordered.</li>'
+        + '<li>Count what came: ' + k('+') + ' / ' + k('\u2212') + ' (hold to go fast), or tap the number to type it.</li>'
+        + '<li>All of it there? ' + k('Got all') + ' on the line, or ' + k('Receive all') + ' for the whole supplier.</li>'
+        + '<li>Something extra came that isn\'t on the list? ' + k('Add item not on the list') + ': search or scan it.</li>'
+        + '<li>Tap the button at the bottom, check the summary, confirm. On hand goes up by what you counted. This needs a manager login (the button reads ' + k('Manager login to receive') + ' until then).' + M + '</li>'
+        + '</ol>' },
+      { t: 'Box Truck Check & Tool Checklist', s: 'Truck check', h:
+        '<ol class="sh-steps">'
+        + '<li>Menu &rarr; ' + k('Box Truck Check') + ' (right under Receiving Orders). ' + k('Tool Checklist') + ' is the row under it and works the same way.</li>'
+        + '<li>Fill in ' + k('TRUCK #') + ' first. Date fills in today.</li>'
+        + '<li>Tap through it: tires G / OK / P, lights OK / Out, and so on. <b>Every tap saves</b> right away and shows on other phones.</li>'
+        + '<li>Done? Big ' + k('Save &amp; Submit') + ' at the bottom. If some items are blank it tells you how many: ' + k('Go back') + ' or ' + k('Submit anyway') + '.</li>'
+        + '<li>Then the top says <b>Submitted by NAME &middot; time</b>. Changed something after? Tap ' + k('Update submission') + '.</li>'
+        + '<li>' + k('Past checks') + ' (top and bottom) lists earlier checks. Tap one to see it, read-only.</li>'
+        + '<li>' + k('View / print paper copy') + ' opens the paper form to print.</li>'
+        + '</ol><div class="sh-tip">If anything\'s wrong with the truck, tell Dave before it leaves.</div>' },
+      { t: 'Camera & bin labels', s: 'Camera', h:
+        '<ol class="sh-steps">'
+        + '<li>Tap ' + k('+') + ', then the camera.</li>'
+        + '<li>Point it at the QR code on a bin label. It beeps and adds the item.</li>'
+        + '<li>Scan the same label again to add one more. Tap the cart in the camera screen to see or change amounts.</li>'
+        + '<li>Tap the X at the top. What you scanned is in the app.</li>'
+        + '</ol><div class="sh-tip">Bin label stickers: menu &rarr; Resource Center &rarr; Bin Labels, pick the store, print. One label per bin. If a code isn\'t a STORM label, the camera says so and nothing gets added.</div>' },
+      { t: 'Manager Login & manager-only', s: 'Manager', h:
+        '<ol class="sh-steps">'
+        + '<li>The app opens in the <b>crew view</b>: no prices, no ordering, no count changes. No code needed.</li>'
+        + '<li>Crew can: browse and search, Item details, Staging (Find a Job, Customer Search, check onto the cart, ' + k('Staged Job Complete') + '), print the Staging List, scan labels, Box Truck Check and Tool Checklist, count a delivery in Receiving Orders.</li>'
+        + '<li>Log in: menu &rarr; ' + k('Manager Login') + ' (or tap ' + k('Inventory') + ' on the top switch), type the code. It switches right there, prices show.</li>'
+        + '<li><b>Manager only:</b> prices, ' + k('Inventory') + ' and ' + k('Needs Ordering') + ', the Cart and ordering, the count sheet, confirming Receiving Orders, ' + k('Unstage') + ', ' + k('Delete job') + ', and in Resource Center: ' + k('Insurance Certificates') + ' and ' + k('Logos') + '.</li>'
+        + '<li>A manager phone stays logged in for 30 days. Menu &rarr; ' + k('Manager \u00b7 Log out') + ' goes back to the crew view. Too many wrong codes locks it for 10 minutes.</li>'
+        + '</ol>'
+        + '<h4 style="margin:14px 0 4px;font-size:16px;font-weight:800">Sending an insurance certificate' + M + '</h4><ol class="sh-steps">'
+        + '<li>Menu &rarr; Resource Center &rarr; ' + k('Insurance Certificates') + '. Pick the agent: workers comp, or general liability &amp; disability.</li>'
+        + '<li>Tap ' + k('Email') + '. Type the customer\'s name to find them in Jobber (quotes and leads too) and tap them. Or ' + k('Skip, continue to email') + '.</li>'
+        + '<li>The email opens with a Customer information section filled in. Check it and send.</li>'
+        + '</ol>' },
+      { t: 'Do & Don\'t', s: 'Do / Don\'t', h:
+        '<div class="sh-two"><div><h4>Do</h4><ol class="sh-steps sh-do">'
+        + '<li>Check a line only when it\'s on the staging cart.</li><li>Tap Staged Job Complete once the cart is done.</li><li>Grab whole rolls and sticks.</li><li>Save Job before you print.</li><li>Fill in TRUCK # and Save &amp; Submit the truck check.</li><li>Count deliveries in Receiving Orders.</li></ol></div>'
+        + '<div><h4>Don\'t</h4><ol class="sh-steps sh-dont">'
+        + '<li>Don\'t check lines ahead of time.</li><li>Don\'t tap Staged Job Complete before the cart is loaded.</li><li>Don\'t share the manager code.</li><li>Don\'t guess counts. Count the bin.</li><li>Don\'t take stuff without it being on Customer Search.</li></ol></div></div>' }
+    ];
+  };
 })();
