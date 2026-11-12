@@ -489,6 +489,7 @@ function camTune(s) {
     if (c.focusMode && c.focusMode.indexOf('continuous') !== -1) adv.focusMode = 'continuous';
     if (c.exposureMode && c.exposureMode.indexOf('continuous') !== -1) adv.exposureMode = 'continuous';
     if (c.whiteBalanceMode && c.whiteBalanceMode.indexOf('continuous') !== -1) adv.whiteBalanceMode = 'continuous';
+    if (window.__stormTorchOn && c.torch) adv.torch = true; /* scan v142: keep the light on through refocus */
     if (Object.keys(adv).length) t.applyConstraints({ advanced: [adv] }).catch(function () {});
   } catch (e) {}
 }
@@ -1221,6 +1222,40 @@ html body #sheet-foot { font-weight: 700 !important; }
     d.innerHTML = '<img class="cl-d" src="' + A + 'drop.png" alt=""><img class="cl-w" src="' + A + 'storm.png" alt="">';
     h.insertBefore(d, h.firstChild);
   } catch (e) {}
+})();
+</script>
+<style id="scan-v142-css">
+/* scan v142 (Hark, 2026-11-12, Dave): flashlight button for dark basements. Only shows when the camera has a light. */
+#torch { position: absolute; top: 12px; right: 12px; z-index: 12; width: 42px; height: 42px; border-radius: 50%; border: 0; padding: 0; display: none; align-items: center; justify-content: center;
+  background: #fff; color: #0F1720; box-shadow: 0 1px 2px rgba(15,23,32,.05), 0 4px 14px rgba(15,23,32,.18); -webkit-tap-highlight-color: transparent; transition: background .2s ease, color .2s ease, transform .08s ease; }
+#torch.on { display: flex; }
+#torch.lit { background: #29A8E0; color: #fff; }
+#torch:active { transform: scale(.94); }
+#torch svg { width: 22px; height: 22px; }
+</style>
+<script>
+/* scan v142: torch toggle (track.getCapabilities().torch). Hidden on phones/browsers without it. */
+(function () {
+  var v = document.getElementById('video'), view = document.getElementById('view'); if (!v || !view) return;
+  var b = document.createElement('button'); b.id = 'torch'; b.type = 'button'; b.setAttribute('aria-label', 'Flashlight'); b.setAttribute('aria-pressed', 'false');
+  b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11L10 22l8.5-11.5H12z"/></svg>';
+  view.appendChild(b);
+  function track() { var s = v.srcObject; return s && s.getVideoTracks ? s.getVideoTracks()[0] : null; }
+  function canTorch(t) { try { var c = t && t.getCapabilities ? t.getCapabilities() : {}; return !!c.torch; } catch (e) { return false; } }
+  function apply(t) { if (!t) return Promise.resolve(); return t.applyConstraints({ advanced: [{ torch: !!window.__stormTorchOn }] }).catch(function () {}); }
+  function refresh() {
+    var t = track(), ok = canTorch(t);
+    b.classList.toggle('on', ok);
+    if (!ok) return;
+    b.classList.toggle('lit', !!window.__stormTorchOn); b.setAttribute('aria-pressed', window.__stormTorchOn ? 'true' : 'false');
+    if (window.__stormTorchOn) apply(t);
+  }
+  b.addEventListener('click', function (e) {
+    e.stopPropagation(); try { if (navigator.vibrate) navigator.vibrate(10); } catch (x) {}
+    window.__stormTorchOn = !window.__stormTorchOn; refresh(); if (!window.__stormTorchOn) apply(track());
+  });
+  v.addEventListener('loadedmetadata', function () { setTimeout(refresh, 150); });
+  v.addEventListener('playing', refresh);
 })();
 </script>
 </body>
