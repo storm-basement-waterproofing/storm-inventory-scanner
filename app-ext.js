@@ -1,3 +1,4 @@
+/* v198 (Hark, 2026-11-11, Dave fix list 7-9): swipe left / right in Item details = next / previous item in the on-screen list order (drag + carousel slide; taps and vertical scrolls never swipe; touch + pointer); full STORM logo with blue BASEMENT WATERPROOFING in Item details and the side menu; supplier logo (transparent, no box) in the top-right of the item photo on cards and in Item details. See the v198 block at the end. */
 /* v197 (Hark, 2026-11-11 19:20, Dave fix list 1-6): main-screen Category dropdown hidden (side menu keeps Categories); Stocked-to-par card + supplier chips ride in the top bar and come back on scroll up; iPad toolbar at normal size in one row; smooth mode switch; rings update in place (no flash on Add to Order / saves); Keep on hand save patches the card in place. See the v197 block at the end. */
 /* v196 (Hark, 2026-11-11 15:10, Dave approved): pairs with app v148. "Pull List" reads "Customer Search" (printout: "Staging List"), top switch "Staging Job | Inventory". Checks only track the staging cart (shared + offline queue, no stock change). Big "Staged Job Complete" button at the bottom of Customer Search -> confirm sheet -> completeStaging; staged banner, checks locked, unchecked lines flagged Not staged; manager-only Unstage. How to Use guide + explainer rewritten for the new flow. See the v196 block at the end. */
 /* v195 (Hark, 2026-11-11 12:35, Dave): pairs with app v147. Customer Search always in the + dock (crew + manager, first open); guide Next lands exactly on the next chapter; printed Pull List / Print Preview carry the main-screen STORM logo centered (app side); Pull List progress ring follows you as a slim bar while you scroll; Categories are a closed dropdown on the main screen and a collapsed section in the side menu. See the v195 block at the end. */
@@ -3344,6 +3345,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + B + ' #cl-menu .cl-lock { display: flex; align-items: center; gap: 7px; height: 30px; }'
     + B + ' #cl-menu .cl-lock .cl-drop { height: 30px; width: auto; }'
     + B + ' #cl-menu .cl-lock .cl-word { height: 22px; width: auto; filter: brightness(0); }'
+    + B + ' #cl-menu .cl-lock { height: 40px; } ' + B + ' #cl-menu .cl-lock img.cl-full198 { height: 40px; width: auto; filter: none; display: block; }' /* v198: full logo, blue BASEMENT WATERPROOFING */
     + B + ' #cl-menu .cl-brand-sub { font-size: 13px; font-weight: 700; color: ' + MUTE + '; letter-spacing: .02em; }'
     + B + ' #cl-menu .cl-par { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: #fff; border-radius: ' + R + '; box-shadow: ' + SH + '; margin-bottom: 14px; }'
     + B + ' #cl-menu .cl-par[hidden] { display: none; }'
@@ -3466,6 +3468,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + B + ' #detail.detail-overlay .cl-dlogo { display: flex; align-items: center; gap: 6px; height: 26px; }'
     + B + ' #detail.detail-overlay .cl-dlogo img:first-child { height: 26px; width: auto; }'
     + B + ' #detail.detail-overlay .cl-dlogo img:last-child { height: 19px; width: auto; filter: brightness(0); }'
+    + B + ' #detail.detail-overlay .cl-dlogo { height: 34px; } ' + B + ' #detail.detail-overlay .cl-dlogo img.cl-full198 { height: 34px; width: auto; filter: none; display: block; }' /* v198: full logo, blue BASEMENT WATERPROOFING */
     + B + ' #detail.detail-overlay img.detail-photo, ' + B + ' #detail.detail-overlay canvas.st166-cover { border-radius: ' + R + ' !important; box-shadow: ' + SH + ' !important; background: #fff !important; }'
     + B + ' #detail.detail-overlay .detail-body > .controls.ctl-top { border-radius: ' + R + ' !important; box-shadow: ' + SH + ' !important; padding: 10px !important; gap: 10px !important; }'
     + B + ' #detail.detail-overlay .controls .stepper { background: ' + BG + ' !important; border-radius: 12px !important; padding: 3px !important; }'
@@ -3538,7 +3541,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var mn = document.getElementById('cl-menu');
     if (!mn) {
       mn = document.createElement('div'); mn.id = 'cl-menu';
-      mn.innerHTML = '<div class="cl-brand"><div class="cl-lock"><img class="cl-drop" src="' + A + 'drop.png" alt=""><img class="cl-word" src="' + A + 'storm.png" alt="STORM"></div><div class="cl-brand-sub">Inventory</div></div>'
+      mn.innerHTML = '<div class="cl-brand"><div class="cl-lock"><img class="cl-full198" src="' + A + 'logos/STORM-logo-black-text-transparent.svg" alt="STORM Basement Waterproofing"></div><div class="cl-brand-sub">Inventory</div></div>'
         + '<div class="cl-par" hidden><div class="cl-pring"></div><div><div class="cl-par-t1">Stocked to par</div><div class="cl-par-t2"></div><div class="cl-par-t3"></div></div></div>'
         + '<button type="button" class="cl-row cl-on" data-cl-go="home">' + ico('home') + '<span class="cl-name">Home</span></button>'
         + '<button type="button" class="cl-row" data-cl-go="pull">' + ico('pull') + '<span class="cl-name">Customer Search</span></button>'
@@ -3716,7 +3719,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function detail() {
     var d = document.getElementById('detail'); if (!d || !d.classList.contains('open')) return;
     var bar = d.querySelector('.detail-bar');
-    if (bar && !bar.querySelector('.cl-dlogo')) bar.insertAdjacentHTML('beforeend', '<div class="cl-dlogo"><img src="' + A + 'drop.png" alt=""><img src="' + A + 'storm.png" alt="STORM"></div>');
+    if (bar && !bar.querySelector('.cl-dlogo')) bar.insertAdjacentHTML('beforeend', '<div class="cl-dlogo"><img class="cl-full198" src="' + A + 'logos/STORM-logo-black-text-transparent.svg" alt="STORM Basement Waterproofing"></div>');
     var body = d.querySelector('.detail-body'); if (!body) return;
     var bin = null; try { bin = currentDetailBin; } catch (e) {}
     var it = bin ? find(bin) : null; if (!it) return;
@@ -3757,6 +3760,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   /* ---- wiring ---- */
   function all() { try { seg(); } catch (e) {} try { home(); } catch (e) {} try { menu(); } catch (e) {} try { pull(); } catch (e) {} try { cart(); } catch (e) {} try { detail(); } catch (e) {} }
   var q = 0; function soon() { if (q) return; q = setTimeout(function () { q = 0; all(); }, 60); }
+  window.stormCl179All = all; /* v198: the Item details swipe restyles the new page right away (no 60 ms unstyled frame mid-slide) */
   function obs(id, flag) {
     var el = document.getElementById(id); if (!el || el[flag]) return !!el;
     el[flag] = true;
@@ -4020,6 +4024,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   function nudgeDetail() { /* the v179 ring card repaints on a class change of #detail */ var d = document.getElementById('detail'); if (d && d.classList.contains('open')) { d.classList.add('oh-t'); setTimeout(function () { d.classList.remove('oh-t'); }, 0); } }
   var pq = 0; function soon() { if (pq) return; pq = setTimeout(function () { pq = 0; try { pass(); } catch (e) {} }, 80); }
+  window.stormOh181Pass = pass; /* v198: the Item details swipe runs this right away so the new page arrives finished */
 
   /* taps: capture phase so the base list handler never sees them */
   document.addEventListener('click', function (e) {
@@ -5502,6 +5507,265 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
         }
       } catch (e) { return _rps.apply(this, arguments); }
     };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
+})();
+
+/* v198 (Hark, 2026-11-11, Dave's fix list items 7-9):
+   7. Item details: swipe left = next item, swipe right = previous item, in the order of the cards on screen (the list as it is
+      filtered / sorted right now; falls back to the base A-Z filtered list when the item is not on screen). The finger drags the page,
+      release past 60 px (or a quick flick) slides the next page in beside it (carousel, .28 s); short drags, taps and vertical scrolls
+      never swipe (axis lock after 10 px); at the first / last item it rubber-bands back. Touch events (iOS Safari, Android Chrome) plus
+      pointer events for mouse / pen. Defines the missing base globals slideToDetail(bin, dir) and updateTotals() (both were called by
+      Index.html but never defined, so the old swipe threw); the old base touchend handler is neutralised so it can't double-fire.
+   8. Item details bar + side menu: the full STORM logo with "BASEMENT WATERPROOFING" in blue
+      (assets/logos/STORM-logo-black-text-transparent.svg, the same light-theme lockup as the Home header and the sheets); edited in place
+      in the v179 block (cl-dlogo / cl-lock) so the old logo never paints first.
+   9. Supplier logo in the top-right corner of the item photo on every card and in Item details: transparent PNGs, no box / fill
+      (assets/supplier-clear/hd.png, rt.png, az.png, hi.png; made from the app's own supplier logos with the white / red box removed). */
+(function () {
+  if (window.__storm198) return; window.__storm198 = true;
+  var A = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/';
+  var SUP = { 'Home Depot': 'hd', 'RichTech': 'rt', 'AutoZone': 'az', 'Hilti': 'hi' };
+  function supUrl(s) { var k = SUP[s]; return k ? A + 'supplier-clear/' + k + '.png?v=1' : ''; }
+  var B = 'html body';
+  var st = document.createElement('style'); st.id = 'storm-v198-css';
+  st.textContent = ''
+    /* 9: supplier logo on the photo, cards */
+    + B + ' #list > .card .card-main { position: relative; }'
+    + B + ' #list > .card .sup198 { position: absolute; top: 7px; right: 7px; z-index: 2; display: block; width: auto; height: auto; max-height: 26px; max-width: 58%; object-fit: contain; filter: drop-shadow(0 0 0.75px rgba(255,255,255,.95)) drop-shadow(0 0 1.5px rgba(255,255,255,.75)) drop-shadow(0 1px 1.5px rgba(15,23,32,.16)); pointer-events: none; background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; -webkit-user-select: none; user-select: none; }'
+    /* 9: supplier logo on the photo, Item details (placed over the photo box by measurement) */
+    + B + ' #detail .detail-body { position: relative; }'
+    + B + ' #detail .sup198d { position: absolute; z-index: 4; display: block; width: auto; height: auto; max-height: 34px; max-width: min(30%, 160px); object-fit: contain; filter: drop-shadow(0 0 0.75px rgba(255,255,255,.95)) drop-shadow(0 0 1.5px rgba(255,255,255,.75)) drop-shadow(0 1px 1.5px rgba(15,23,32,.16)); pointer-events: none; background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; -webkit-user-select: none; user-select: none; }'
+    + '@media (min-width: 700px) { ' + B + ' #detail .sup198d { max-height: 40px; } }'
+    /* 7: the page only pans vertically by itself; horizontal moves are ours */
+    + B + ' #detail.detail-overlay { touch-action: pan-y pinch-zoom; overscroll-behavior-x: none; }'
+    + B + ' #detail.sw198-drag, ' + B + ' #detail.sw198-drag * { -webkit-user-select: none !important; user-select: none !important; }'
+    + '#sw198-layer { position: absolute; left: 0; right: 0; overflow: hidden; pointer-events: none; z-index: 5; }'
+    + '#sw198-layer > .detail-body { position: absolute !important; box-sizing: border-box; margin: 0 !important; will-change: transform; }';
+  document.head.appendChild(st);
+  try { [A + 'logos/STORM-logo-black-text-transparent.svg'].concat(Object.keys(SUP).map(supUrl)).forEach(function (u) { var i = new Image(); i.src = u; }); } catch (e) {}
+
+  function findIt(bin) { try { return findItem(bin); } catch (e) { return null; } }
+
+  /* ---------- 9. supplier logos ---------- */
+  function cardLogo(card) {
+    var host = card.querySelector('.card-main'); if (!host) return;
+    var it = findIt(card.getAttribute('data-bin')), u = it && supUrl(it.supplier);
+    var cur = host.querySelector(':scope > img.sup198');
+    if (!u) { if (cur) cur.remove(); return; }
+    if (cur) { if (cur.getAttribute('src') !== u) cur.setAttribute('src', u); return; }
+    var im = document.createElement('img'); im.className = 'sup198'; im.alt = it.supplier; im.setAttribute('aria-hidden', 'true'); im.decoding = 'async'; im.src = u;
+    host.appendChild(im);
+  }
+  function allCards(root) {
+    (root || document).querySelectorAll('#list > .card[data-bin]').forEach(cardLogo);
+  }
+  function watchList() {
+    var list = document.getElementById('list'); if (!list || !window.MutationObserver) return;
+    allCards();
+    new MutationObserver(function (ms) {
+      var hit = false;
+      for (var i = 0; i < ms.length && !hit; i++) {
+        var a = ms[i].addedNodes;
+        for (var j = 0; j < a.length; j++) { var n = a[j]; if (n.nodeType === 1 && !(n.classList && n.classList.contains('sup198'))) { hit = true; break; } }
+      }
+      if (hit) allCards();
+    }).observe(list, { childList: true, subtree: true });
+  }
+
+  var dRO = null;
+  function placeD(im, ph) {
+    if (!im.isConnected || !ph.isConnected) return;
+    var body = im.parentNode, b = body.getBoundingClientRect(), r = ph.getBoundingClientRect();
+    if (!r.width) return;
+    var pad = Math.max(8, Math.round(r.width * 0.025));
+    im.style.top = Math.round(r.top - b.top + pad) + 'px';
+    im.style.right = Math.round(b.right - r.right + pad) + 'px';
+  }
+  function detailLogo() {
+    var d = document.getElementById('detail'); if (!d || !d.classList.contains('open')) return;
+    var ph = d.querySelector('.detail-body > img.detail-photo'); if (!ph) return;
+    var it = findIt(currentDetailBin), u = it && supUrl(it.supplier); if (!u) return;
+    var im = ph.parentNode.querySelector(':scope > img.sup198d');
+    if (!im) { im = document.createElement('img'); im.className = 'sup198d'; im.alt = it.supplier; im.setAttribute('aria-hidden', 'true'); im.src = u; ph.parentNode.appendChild(im); }
+    else if (im.getAttribute('src') !== u) im.setAttribute('src', u);
+    placeD(im, ph);
+    if (dRO) { try { dRO.disconnect(); } catch (e) {} dRO = null; }
+    if (window.ResizeObserver) { dRO = new ResizeObserver(function () { placeD(im, ph); }); dRO.observe(ph); dRO.observe(ph.parentNode); }
+    ph.addEventListener('load', function () { placeD(im, ph); });
+  }
+  window.addEventListener('resize', function () { var d = document.getElementById('detail'); var im = d && d.querySelector('img.sup198d'), ph = d && d.querySelector('img.detail-photo'); if (im && ph) placeD(im, ph); });
+
+  /* ---------- 7. swipe between items ---------- */
+  var busy = false;
+  function order() {
+    var out = [], seen = {};
+    document.querySelectorAll('#list > .card[data-bin]').forEach(function (c) {
+      var b = c.getAttribute('data-bin'); if (!b || seen[b] || !c.getClientRects().length) return; seen[b] = 1; out.push(b);
+    });
+    if (out.indexOf(currentDetailBin) === -1) {
+      out = [];
+      try { out = filtered().sort(byName).map(function (x) { return x.bin; }); } catch (e) {}
+    }
+    return out;
+  }
+  function neighbour(dir) { /* dir -1 = next (content moves left), +1 = previous */
+    var l = order(), i = l.indexOf(currentDetailBin);
+    if (i === -1) return null;
+    return dir < 0 ? (l[i + 1] || null) : (l[i - 1] || null);
+  }
+  function bodyEl() { return document.querySelector('#detail > .detail-body') || document.querySelector('#detail .detail-body'); }
+  var EASE = 'cubic-bezier(.22,.8,.24,1)';
+  /* openDetail(bin, true) = swap in place. The base then replaceState()s {overlay:'detail'}; when the detail was opened without its own
+     history entry (the base's very first open never pushes one: overlayOpen is undefined then), that would make the next Close call
+     history.back() and leave the app, so the entry's previous state is put back. */
+  function swapTo(bin) {
+    var prev; try { prev = history.state; } catch (e) {}
+    openDetail(bin, true);
+    /* finish the page now (these restyles normally run 60-80 ms later off MutationObservers) so it slides in complete */
+    try { if (typeof window.stormCl179All === 'function') window.stormCl179All(); } catch (e) {}
+    try { if (typeof window.stormOh181Pass === 'function') window.stormOh181Pass(); } catch (e) {}
+    try { if (typeof window.stormCl179All === 'function') window.stormCl179All(); } catch (e) {}
+    try { detailLogo(); } catch (e) {}
+    try { if (!(prev && prev.overlay === 'detail')) history.replaceState(prev === undefined ? null : prev, ''); } catch (e) {}
+  }
+  function go(bin, dir, dx) {
+    var d = document.getElementById('detail'), old = bodyEl();
+    if (!d || !bin) return false;
+    dx = dx || 0;
+    if (!old || busy) { swapTo(bin); return true; }
+    busy = true;
+    var W = d.clientWidth || window.innerWidth, GAP = 24, r = old.getBoundingClientRect();
+    /* the old page itself (not a copy: its pictures stay decoded, no blank frame) is lifted out before the new one is drawn,
+       then rides out in a clipped layer beside it */
+    var ghost = old; ghost.parentNode.removeChild(ghost);
+    ghost.querySelectorAll('[id]').forEach(function (e) { e.removeAttribute('id'); });
+    ghost.classList.remove('slide-in-from-right', 'slide-in-from-left');
+    var layer = document.createElement('div'); layer.id = 'sw198-layer'; layer.setAttribute('aria-hidden', 'true');
+    swapTo(bin); /* the real page for the new item (all wrappers run) */
+    var nb = bodyEl(), bar = d.querySelector('.detail-bar');
+    var top = Math.max(0, bar ? bar.getBoundingClientRect().bottom : 0);
+    var dr = d.getBoundingClientRect(), dtop = top - dr.top + d.scrollTop;
+    layer.style.top = dtop + 'px'; layer.style.height = Math.max(0, d.clientHeight - (top - dr.top)) + 'px';
+    ghost.style.cssText = 'left:' + (r.left - dx - dr.left) + 'px;top:' + (r.top - top) + 'px;width:' + r.width + 'px;transition:none;transform:translateX(' + dx + 'px);opacity:1';
+    layer.appendChild(ghost); d.appendChild(layer); /* inside #detail: the page's own styles apply to the copy */
+    if (nb) { nb.style.transition = 'none'; nb.style.opacity = '1'; nb.style.transform = 'translateX(' + (dx - dir * (W + GAP)) + 'px)'; }
+    void (nb || ghost).offsetWidth;
+    var dist = Math.abs(dir * (W + GAP) - dx), ms = Math.round(Math.max(180, Math.min(300, dist / (W + GAP) * 300)));
+    requestAnimationFrame(function () {
+      ghost.style.transition = 'transform ' + ms + 'ms ' + EASE;
+      ghost.style.transform = 'translateX(' + (dir * (W + GAP)) + 'px)';
+      if (nb) { nb.style.transition = 'transform ' + ms + 'ms ' + EASE; nb.style.transform = 'translateX(0px)'; }
+    });
+    setTimeout(function () {
+      if (layer.parentNode) layer.parentNode.removeChild(layer);
+      if (nb) { nb.style.transition = ''; nb.style.transform = ''; nb.style.opacity = ''; }
+      busy = false;
+      try { detailLogo(); } catch (e) {}
+    }, ms + 40);
+    return true;
+  }
+  /* warm the next / previous item's pictures so a swipe lands on a drawn photo */
+  var warm = {};
+  function prefetch() {
+    [neighbour(-1), neighbour(1)].forEach(function (bin) {
+      var it = bin && findIt(bin); if (!it) return;
+      var cim = null; try { cim = document.querySelector('#list > .card[data-bin="' + bin.replace(/"/g, '') + '"] img.photo'); } catch (e) {}
+      if (cim && cim.loading === 'lazy') { try { cim.loading = 'eager'; } catch (e) {} } /* the list card's own copy is what the detail paints first */
+      [cim && cim.getAttribute('src'), it.photoUrl, A + 'items-hd/' + encodeURIComponent(bin) + '.jpg'].forEach(function (u) {
+        if (!u || warm[u]) return; warm[u] = 1;
+        try { var i = new Image(); i.decoding = 'async'; i.src = u; if (i.decode) i.decode().catch(function () {}); } catch (e) {}
+      });
+    });
+  }
+  /* public: the base swipe called this but it never existed */
+  window.slideToDetail = function (bin, dir) { if (!bin) return; go(bin, dir < 0 ? -1 : 1, 0); };
+  if (typeof window.updateTotals !== 'function') window.updateTotals = function () { /* base removeFromPickList called it; setPickQty already refreshes the bar, sheet and card */ try { if (typeof updateCartFab === 'function') updateCartFab(); } catch (e) {} };
+
+  var g = null, lastSwipe = 0, HAS_TOUCH = 'ontouchstart' in window;
+  function skip(t, x) {
+    if (busy) return true;
+    var d = document.getElementById('detail');
+    if (!d || !d.classList.contains('open') || !t || !t.closest || !t.closest('#detail')) return true;
+    if (t.closest('input, textarea, select, [contenteditable], .detail-bar, .stepper, canvas.lbl-zoom')) return true;
+    var W = window.innerWidth; if (x < 16 || x > W - 16) return true; /* leave the browser's edge-swipe back / forward alone */
+    for (var e = t; e && e !== d; e = e.parentElement) { /* anything that scrolls sideways keeps its own swipe */
+      if (e.scrollWidth > e.clientWidth + 2) { var ox = getComputedStyle(e).overflowX; if (ox === 'auto' || ox === 'scroll') return true; }
+    }
+    return false;
+  }
+  function start(x, y, t, kind, id) {
+    if (skip(t, x)) { g = null; return; }
+    g = { x: x, y: y, t: Date.now(), kind: kind, id: id, axis: null, dx: 0, body: bodyEl(), prev: null, next: null, lx: x, lt: Date.now(), v: 0 };
+  }
+  function move(x, y, ev) {
+    if (!g) return;
+    var dx = x - g.x, dy = y - g.y;
+    if (!g.axis) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      if (Math.abs(dx) > Math.abs(dy) * 1.2) {
+        g.axis = 'h'; g.x = x; dx = 0; /* start from here so the page doesn't jump by the slop */
+        g.next = neighbour(-1); g.prev = neighbour(1);
+        var d = document.getElementById('detail'); if (d) d.classList.add('sw198-drag');
+        if (g.body) g.body.style.transition = 'none';
+      } else { g.axis = 'v'; return; }
+    }
+    if (g.axis !== 'h') return;
+    if (ev && ev.cancelable) ev.preventDefault();
+    var has = dx < 0 ? g.next : g.prev, W = window.innerWidth;
+    var shown = has ? dx : dx / (1 + Math.abs(dx) / 70) * 0.6; /* rubber band at the ends */
+    g.dx = dx; var now = Date.now(); if (now > g.lt) { g.v = (x - g.lx) / (now - g.lt); g.lx = x; g.lt = now; }
+    if (g.body) g.body.style.transform = 'translateX(' + Math.max(-W, Math.min(W, shown)) + 'px)';
+  }
+  function end(cancel) {
+    var s = g; g = null; if (!s) return;
+    var d = document.getElementById('detail'); if (d) d.classList.remove('sw198-drag');
+    if (s.axis !== 'h') return;
+    lastSwipe = Date.now();
+    var dir = s.dx < 0 ? -1 : 1, bin = dir < 0 ? s.next : s.prev;
+    var fast = Math.abs(s.v) > 0.45 && (s.v < 0) === (s.dx < 0) && Math.abs(s.dx) > 24;
+    if (!cancel && bin && (Math.abs(s.dx) >= 60 || fast) && s.body && s.body.isConnected) {
+      var cur = 0; try { cur = new DOMMatrix(getComputedStyle(s.body).transform).m41 || 0; } catch (e) { cur = s.dx; }
+      go(bin, dir, cur);
+      return;
+    }
+    if (s.body && s.body.isConnected) { /* snap back */
+      s.body.style.transition = 'transform .24s ' + EASE; s.body.style.transform = 'translateX(0px)';
+      setTimeout(function () { if (s.body.isConnected && !g) { s.body.style.transition = ''; s.body.style.transform = ''; } }, 260);
+    }
+  }
+  /* the old base touchend handler on #detail would call slideToDetail too: clear its start point first (capture runs before it) */
+  document.addEventListener('touchend', function () { try { window.touchStartX = null; window.touchStartY = null; } catch (e) {} }, true);
+  document.addEventListener('touchstart', function (e) {
+    if (e.touches.length > 1) { if (g) end(true); g = null; return; }
+    var t = e.touches[0]; start(t.clientX, t.clientY, e.target, 'touch');
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!g || g.kind !== 'touch') return;
+    if (e.touches.length > 1) { end(true); return; }
+    var t = e.touches[0]; move(t.clientX, t.clientY, e);
+  }, { passive: false, capture: true });
+  document.addEventListener('touchend', function (e) { if (g && g.kind === 'touch') end(false); }, { passive: true, capture: true });
+  document.addEventListener('touchcancel', function () { if (g && g.kind === 'touch') end(true); }, { passive: true, capture: true });
+  /* pointer: mouse / pen everywhere, and touch only where touch events don't exist */
+  document.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'touch' && HAS_TOUCH) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    start(e.clientX, e.clientY, e.target, 'ptr', e.pointerId);
+  }, true);
+  document.addEventListener('pointermove', function (e) { if (g && g.kind === 'ptr' && e.pointerId === g.id) move(e.clientX, e.clientY, e); }, true);
+  document.addEventListener('pointerup', function (e) { if (g && g.kind === 'ptr' && e.pointerId === g.id) end(false); }, true);
+  document.addEventListener('pointercancel', function (e) { if (g && g.kind === 'ptr' && e.pointerId === g.id) end(true); }, true);
+  /* a drag that ended as a swipe is not a tap on whatever was under the finger */
+  document.addEventListener('click', function (e) { if (Date.now() - lastSwipe < 350 && e.target.closest && e.target.closest('#detail')) { e.preventDefault(); e.stopPropagation(); } }, true);
+
+  function install() {
+    watchList();
+    if (typeof openDetail === 'function') {
+      var _o = openDetail;
+      openDetail = function () { var r = _o.apply(this, arguments); try { detailLogo(); } catch (e) {} setTimeout(function () { try { prefetch(); } catch (e) {} }, 120); return r; };
+    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
 })();
