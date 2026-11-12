@@ -1,3 +1,4 @@
+/* v209 (Hark, 2026-11-12, Dave 11:27): Receiving Orders Scanned rows - tapping -/+, the number (number pad) or x no longer opens the camera. The rows carry data-r-scan like the Scan button, and the Scan check matched them first; it now only matches the Scan button. Pairs with app v168. */
 /* v208 (Hark, 2026-11-12, Dave): Receiving Orders - a "Scanned" section pinned at the top: every bin scanned with the camera in Receiving lands there (on order or not, e.g. PVC fittings), +1 per scan, -/+ and number pad still work, moved up out of its supplier group (no duplicates). Its own "Add N to bins" button adds only the Scanned counts (same confirm sheet, manager gate, save queue, retry/offline, receipt log, Received check) and clears those rows. Bottom bar relabeled "Add counted items to On hand (N)" (same behavior: only rows with a count above 0). Receiving opens the scanner with &recv=1; the order cart is never touched. See the v208 notes in the v201 block. Pairs with app v167. */
 /* v207 (Hark, 2026-11-11, Dave 21:02-21:03, batch G): How to Use the App rewritten for the app as it is now, and the animation at its top replaced by a real screen recording of the current app (assets/howto/how-to-use.mp4, muted, loops while the guide is open, tap to pause, jump-to chips). Guide in the app's look (Montserrat, #EAF0F7, 14px cards). See the v207 block at the end. Pairs with app v159. */
 /* v206 (Hark, 2026-11-11, Dave approved 22:55, batch T2): Truck Check part 2 - side menu rows Box Truck Check + Tool Checklist under Receiving Orders; big Save & Submit at the bottom of each form (fieldId __submitted in the Truck Check tab, banner Submitted by NAME . time, Update submission); Past checks list (read-only getTruckCheckHistory) opening a read-only copy. See the v206 block at the end. Pairs with app v158. */
@@ -6898,7 +6899,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (t.closest('[data-r-go]')) { goTap(); return; }
     if (t.closest('[data-r-addscan]')) { goTap(scanBins()); return; } /* v208 */
     if (R.sending) return;
-    if (t.closest('[data-r-scan]')) { showRes(false); startScan(); return; }
+    if (t.closest('button.r-scan[data-r-scan]')) { showRes(false); startScan(); return; } /* v209: only the Scan button opens the camera; Scanned rows also carry data-r-scan, so their -/+, number and x used to open it */
     var h = t.closest('[data-r-hit]'); if (h) { var inp = q('.r-q'); inp.value = ''; showRes(false); try { inp.blur(); } catch (x) {} addExtra(h.getAttribute('data-r-hit'), 1); return; }
     if (!t.closest('.r-tools')) showRes(false);
     var row = t.closest('.r-row'), bin = row && row.getAttribute('data-r-bin');
