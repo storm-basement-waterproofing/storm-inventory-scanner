@@ -1,3 +1,4 @@
+/* v204 (Hark, 2026-11-11, Dave 21:15): Insurance Certificates > Email opens a Jobber customer search (all clients incl. quotes/leads, read-only searchJobberClients) or "Skip, continue to email"; new body with a Customer information section. Pairs with app v156. */
 /* v203 (Hark, 2026-11-11 21:23-21:48, Dave): Truck Check: the Box Truck Pre Check and Tool Checklist rows open fillable phone forms that save to the "Truck Check" tab (anyone can fill them in; live across phones); "View / print paper copy" keeps the PDFs. Item details swipe: photo box no longer shrinks after the slide. See the v203 block at the end. */
 /* v202 (Hark, 2026-11-11 20:50-21:02, Dave batch F): supplier logos in a clear strip above the product photo; manager login switches in place (no flash/jump); Staging opens only Find a Job; side-menu Customer Search row removed; nothing peeks from the closed Categories list; no blue tap highlight; faster checklist pages; Media tiles float in; Insurance Certificates + Logos manager-only; equal-height item cards; supplier logo in the Supplier tile; photos fade in once loaded; menu button morphs to an X. See the v202 block at the end. */
 /* v201 (Hark, 2026-11-11, Dave asked 19:01): Receiving Orders screen - items on order (need > 0, same rule as Needs Ordering) grouped by supplier, received counter per row (big -/+ with hold-repeat, tap for number pad, Got all, Receive all per supplier), Add item search + Scan for extras (cart never touched), confirm summary -> new on hand = current + received via updateCount (manager-only, unchanged), Received check, local receiving log (Recent receipts). Replaces the v199 placeholder and hides the Restock Soon row. See the v201 block at the end. */
@@ -7968,4 +7969,218 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   setTimeout(function () { if (Object.keys(queue).length) flush(); }, 4000);
 
   window.stormTC203 = { render: render, close: close, flush: flush, queue: function () { return JSON.parse(JSON.stringify(queue)); }, current: function () { return cur; } };
+})();
+
+/* v204 (Hark, 2026-11-11 21:15, Dave): Insurance Certificates > contact > Email no longer jumps straight to the email.
+   1. Tapping "Email Lindsey" / "Email Suzanne" opens a customer search linked to Jobber (searchJobberClients on the server:
+      ALL Jobber clients incl. quote/estimate-only clients and leads; name, address, phone, email). Live results, debounced, X clears.
+   2. Tapping a result opens the email with that customer's name, property address, phone and email filled in.
+   3. "Skip, continue to email" opens the email with blank Customer information lines.
+   4. New body: no "for STORM Basement Waterproofing LLC" line; "Certificate holder" replaced by a "Customer information" section.
+   Read-only: nothing is written to Jobber or the Sheet. The contact page's mailto href is rewritten to the skipped (blank) version,
+   so if this block fails the button still opens a clean email. Base globals untouched. */
+(function () {
+  if (window.__stormV204) return; window.__stormV204 = 1;
+  var SUBJ = 'Certificate of Insurance request \u2013 STORM Basement Waterproofing';
+  var INS = {
+    'lindseym@alliance-group.net': { name: 'Lindsey', company: 'Alliance Group', ask: 'workers comp' },
+    'suzannes@paris-kirwan.com': { name: 'Suzanne', company: 'Paris-Kirwan', ask: 'general liability and disability' }
+  };
+  var BG = '#EAF0F7', INK = '#0F1720', MUTE = '#6B7280', LINE = '#DCE4EE', BLUE = '#29A8E0', BLUED = '#1A8FC4';
+  function e$(x) { return document.getElementById(x); }
+  function h(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function run() { try { return (window.google && google.script && google.script.run) ? google.script.run : null; } catch (e) { return null; } }
+
+  /* ---- email text ---- */
+  function body(c, cu) {
+    cu = cu || {};
+    return 'Hi ' + c.name + ',\n\n'
+      + 'Could you please send a ' + c.ask + ' certificate of insurance for the customer below?\n\n'
+      + 'Customer information\n'
+      + 'Name: ' + (cu.name || '') + '\n'
+      + 'Property address: ' + (cu.address || '') + '\n'
+      + 'Phone: ' + (cu.phone || '') + '\n'
+      + 'Email: ' + (cu.email || '') + '\n\n'
+      + 'Thank you,\n';
+  }
+  function mailto(email, c, cu) { return 'mailto:' + email + '?subject=' + encodeURIComponent(SUBJ) + '&body=' + encodeURIComponent(body(c, cu)); }
+  window.stormInsMailto204 = function (email, cu) { var c = INS[String(email).toLowerCase()]; return c ? mailto(email, c, cu) : ''; }; /* harness / How to Use */
+  function openMail(href) {
+    /* same mechanism as the old button (a real <a target=_blank> tap), fired inside the user's tap */
+    var a = document.createElement('a'); a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.style.display = 'none';
+    document.body.appendChild(a);
+    window.__ins204last = href;
+    try { a.click(); } catch (e) { try { location.href = href; } catch (x) {} }
+    setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); }, 0);
+  }
+
+  /* ---- CSS ---- */
+  var I = 'html body #ins204';
+  var css = ''
+    + I + ' { position: fixed; inset: 0; z-index: 2147483100; display: flex; flex-direction: column; background: ' + BG + '; color: ' + INK + '; font-family: Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; opacity: 0; transform: translateY(18px); transition: opacity .2s ease, transform .24s cubic-bezier(.2,.8,.2,1); pointer-events: none; -webkit-tap-highlight-color: transparent; }'
+    + I + '.open { opacity: 1; transform: none; pointer-events: auto; }'
+    + I + ' .i3-top { flex: none; padding: calc(10px + max(var(--st-sat, 0px), env(safe-area-inset-top))) 16px 6px; display: flex; align-items: center; gap: 12px; max-width: 760px; width: 100%; box-sizing: border-box; margin: 0 auto; }'
+    + I + ' .i3-x { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 0; background: #fff; color: ' + INK + '; box-shadow: 0 1px 3px rgba(15,23,32,.12); font-size: 24px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }'
+    + I + ' .i3-tt { flex: 1; min-width: 0; }'
+    + I + ' .i3-tt b { display: block; font-size: 18px; font-weight: 800; line-height: 1.2; }'
+    + I + ' .i3-tt small { display: block; margin-top: 2px; font-size: 13px; font-weight: 600; color: ' + MUTE + '; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }'
+    + I + ' .i3-q { flex: none; max-width: 760px; width: 100%; box-sizing: border-box; margin: 0 auto; padding: 8px 16px 4px; }'
+    + I + ' .i3-field { position: relative; display: flex; align-items: center; background: #fff; border: 1.5px solid ' + LINE + '; border-radius: 14px; box-shadow: 0 1px 2px rgba(15,23,32,.05); transition: border-color .15s; }'
+    + I + ' .i3-field:focus-within { border-color: ' + BLUE + '; }'
+    + I + ' .i3-field svg { flex: none; width: 20px; height: 20px; margin-left: 14px; }'
+    + I + ' .i3-field input { flex: 1; min-width: 0; height: 50px; border: 0; outline: 0; background: transparent; padding: 0 8px 0 10px; font: 600 16px/1.2 Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: ' + INK + '; -webkit-appearance: none; appearance: none; }'
+    + I + ' .i3-field input::placeholder { color: #9AA6B2; font-weight: 500; }'
+    + I + ' .i3-field input::-webkit-search-cancel-button { display: none; -webkit-appearance: none; }'
+    + I + ' .i3-clr { flex: none; display: none; width: 28px; height: 28px; margin-right: 11px; border-radius: 50%; border: 0; padding: 0; background: #E3E9F0; color: #4B5563; font-size: 18px; line-height: 1; align-items: center; justify-content: center; cursor: pointer; }'
+    + I + ' .i3-field.has .i3-clr { display: flex; }'
+    + I + ' .i3-st { min-height: 18px; padding: 8px 4px 2px; font-size: 13px; font-weight: 600; color: ' + MUTE + '; }'
+    + I + ' .i3-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }'
+    + I + ' .i3-in { max-width: 760px; margin: 0 auto; padding: 6px 16px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; }'
+    + I + ' .i3-r { display: block; width: 100%; text-align: left; border: 0; background: #fff; border-radius: 14px; padding: 13px 14px; box-shadow: 0 1px 2px rgba(15,23,32,.06), 0 4px 14px rgba(15,23,32,.06); color: ' + INK + '; font-family: inherit; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }'
+    + I + ' .i3-r:active, ' + I + ' .i3-r.hit { transform: scale(.985); box-shadow: 0 0 0 2px ' + BLUE + '; }'
+    + I + ' .i3-n { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; line-height: 1.25; }'
+    + I + ' .i3-n span { min-width: 0; overflow-wrap: anywhere; }'
+    + I + ' .i3-ph { white-space: nowrap; }'
+    + I + ' .i3-lead { flex: none; padding: 2px 8px; border-radius: 9px; border: 1px solid ' + LINE + '; color: ' + MUTE + '; font-size: 11px; font-weight: 700; letter-spacing: .02em; }'
+    + I + ' .i3-lead { font-style: normal; }'
+    + I + ' .i3-p { margin-top: 1px; font-size: 13px; font-weight: 600; color: ' + MUTE + '; overflow-wrap: anywhere; }'
+    + I + ' .i3-a { margin-top: 3px; font-size: 14px; font-weight: 600; color: #374151; overflow-wrap: anywhere; }'
+    + I + ' .i3-c { margin-top: 3px; font-size: 13px; font-weight: 500; color: ' + MUTE + '; overflow-wrap: anywhere; }'
+    + I + ' .i3-c i { font-style: normal; color: #B6C0CC; padding: 0 6px; }'
+    + I + ' .i3-em { padding: 26px 8px; text-align: center; font-size: 14px; font-weight: 600; color: ' + MUTE + '; line-height: 1.45; }'
+    + I + ' mark { background: rgba(41,168,224,.16); color: inherit; border-radius: 3px; padding: 0 1px; }'
+    + I + ' .i3-foot { flex: none; padding: 10px 16px calc(12px + max(var(--st-sab, 0px), env(safe-area-inset-bottom))); background: ' + BG + '; border-top: 1px solid rgba(15,23,32,.06); }'
+    + I + ' .i3-skip { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 728px; margin: 0 auto; min-height: 52px; border-radius: 14px; border: 1.5px solid ' + BLUE + '; background: #fff; color: ' + BLUED + '; font: 700 16px/1.2 Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; cursor: pointer; padding: 0 16px; box-sizing: border-box; }'
+    + I + ' .i3-skip svg { width: 18px; height: 18px; flex: none; }'
+    + I + ' .i3-skip:active { background: #F2F9FD; }'
+    + I + ' .i3-spin { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; border: 2px solid ' + LINE + '; border-top-color: ' + BLUE + '; border-radius: 50%; animation: i3spin .7s linear infinite; }'
+    + '@keyframes i3spin { to { transform: rotate(360deg); } }'
+    + '@media (min-width: 700px) { ' + I + ' .i3-tt b { font-size: 20px; } ' + I + ' .i3-in { gap: 12px; } }'
+    + '@media (prefers-reduced-motion: reduce) { ' + I + ' { transition: none; transform: none; } }';
+  var st = document.createElement('style'); st.id = 'storm-v204-css'; st.textContent = css;
+  function put() { (document.head || document.documentElement).appendChild(st); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+
+  var GLASS = '<svg viewBox="0 0 24 24" fill="none" stroke="' + MUTE + '" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+  var MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="' + BLUED + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>';
+
+  /* ---- contact page: note text + blank-template href (fallback if this block is gone) ---- */
+  function patchView() {
+    var v = e$('res-view'); if (!v) return;
+    var a = v.querySelector('a.st-ins-mail'); if (!a || a.getAttribute('data-ins204')) return;
+    var em = String(a.getAttribute('href') || '').replace(/^mailto:/i, '').split('?')[0], c = INS[em.toLowerCase()]; if (!c) return;
+    a.setAttribute('data-ins204', em); a.setAttribute('href', mailto(em, c, null));
+    var n = v.querySelector('.res-note'); if (n) n.textContent = 'For commercial permits (towns) and customer homes. Tap Email, then pick the customer from Jobber (or skip).';
+  }
+  function watch() {
+    if (!document.body) return setTimeout(watch, 50);
+    var mo = new MutationObserver(function () { patchView(); });
+    mo.observe(document.body, { childList: true, subtree: true });
+    patchView();
+  }
+  watch();
+
+  /* ---- search sheet ---- */
+  var cur = null, seq = 0, tmr = 0, memo = {}, lastQ = '';
+  function sheet() {
+    var s = e$('ins204'); if (s) return s;
+    s = document.createElement('div'); s.id = 'ins204'; s.setAttribute('role', 'dialog'); s.setAttribute('aria-modal', 'true'); s.setAttribute('aria-labelledby', 'i3-title');
+    s.innerHTML = '<div class="i3-top"><button class="i3-x" type="button" data-i3-close aria-label="Close">&times;</button><div class="i3-tt"><b id="i3-title">Pick the customer</b><small id="i3-sub"></small></div></div>'
+      + '<div class="i3-q"><div class="i3-field" id="i3-field">' + GLASS + '<input id="i3-in" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search Jobber: name, address, phone, email" aria-label="Search Jobber clients"><button class="i3-clr" type="button" data-i3-clear aria-label="Clear search">&times;</button></div><div class="i3-st" id="i3-st" aria-live="polite"></div></div>'
+      + '<div class="i3-list" id="i3-list"><div class="i3-in" id="i3-res"></div></div>'
+      + '<div class="i3-foot"><button class="i3-skip" type="button" data-i3-skip>' + MAIL + '<span>Skip, continue to email</span></button></div>';
+    document.body.appendChild(s);
+    var inp = e$('i3-in');
+    inp.addEventListener('input', function () { e$('i3-field').classList.toggle('has', !!inp.value); queue(inp.value); });
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); clearTimeout(tmr); search(inp.value); try { inp.blur(); } catch (x) {} }
+      else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+    });
+    return s;
+  }
+  function stat(t) { var x = e$('i3-st'); if (x) x.innerHTML = t || ''; }
+  function idle() { stat('Search every Jobber client: jobs, quotes and leads.'); e$('i3-res').innerHTML = ''; }
+  function open(email) {
+    var c = INS[String(email).toLowerCase()]; if (!c) return false;
+    cur = { email: email, c: c };
+    var s = sheet(), inp = e$('i3-in');
+    e$('i3-sub').textContent = 'Email to ' + c.name + ' \u00b7 ' + c.company;
+    inp.value = ''; e$('i3-field').classList.remove('has'); lastQ = ''; seq++; idle();
+    e$('i3-list').scrollTop = 0;
+    s.style.display = ''; void s.offsetWidth; s.classList.add('open');
+    try { history.pushState({ overlay: 'res-view', ins204: 1 }, ''); } catch (x) {}
+    setTimeout(function () { try { inp.focus({ preventScroll: true }); } catch (x) { try { inp.focus(); } catch (y) {} } }, 60);
+    return true;
+  }
+  function close(viaUi) {
+    var s = e$('ins204'); if (!s || !s.classList.contains('open')) return;
+    s.classList.remove('open'); clearTimeout(tmr); seq++;
+    try { e$('i3-in').blur(); } catch (x) {}
+    if (viaUi && history.state && history.state.ins204) { try { history.back(); } catch (x) {} }
+  }
+  window.addEventListener('popstate', function () { if (!(history.state && history.state.ins204)) close(false); });
+
+  function queue(q) {
+    clearTimeout(tmr);
+    q = String(q || '').replace(/\s+/g, ' ').trim();
+    if (q.length < 2) { seq++; lastQ = ''; idle(); return; }
+    if (memo[q.toLowerCase()]) { search(q); return; }
+    stat('<span class="i3-spin"></span>Searching Jobber\u2026');
+    tmr = setTimeout(function () { search(q); }, 300);
+  }
+  function search(q) {
+    q = String(q || '').replace(/\s+/g, ' ').trim(); if (q.length < 2) return;
+    var key = q.toLowerCase(); lastQ = q;
+    if (memo[key]) { paint(q, memo[key]); return; }
+    var r = run(), my = ++seq;
+    if (!r) { stat(''); e$('i3-res').innerHTML = '<div class="i3-em">No connection to Jobber right now.<br>Tap Skip to write the customer in yourself.</div>'; return; }
+    stat('<span class="i3-spin"></span>Searching Jobber\u2026');
+    r.withSuccessHandler(function (res) {
+      if (my !== seq) return;
+      if (res && res.authorized && res.clients) { memo[key] = res; paint(q, res); return; }
+      stat('');
+      e$('i3-res').innerHTML = '<div class="i3-em">' + (res && res.authorized === false ? 'Jobber isn\u2019t connected to the app right now.' : 'Jobber didn\u2019t answer. Try again in a moment.') + '<br>Tap Skip to write the customer in yourself.</div>';
+    }).withFailureHandler(function () {
+      if (my !== seq) return; stat('');
+      e$('i3-res').innerHTML = '<div class="i3-em">Couldn\u2019t reach Jobber. Check your signal and try again,<br>or tap Skip to write the customer in yourself.</div>';
+    }).searchJobberClients(q);
+  }
+  function mk(t, q) {
+    t = h(t); var ws = String(q).toLowerCase().split(' ').filter(function (w) { return w.length > 1; });
+    ws.forEach(function (w) { var re = new RegExp('(' + h(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig'); t = t.replace(re, '\u0001$1\u0002'); });
+    return t.replace(/\u0001/g, '<mark>').replace(/\u0002/g, '</mark>');
+  }
+  var rows = [];
+  function paint(q, res) {
+    rows = res.clients || [];
+    var n = rows.length;
+    stat(n ? (n + (res.more ? '+' : '') + ' match' + (n === 1 ? '' : 'es') + ' in Jobber' + (res.more ? ' \u00b7 keep typing to narrow it down' : '')) : '');
+    e$('i3-res').innerHTML = n ? rows.map(function (c, i) {
+      var contact = [c.phone ? '<span class="i3-ph">' + mk(c.phone, q) + '</span>' : '', c.email ? mk(c.email, q) : ''].filter(Boolean).join('<i>\u00b7</i>');
+      return '<button class="i3-r" type="button" data-i3-pick="' + i + '"><div class="i3-n"><span>' + mk(c.name || 'No name', q) + '</span>' + (c.lead ? '<em class="i3-lead">Lead</em>' : '') + '</div>'
+        + (c.contact ? '<div class="i3-p">' + mk(c.contact, q) + '</div>' : '')
+        + (c.address ? '<div class="i3-a">' + mk(c.address, q) + '</div>' : '') + (contact ? '<div class="i3-c">' + contact + '</div>' : '') + '</button>';
+    }).join('') : '<div class="i3-em">No Jobber client matches \u201c' + h(q) + '\u201d.<br>Try part of the name, street, phone or email, or tap Skip.</div>';
+  }
+
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var a = t.closest('#res-view a.st-ins-mail');
+    if (a) {
+      var em = a.getAttribute('data-ins204') || String(a.getAttribute('href') || '').replace(/^mailto:/i, '').split('?')[0];
+      if (INS[em.toLowerCase()]) { e.preventDefault(); e.stopImmediatePropagation(); open(em); }
+      return;
+    }
+    if (!t.closest('#ins204')) return;
+    if (t.closest('[data-i3-close]')) { e.preventDefault(); close(true); return; }
+    if (t.closest('[data-i3-clear]')) { e.preventDefault(); var inp = e$('i3-in'); inp.value = ''; e$('i3-field').classList.remove('has'); queue(''); try { inp.focus(); } catch (x) {} return; }
+    if (t.closest('[data-i3-skip]')) { e.preventDefault(); if (cur) { openMail(mailto(cur.email, cur.c, null)); setTimeout(function () { close(true); }, 250); } return; }
+    var p = t.closest('[data-i3-pick]');
+    if (p && cur) {
+      e.preventDefault(); var cu = rows[+p.getAttribute('data-i3-pick')]; if (!cu) return;
+      p.classList.add('hit');
+      openMail(mailto(cur.email, cur.c, cu));
+      setTimeout(function () { close(true); }, 250);
+    }
+  }, true);
 })();
