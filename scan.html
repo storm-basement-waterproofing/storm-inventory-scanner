@@ -742,6 +742,9 @@ function findScanItem(text) {
     if (it.s && String(it.s).toLowerCase() === tok && it.u && normScanUrl(it.u).split('/')[0] === host) return it;
   }
   if (!/[\/.]/.test(low)) for (j = 0; j < ITEMS.length; j++) if (ITEMS[j].s && String(ITEMS[j].s).toLowerCase() === low) return ITEMS[j];
+  /* scan v144: a bin ID label this page has never seen (a product added after this list was built) still counts; the app resolves it from its live items */
+  var bm = text.match(/^(rt|hd|az|hi)-(\d{1,4})$/i);
+  if (bm) { var nb = { i: (bm[1].toLowerCase() === 'hi' ? 'HI' : bm[1].toLowerCase()) + '-' + bm[2], t: 'Bin ' + text.toUpperCase(), m: NX_IMG }; ITEMS.push(nb); ITEM_BY_ID = null; return nb; }
   return null;
 }
 var ITEMS = [
@@ -891,6 +894,19 @@ var ITEMS = [
 {"i":"HI-02","t":"Main filter AIC (3)","m":"https://drive.google.com/thumbnail?id=1f0KS5BZ9aHn93NcK_pNT5OzF1NttwMt2&sz=w800","u":"https://www.hilti.com/c/CLS_DUST_WATER_MANAGEMENT/CLS_ACC_DUST_WATER_MANAGEMENT/CLS_FILTER_VACUUM_AIR_CLEANERS/2320750","s":"2320750"},
 {"i":"HI-03","t":"TE Standard Supply Cord 13' (4m) (TE-2000)","m":"https://drive.google.com/thumbnail?id=1-hra5yJVEWDel1smfY2l6vm6KE0fLp7q&sz=w800","u":"https://www.hilti.com/c/CLS_POWER_TOOLS_7125/CLS_TOOLS_7125/CLS_ACC_DEMOLITION_HAMMERS_BREAKERS_7125/2127087","s":"2127087"}
 ];
+/* scan v144 (Hark, 2026-11-12, Dave): products added in the app after this list was built. The app (v169+) passes them as
+   &nx=bin~name~sku~link,... (each part URI-encoded); they join ITEMS so their labels (product link or bin ID QR) scan, show their
+   name in the popup and the cart, and return to the app like any other bin. Unknown bin-ID codes are also accepted (findScanItem). */
+var NX_IMG = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/icon-192.png';
+(function () {
+  var raw = params.get('nx'); if (!raw) return;
+  raw.split(',').forEach(function (row) {
+    var f = row.split('~').map(function (x) { try { return decodeURIComponent(x); } catch (e) { return x; } });
+    if (!f[0] || !/^[A-Za-z]{2}-\d{1,4}$/.test(f[0])) return;
+    for (var k = 0; k < ITEMS.length; k++) if (String(ITEMS[k].i).toLowerCase() === f[0].toLowerCase()) return;
+    ITEMS.push({ i: f[0], t: f[1] || f[0], m: NX_IMG, u: f[3] || '', s: f[2] || '' });
+  });
+})();
 })();
 </script>
 <script>
