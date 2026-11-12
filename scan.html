@@ -492,21 +492,44 @@ function camTune(s) {
     if (Object.keys(adv).length) t.applyConstraints({ advanced: [adv] }).catch(function () {});
   } catch (e) {}
 }
+/* scan v141 (Hark, 2026-11-12, Dave): the camera always opens on the main back lens (the one that focuses close). A remembered
+   ultra-wide (0.5x) or telephoto lens is no longer reopened on start, since those cannot focus on a label a few inches away; the
+   lens chips still switch for the current scan. When the browser already knows the lenses, the main lens opens in one go (no
+   open-close-reopen), the zoom starts at 1x, and a lens switch gets the same continuous focus / exposure / white balance tuning. */
+function isOddLens(label) { return /ultra|wide|tele|zoom|macro|depth/i.test(label || ''); }
+function camStart(s) {
+  camTune(s);
+  try { var t = s.getVideoTracks()[0], c = t.getCapabilities ? t.getCapabilities() : {}, z = t.getSettings ? t.getSettings().zoom : null;
+    if (c.zoom && z != null && Math.abs(z - 1) > .05 && c.zoom.min <= 1 && c.zoom.max >= 1) t.applyConstraints({ advanced: [{ zoom: 1 }] }).catch(function () {}); } catch (e) {}
+  return s;
+}
+window.__stormCamTune = function (s) { camTune(s); };
+function openById(id) { return camOpen({ deviceId: { exact: id }, facingMode: undefined }); }
 function getSharpStream() {
-  /* v130 (Hark, 2026-11-09): open the lens the user picked last time, if it is still there */
   var saved = null; try { saved = localStorage.getItem('stormLens'); } catch (e) {}
-  if (saved && saved !== 'auto') return camOpen({ deviceId: { exact: saved }, facingMode: undefined }).then(function (s) { camTune(s); return s; }, function () { try { localStorage.removeItem('stormLens'); } catch (e) {} return getSharpStream(); });
-  return camOpen().then(function (s) {
-    var t = s.getVideoTracks()[0], label = (t && t.label) || '';
-    // Android Chrome labels lenses "camera2 N, facing back"; camera2 0 is the main lens. Switch if we got another one.
-    if (!/android/i.test(navigator.userAgent) || /camera2 0\b/.test(label) || !navigator.mediaDevices.enumerateDevices) { camTune(s); return s; }
-    return navigator.mediaDevices.enumerateDevices().then(function (ds) {
-      var main = ds.filter(function (d) { return d.kind === 'videoinput' && /camera2 0\b/.test(d.label) && /back/i.test(d.label); })[0];
-      if (!main) { camTune(s); return s; }
-      s.getTracks().forEach(function (x) { x.stop(); });
-      return camOpen({ deviceId: { exact: main.deviceId }, facingMode: undefined }).then(function (s2) { camTune(s2); return s2; }, function () { return camOpen().then(function (s3) { camTune(s3); return s3; }); });
-    }, function () { camTune(s); return s; });
+  var android = /android/i.test(navigator.userAgent);
+  var list = navigator.mediaDevices.enumerateDevices ? navigator.mediaDevices.enumerateDevices().catch(function () { return []; }) : Promise.resolve([]);
+  return list.then(function (ds) {
+    var vids = ds.filter(function (d) { return d.kind === 'videoinput' && d.label; });
+    var pick = null;
+    if (saved && saved !== 'auto') { var sv = vids.filter(function (d) { return d.deviceId === saved; })[0]; if (sv && !isOddLens(sv.label) && !/front|user|facetime/i.test(sv.label)) pick = sv; }
+    if (!pick && android) pick = vids.filter(function (d) { return /camera2 0\b/.test(d.label) && /back/i.test(d.label); })[0] || null;
+    if (pick) return openById(pick.deviceId).then(camStart, function () { return openDefault(); });
+    return openDefault();
   });
+  function openDefault() {
+    return camOpen().then(function (s) {
+      var t = s.getVideoTracks()[0], label = (t && t.label) || '';
+      // Android Chrome labels lenses "camera2 N, facing back"; camera2 0 is the main lens. Switch if we got another one.
+      if (!android || /camera2 0\b/.test(label) || !navigator.mediaDevices.enumerateDevices) return camStart(s);
+      return navigator.mediaDevices.enumerateDevices().then(function (ds) {
+        var main = ds.filter(function (d) { return d.kind === 'videoinput' && /camera2 0\b/.test(d.label) && /back/i.test(d.label); })[0];
+        if (!main) return camStart(s);
+        s.getTracks().forEach(function (x) { x.stop(); });
+        return openById(main.deviceId).then(camStart, function () { return camOpen().then(camStart); });
+      }, function () { return camStart(s); });
+    });
+  }
 }
 // After a tap-to-focus, go back to continuous focus so the picture never stays soft.
 var _refocusT = null;
@@ -1017,7 +1040,7 @@ header .hdr-logo, header .storm-logo-lit, .storm-logo-lit, .sll-trace { display:
     if (old) old.getTracks().forEach(function (x) { x.stop(); });
     navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: dev }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }, audio: false }).then(function (s) {
       try { localStorage.setItem('stormLens', dev); } catch (x) {}
-      try { var tr = s.getVideoTracks()[0], c = tr.getCapabilities ? tr.getCapabilities() : {}; if (c.focusMode && c.focusMode.indexOf('continuous') !== -1) tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {}); } catch (x) {}
+      try { if (window.__stormCamTune) window.__stormCamTune(s); else { var tr = s.getVideoTracks()[0], c = tr.getCapabilities ? tr.getCapabilities() : {}; if (c.focusMode && c.focusMode.indexOf('continuous') !== -1) tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {}); } } catch (x) {} /* scan v141 */
       v.srcObject = s; window.__stormSwapStream && window.__stormSwapStream(s); v.play().catch(function () {}); render();
     }, function () { try { localStorage.removeItem('stormLens'); } catch (x) {} location.reload(); });
   });
