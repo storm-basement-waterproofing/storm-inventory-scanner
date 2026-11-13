@@ -1,3 +1,4 @@
+/* v211 (Hark, 2026-11-12, Dave): Stocked to par ring - "STOCKED" label under the % and red -> yellow -> green colour by the % (block at the end of this file). */
 /* v210 (Hark, 2026-11-12 15:20, Dave): CREW VIEW SIMPLE. Only Dave and his 2 managers (Manager Login) see Inventory and Needs Ordering.
    Crew (html.storm-crew = no manager login): the top switch shows only "Staging Job", highlighted, with no Inventory half and no tap-to-switch.
    Needs Ordering is hidden. Side menu for crew: Home, Customer Search, Staging, Box Truck Check, Tool Checklist, CATEGORIES, Products by supplier,
@@ -9148,4 +9149,52 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
         + '<li>Don\'t check lines ahead of time.</li><li>Don\'t tap Staged Job Complete before the cart is loaded.</li><li>Don\'t share the manager code.</li><li>Don\'t guess counts. Count the bin.</li><li>Don\'t take stuff without it being on Customer Search.</li></ol></div></div>' }
     ];
   };
+})();
+
+/* v211 (Hark, 2026-11-12, Dave): the "Stocked to par" ring (home card + side menu) now says what the number is -
+   "STOCKED" under the %, = share of item lines at or above their Keep on hand (par) - and its colour runs
+   red (very low) -> yellow (middle) -> green (full), blending smoothly with the %. Only recolours/labels the ring; counts unchanged. */
+(function () {
+  if (window.__storm211) return; window.__storm211 = 1;
+  var STOPS = [[0, [220, 38, 38]], [50, [234, 179, 8]], [100, [22, 163, 74]]];
+  function col(p) {
+    p = Math.max(0, Math.min(100, p));
+    var a = STOPS[0], b = STOPS[1]; if (p > 50) { a = STOPS[1]; b = STOPS[2]; }
+    var t = (p - a[0]) / (b[0] - a[0]);
+    return 'rgb(' + a[1].map(function (v, i) { return Math.round(v + (b[1][i] - v) * t); }).join(',') + ')';
+  }
+  var NS = 'http://www.w3.org/2000/svg';
+  function fix(host) {
+    var svg = host && host.querySelector('svg'); if (!svg) return;
+    var texts = svg.querySelectorAll('text'); if (!texts.length) return;
+    var big = texts[0], m = /(\d+)\s*%/.exec(big.textContent || ''); if (!m) return;
+    var p = +m[1], c = col(p), circ = svg.querySelectorAll('circle');
+    if (circ[1] && circ[1].getAttribute('stroke') !== c) circ[1].setAttribute('stroke', c);
+    var vb = (svg.getAttribute('viewBox') || '0 0 76 76').split(/\s+/), size = +vb[2] || 76;
+    if (texts.length === 1) {
+      big.setAttribute('y', (size * 0.45).toFixed(1));
+      big.setAttribute('font-size', (size * 0.25).toFixed(1));
+      var lb = document.createElementNS(NS, 'text');
+      lb.setAttribute('x', '50%'); lb.setAttribute('y', (size * 0.66).toFixed(1));
+      lb.setAttribute('text-anchor', 'middle'); lb.setAttribute('dominant-baseline', 'middle');
+      lb.setAttribute('font-family', big.getAttribute('font-family') || 'Montserrat,sans-serif');
+      lb.setAttribute('font-weight', '800'); lb.setAttribute('font-size', Math.max(6.5, size * 0.11).toFixed(1));
+      lb.setAttribute('letter-spacing', '0.6'); lb.setAttribute('fill', '#6B7280');
+      lb.textContent = 'STOCKED';
+      svg.appendChild(lb);
+    }
+    host.title = p + '% of item lines are at or above their Keep on hand amount';
+  }
+  function run() {
+    fix(document.querySelector('#gd-sum .gd-ring'));
+    fix(document.querySelector('#cl-menu .cl-pring'));
+  }
+  var q = 0;
+  function soon() { if (q) return; q = 1; (window.requestAnimationFrame || setTimeout)(function () { q = 0; run(); }); }
+  function start() {
+    run();
+    try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['stroke'] }); } catch (e) {}
+    setInterval(run, 1500);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
