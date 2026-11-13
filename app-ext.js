@@ -1,3 +1,4 @@
+/* v212 (Hark, 2026-11-12, Dave): Staged banner - green check only at 100% staged, otherwise a % ring coloured red -> yellow -> green (block at the end of this file). */
 /* v211 (Hark, 2026-11-12, Dave): Stocked to par ring - "STOCKED" label under the % and red -> yellow -> green colour by the % (block at the end of this file). */
 /* v210 (Hark, 2026-11-12 15:20, Dave): CREW VIEW SIMPLE. Only Dave and his 2 managers (Manager Login) see Inventory and Needs Ordering.
    Crew (html.storm-crew = no manager login): the top switch shows only "Staging Job", highlighted, with no Inventory half and no tap-to-switch.
@@ -9196,5 +9197,45 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['stroke'] }); } catch (e) {}
     setInterval(run, 1500);
   }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+
+/* v212 (Hark, 2026-11-12, Dave): the "Staged" banner on Customer Search keeps its green check only when 100% of the lines were staged.
+   Otherwise the check becomes a ring (same look as the Stocked to par ring) showing the % staged, coloured red -> yellow -> green like v211. */
+(function () {
+  if (window.__storm212) return; window.__storm212 = 1;
+  var STOPS = [[0, [220, 38, 38]], [50, [234, 179, 8]], [100, [22, 163, 74]]];
+  function col(p) {
+    p = Math.max(0, Math.min(100, p));
+    var a = STOPS[0], b = STOPS[1]; if (p > 50) { a = STOPS[1]; b = STOPS[2]; }
+    var t = (p - a[0]) / (b[0] - a[0]);
+    return 'rgb(' + a[1].map(function (v, i) { return Math.round(v + (b[1][i] - v) * t); }).join(',') + ')';
+  }
+  function ring(p) {
+    var s = 36, w = 4.5, r = (s - w) / 2, c = 2 * Math.PI * r, on = p / 100 * c;
+    return '<svg viewBox="0 0 36 36" width="36" height="36" aria-hidden="true"><circle cx="18" cy="18" r="' + r + '" fill="#fff" stroke="#E3E8EF" stroke-width="' + w + '"/>'
+      + (on > 0.5 ? '<circle cx="18" cy="18" r="' + r + '" fill="none" stroke="' + col(p) + '" stroke-width="' + w + '" stroke-linecap="round" stroke-dasharray="' + on.toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 18 18)"/>' : '')
+      + '<text x="18" y="19" text-anchor="middle" dominant-baseline="middle" font-family="Montserrat,-apple-system,Segoe UI,Roboto,sans-serif" font-weight="800" font-size="' + (p < 10 ? 10 : 9) + '" fill="#0F1720">' + p + '%</text></svg>';
+  }
+  var st = document.createElement('style'); st.id = 'storm-v212-css';
+  st.textContent = 'html body #pull-sheet .sj-banner > i.sj212 { width: 36px !important; height: 36px !important; background: transparent !important; line-height: 0 !important; }'
+    + 'html body #pull-sheet .sj-banner > i.sj212 svg { display: block; }'
+    + 'html body #pull-sheet .sj-banner.sj212-part { background: #fff !important; border-color: #E3E8EF !important; color: #0F1720 !important; }'
+    + 'html body #pull-sheet .sj-banner.sj212-part small { color: #6B7280 !important; }';
+  (document.head || document.documentElement).appendChild(st);
+  function run() {
+    var sh = document.getElementById('pull-sheet'), ban = sh && sh.querySelector('.sj-banner'); if (!ban) return;
+    var all = sh.querySelectorAll('.pick-line[data-pull-bin]').length, done = sh.querySelectorAll('.pick-line[data-pull-bin].tc-done').length;
+    if (!all) return;
+    var p = Math.round(done / all * 100), i = ban.querySelector(':scope > i'); if (!i) return;
+    var full = done >= all;
+    ban.classList.toggle('sj212-part', !full);
+    if (full) { if (i.classList.contains('sj212')) { i.classList.remove('sj212'); i.textContent = '\u2713'; } return; }
+    if (i.classList.contains('sj212') && i.__p === p) return;
+    i.classList.add('sj212'); i.__p = p; i.innerHTML = ring(p);
+    i.setAttribute('aria-label', p + '% of the lines were staged');
+  }
+  var q = 0; function soon() { if (q) return; q = 1; setTimeout(function () { q = 0; run(); }, 40); }
+  function start() { run(); try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true }); } catch (e) {} setInterval(run, 1200); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
