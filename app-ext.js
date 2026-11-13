@@ -1,3 +1,51 @@
+/* v224 (Hark, 2026-11-13, Dave 13:41 "a little more responsive on the sliding"): the side menu now follows your finger as you swipe it left
+   (the dimmed area fades with it), and lets go the moment you lift: past about a quarter of its width, or a quick flick, it slides shut
+   from right where it is; otherwise it springs back open. The close skips closeDrawer()'s 140 ms wait for this path only. Replaces the
+   v222 swipe (which waited for a 60 px swipe, then ran the full close). Taps, vertical scrolling and the Jobber quote are untouched. */
+(function () {
+  if (window.__v224) return; window.__v224 = 1; window.STORM_EXT = 'v224';
+  var dr, sc, sx = 0, sy = 0, st = 0, lx = 0, lt = 0, vx = 0, w = 288, mode = 0; /* 0 idle, 1 deciding, 2 dragging */
+  function $(id) { return document.getElementById(id); }
+  function setP(el, p, v) { if (el) el.style.setProperty(p, v, 'important'); }
+  function clr(el) { if (!el) return; ['transform', 'transition', 'animation', 'opacity'].forEach(function (p) { el.style.removeProperty(p); }); }
+  document.addEventListener('touchstart', function (e) {
+    mode = 0; dr = $('drawer'); sc = $('drawer-scrim');
+    if (!dr || !dr.classList.contains('open') || !e.touches || e.touches.length !== 1) return;
+    var t = e.target; if (t && t.closest && t.closest('#detail, .modal, input, textarea, select')) return;
+    sx = lx = e.touches[0].clientX; sy = e.touches[0].clientY; st = lt = Date.now(); vx = 0; w = dr.offsetWidth || 288; mode = 1;
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!mode || !e.touches || !e.touches.length) return;
+    var x = e.touches[0].clientX, dx = x - sx, dy = e.touches[0].clientY - sy, now = Date.now();
+    if (mode === 1) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { mode = 0; return; } /* scrolling the menu */
+      if (dx < -8 && Math.abs(dx) > Math.abs(dy)) { mode = 2; setP(dr, 'transition', 'none'); setP(dr, 'animation', 'none'); setP(sc, 'transition', 'none'); }
+      else return;
+    }
+    if (now > lt) { vx = (x - lx) / (now - lt); lx = x; lt = now; }
+    var off = Math.min(0, dx);
+    setP(dr, 'transform', 'translate3d(' + off + 'px,0,0)'); setP(dr, 'opacity', '1');
+    setP(sc, 'opacity', String(Math.max(0, 1 + off / w)));
+  }, { passive: true, capture: true });
+  function end() {
+    if (mode !== 2) { mode = 0; return; } mode = 0;
+    var d = dr, s = sc, off = lx - sx, shut = off < -w * 0.25 || (vx < -0.35 && off < -20);
+    if (shut) {
+      var left = Math.max(80, Math.min(200, (w + off) / Math.max(1, Math.abs(vx) * 1.2)));
+      setP(d, 'transition', 'transform ' + left + 'ms cubic-bezier(.2,.7,.3,1)'); setP(d, 'transform', 'translate3d(-102%,0,0)');
+      setP(s, 'transition', 'opacity ' + left + 'ms ease'); setP(s, 'opacity', '0');
+      try { closeDrawer._now = true; closeDrawer(); } catch (x) { try { $('hamburger').click(); } catch (y) {} }
+      try { closeDrawer._now = false; } catch (x) {}
+      setTimeout(function () { clr(d); clr(s); }, left + 40);
+    } else {
+      setP(d, 'transition', 'transform .16s cubic-bezier(.2,.7,.3,1)'); setP(d, 'transform', 'translate3d(0,0,0)');
+      setP(s, 'transition', 'opacity .16s ease'); setP(s, 'opacity', '1');
+      setTimeout(function () { ['transform', 'transition', 'opacity'].forEach(function (p) { d.style.removeProperty(p); }); clr(s); }, 200); /* animation stays off until it closes, so the open pop doesn't replay */
+    }
+  }
+  document.addEventListener('touchend', end, { passive: true, capture: true });
+  document.addEventListener('touchcancel', end, { passive: true, capture: true });
+})();
 /* v223 (Hark, 2026-11-13, Dave 13:37 "move the ready to load on truck above the order for upcoming jobs"): in the side menu,
    Ready to load on truck now sits directly above Order for Upcoming Jobs (managers; crew don't see that row, so their menu is unchanged).
    Each row's own script still pins it in place in the page (Order for Upcoming Jobs after Tool Checklist, Ready to load after Staging),
@@ -34,7 +82,7 @@
   var sx = 0, sy = 0, on = false, done = false;
   function isOpen() { var d = document.getElementById('drawer'); return !!(d && d.classList.contains('open')); }
   document.addEventListener('touchstart', function (e) {
-    on = false; done = false;
+    on = false; done = false; if (window.__v224) return; /* v224 took over the swipe */
     if (!isOpen() || !e.touches || e.touches.length !== 1) return;
     var t = e.target; if (t && t.closest && t.closest('#detail, .modal, input, textarea, select')) return;
     sx = e.touches[0].clientX; sy = e.touches[0].clientY; on = true;
