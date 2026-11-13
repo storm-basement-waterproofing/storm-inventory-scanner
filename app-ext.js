@@ -1,3 +1,67 @@
+/* v227 (Hark, 2026-11-13, Dave 14:20 "find a job load a little quicker"): Find a Job (and Order for Upcoming Jobs) open with the
+   job lists already there. The app quietly fetches the Jobber jobs and the saved jobs a few seconds after it starts and keeps a copy
+   on the phone (up to 12 h). When Find a Job opens, that copy shows at once and a fresh one is fetched behind it; the list only
+   redraws if something changed. Retry / refresh, typed searches and every other server call go straight through as before.
+   A Jobber "not connected" answer clears the copy. The Jobber quote and Code.js are untouched. */
+(function () {
+  if (window.__v227) return; window.__v227 = 1; window.STORM_EXT = 'v227';
+  var PRE = 'storm227:', MAXAGE = 12 * 3600e3, FRESH = 3 * 60e3;
+  function get(k) { try { var o = JSON.parse(localStorage.getItem(PRE + k) || 'null'); if (o && Date.now() - o.t < MAXAGE) return o; } catch (e) {} return null; }
+  function put(k, r) { try { var j = JSON.stringify(r); localStorage.setItem(PRE + k, JSON.stringify({ t: Date.now(), j: j })); } catch (e) {} }
+  function drop(k) { try { localStorage.removeItem(PRE + k); } catch (e) {} }
+  function good(k, r) { return k === 'jj' ? !!(r && Array.isArray(r.jobs) && !r.error && r.authorized !== false) : Array.isArray(r); }
+  function inUI() { if (document.getElementById('job-find')) return true; var s = document.getElementById('oj-screen'); return !!(s && s.offsetWidth); }
+  function keyOf(p, a) { if (p === 'getJobberJobs') return a[0] ? null : 'jj'; return String(a[0] || '').trim() ? null : 'sj'; }
+  function call(t, p, a, h) {
+    var k = keyOf(p, a), args = [].slice.call(a);
+    function go(rr) { return rr[p].apply(rr, args); }
+    function s(r) { if (h.s) h.s(r, h.u); } function f(e) { if (h.f) h.f(e, h.u); }
+    if (!k) { /* forced refresh / typed search: real call, keep the copy current */
+      var ck = p === 'getJobberJobs' ? 'jj' : null;
+      return go(t.withSuccessHandler(function (r) { if (ck) { if (good(ck, r)) put(ck, r); else if (r && r.authorized === false) drop(ck); } s(r); }).withFailureHandler(f));
+    }
+    var c = get(k);
+    if (!c || !inUI()) return go(t.withSuccessHandler(function (r) { if (good(k, r)) put(k, r); else if (r && r.authorized === false) drop(k); s(r); }).withFailureHandler(f));
+    var d; try { d = JSON.parse(c.j); } catch (e) { d = null; }
+    if (!good(k, d)) { drop(k); return call(t, p, a, h); }
+    setTimeout(function () { s(d); }, 0);
+    go(t.withSuccessHandler(function (r) {
+      if (good(k, r)) { var j = JSON.stringify(r); put(k, r); if (j !== c.j) s(r); }
+      else if (r && r.authorized === false) { drop(k); s(r); } /* Jobber disconnected: show the real state */
+      /* other errors: keep the copy on screen */
+    }).withFailureHandler(function () {}));
+  }
+  function wrap(r, h) {
+    return new Proxy(r, { get: function (t, p) {
+      var v = t[p];
+      if (p === 'withSuccessHandler') return function (fn) { return wrap(v.call(t, fn), { s: fn, f: h.f, u: h.u }); };
+      if (p === 'withFailureHandler') return function (fn) { return wrap(v.call(t, fn), { s: h.s, f: fn, u: h.u }); };
+      if (p === 'withUserObject') return function (o) { return wrap(v.call(t, o), { s: h.s, f: h.f, u: o }); };
+      if (p === 'getJobberJobs' || p === 'searchJobs') return function () { return call(t, p, arguments, h); };
+      return typeof v === 'function' ? v.bind(t) : v;
+    } });
+  }
+  var real = null;
+  function install() {
+    var g = window.google && google.script; if (!g || !g.run || typeof Proxy !== 'function') return false;
+    if (g.run.__v227) return true;
+    real = g.run;
+    var w = wrap(real, {});
+    try { g.run = w; } catch (e) {}
+    if (g.run !== w) { try { Object.defineProperty(g, 'run', { configurable: true, get: function () { return w; } }); } catch (e) {} }
+    try { Object.defineProperty(real, '__v227', { value: 1 }); } catch (e) {}
+    return true;
+  }
+  function prefetch() {
+    if (!real) return;
+    [['getJobberJobs', false, 'jj'], ['searchJobs', '', 'sj']].forEach(function (x) {
+      var c = get(x[2]); if (c && Date.now() - c.t < FRESH) return;
+      try { real.withSuccessHandler(function (r) { if (good(x[2], r)) put(x[2], r); else if (r && r.authorized === false) drop(x[2]); }).withFailureHandler(function () {})[x[0]](x[1]); } catch (e) {}
+    });
+  }
+  var n = 0; (function tryIt() { if (install()) { setTimeout(prefetch, 2500); return; } if (++n < 40) setTimeout(tryIt, 250); })();
+})();
+
 /* v225 (Hark, 2026-11-13, Dave 13:44 "put in order in the side menu: Home, Orders for upcoming jobs, Receiving orders, Staging jobs,
    Ready to load on truck"): the side menu rows now show in that order, at the top. The other rows (Customer Search, Box Truck Check,
    Tool Checklist) follow right after in their old order, then Categories and More. Rows a person can't see (crew don't get Order for
