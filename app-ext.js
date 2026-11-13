@@ -1,4 +1,6 @@
-/* v215 (Hark, 2026-11-13, Dave): Ready to load on truck patched in place (no flash), photos with placeholder + fade, cached list, open straight on a job (block v214 at the end). Needs app v203.
+/* v216 (Hark, 2026-11-13, Dave 07:28 "uncheck the green boxes it still says completed"): a Completed job's Loaded boxes are locked (greyed, a tap only
+   shows a toast, nothing is sent), and a poll that left before a tap can no longer undo that tap on screen (block v214 at the end). Needs app v205.
+   v215 (Hark, 2026-11-13, Dave): Ready to load on truck patched in place (no flash), photos with placeholder + fade, cached list, open straight on a job (block v214 at the end). Needs app v203.
    v214 (Hark, 2026-11-12, Dave): side menu "Staged jobs" + Loaded on truck boxes (block at the end of this file). Needs app v190 (getStagedJobs). */
 /* v213 (Hark, 2026-11-12, Dave): search magnifier + camera button sit inside the search bar (block at the end of this file). */
 /* v212 (Hark, 2026-11-12, Dave): Staged banner - green check only at 100% staged, otherwise a % ring coloured red -> yellow -> green (block at the end of this file). */
@@ -9309,6 +9311,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#sj214 .s-box.on b { border-color: #16A34A; background: #16A34A; }'
     + '#sj214 .s-box.on b svg { opacity: 1; }'
     + '#sj214 .s-line.on { background: #F0FBF3; }'
+    + '#sj214 .lk216 .s-box { opacity: .55; pointer-events: none; }' /* v216: Completed job: boxes locked */
     + '#sj214 .s-err { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: #FEECEC; color: #B42318; font-size: 13.5px; font-weight: 700; }'
     /* v215: photo placeholder + fade-in, job-list thumbnails, skeleton rows, list <-> job slide/fade */
     + '#sj214 .ph215 { flex: none; display: block; width: 48px; height: 48px; border-radius: 10px; background: #EEF2F7; overflow: hidden; }'
@@ -9424,7 +9427,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (S.cur && !j && S.loaded) S.cur = null;
     if (j) {
       var c = pct(j), done = !!F[j.jobKey];
-      h += '<div class="s-top"><button type="button" class="s-btn" data-sj-back aria-label="Back">\u2039</button><h2>' + esc(j.customer.split(' \u00b7 ')[0] || 'Staged job') + '</h2><button type="button" class="s-btn" data-sj-x aria-label="Close">\u00d7</button></div><div class="s-wrap" data-v215="job">'
+      h += '<div class="s-top"><button type="button" class="s-btn" data-sj-back aria-label="Back">\u2039</button><h2>' + esc(j.customer.split(' \u00b7 ')[0] || 'Staged job') + '</h2><button type="button" class="s-btn" data-sj-x aria-label="Close">\u00d7</button></div><div class="s-wrap' + (done ? ' lk216' : '') + '" data-v215="job">'
         + '<div class="s-head"><div class="s-sub">' + esc(j.customer.split(' \u00b7 ').slice(1).join(' \u00b7 ')) + '</div>'
         + '<div class="s-nm' + (done ? ' c196' : c.p >= 1 ? ' s-done' : '') + '" style="margin-top:6px">' + (done ? 'Completed' : c.p >= 1 ? 'All loaded on the truck' : c.d + ' of ' + c.n + ' loaded on the truck') + '</div>'
         + '<div class="s-sub">Staged ' + esc(when(j.at)) + (j.by ? ' by ' + esc(j.by) : '') + '</div></div>'
@@ -9480,10 +9483,11 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function load() {
     var r = run(); if (!r) { S.err = 'Open the app with signal to see staged jobs.'; S.loaded = true; if (S.open) render(); return; }
     if (S.busy || (S.inflight && Date.now() - S.inflight < 20000)) return; /* one call at a time; a reply that never comes frees the slot after 20 s */
-    S.inflight = Date.now();
+    S.inflight = Date.now(); var tq = S.tq || 0;
     r.withSuccessHandler(function (res) {
       S.inflight = 0;
       if (S.busy) return;
+      if (tq !== (S.tq || 0)) { setTimeout(load, 400); return; } /* v216: this poll left before a Loaded tap: its answer is older than the tap, ask again */
       var jobs = (res && res.jobs) || [];
       jobs.forEach(function (j) { j.lines.forEach(function (l) { var p = S.pend[j.jobKey + '|' + l.bin]; if (p != null) l.loaded = p; }); });
       /* a seeded job (just staged on this phone) stays until the server lists it */
@@ -9498,15 +9502,21 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     }).withFailureHandler(function () { S.inflight = 0; S.loaded = true; S.err = 'Couldn\u2019t load staged jobs. Check signal.'; if (S.open) render(); }).getStagedJobs();
   }
 
+  function toast216(m) { try { showToast(m); } catch (e) {} }
+  var FINMSG = 'This job is finished. A manager can remove it to start over.';
   function tap(bin) {
     var j = find(S.cur); if (!j) return;
+    if (fin()[j.jobKey]) { toast216(FINMSG); return; } /* v216: a Completed job's boxes never change */
+    S.tq = (S.tq || 0) + 1;
     var l = null; j.lines.forEach(function (x) { if (x.bin === bin) l = x; }); if (!l) return;
     var on = !l.loaded, key = j.jobKey + '|' + bin, r = run();
     l.loaded = on; l.loadedBy = on ? dev() : ''; S.pend[key] = on; S.err = ''; render();
     if (!r) { S.err = 'No signal. That tap wasn\u2019t saved.'; l.loaded = !on; delete S.pend[key]; render(); return; }
     S.busy++;
     r.withSuccessHandler(function () { S.busy--; delete S.pend[key]; sig = ''; save(); })
-     .withFailureHandler(function (er) { S.busy--; delete S.pend[key]; l.loaded = !on; S.err = 'Couldn\u2019t save that. Try again.' + (er && er.message ? ' (' + String(er.message).slice(0, 80) + ')' : ''); render(); })
+     .withFailureHandler(function (er) { S.busy--; delete S.pend[key]; l.loaded = !on; S.tq = (S.tq || 0) + 1;
+       if (/JOB_FINISHED/.test(String(er && (er.message || er) || ''))) { S.err = ''; render(); toast216(FINMSG); try { if (window.stormSJLoadF203) window.stormSJLoadF203(); } catch (x) {} return; } /* v216: finished on another phone */
+       S.err = 'Couldn\u2019t save that. Try again.' + (er && er.message ? ' (' + String(er.message).slice(0, 80) + ')' : ''); render(); })
      .setStagingCheck('ld:' + j.jobKey, j.customer, bin, l.name, l.qty, on, dev(), (window.stormCrewPin && window.stormCrewPin.get) ? window.stormCrewPin.get() : '');
   }
   /* open(jobKey?, seedJob?, instant?): jobKey opens straight on that job's load screen (no list first); seedJob = the job this phone just
@@ -9554,6 +9564,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (t.closest('[data-sj-back]')) { e.preventDefault(); S.cur = null; S.err = ''; render(); return; }
     if ((b = t.closest('[data-sj-job]'))) { e.preventDefault(); if (b.classList.contains('sk215')) return; S.cur = b.getAttribute('data-sj-job'); S.err = ''; render(); return; }
     if ((b = t.closest('[data-sj-bin]'))) { e.preventDefault(); tap(b.getAttribute('data-sj-bin')); return; }
+    if (t.closest('.lk216 .s-line')) { e.preventDefault(); toast216(FINMSG); return; } /* v216: the greyed box takes no taps; its row answers */
   }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.open) close(); });
 })();
