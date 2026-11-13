@@ -1,3 +1,61 @@
+/* v229 (Hark, 2026-11-13, Dave 14:52 "the slide ... double opens", "only on the swiping action not the clicking x"): swiping the
+   side menu shut no longer plays twice. v224 let go of the drawer 80-200 ms after the swipe, while the app was still closing it, so
+   the menu's slide-out (or its open slide) replayed from fully open. Now the drawer stays off-screen with its animations off until
+   the app has finished closing it. Same swipe feel otherwise; the X, taps and the Jobber quote are untouched. Replaces v224. */
+(function () {
+  if (window.__v229) return; window.__v229 = 1; window.__v224 = 1; /* v224 stands down */
+  try { Object.defineProperty(window, 'STORM_EXT', { value: 'v229', writable: false, configurable: false }); } catch (e) {}
+  var dr, sc, sx = 0, sy = 0, st = 0, lx = 0, lt = 0, vx = 0, w = 288, mode = 0; /* 0 idle, 1 deciding, 2 dragging */
+  function $(id) { return document.getElementById(id); }
+  function setP(el, p, v) { if (el) el.style.setProperty(p, v, 'important'); }
+  function clr(el) { if (!el) return; ['transform', 'transition', 'animation', 'opacity'].forEach(function (p) { el.style.removeProperty(p); }); }
+  document.addEventListener('touchstart', function (e) {
+    mode = 0; dr = $('drawer'); sc = $('drawer-scrim');
+    if (!dr || !dr.classList.contains('open') || !e.touches || e.touches.length !== 1) return;
+    var t = e.target; if (t && t.closest && t.closest('#detail, .modal, input, textarea, select')) return;
+    sx = lx = e.touches[0].clientX; sy = e.touches[0].clientY; st = lt = Date.now(); vx = 0; w = dr.offsetWidth || 288; mode = 1;
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!mode || !e.touches || !e.touches.length) return;
+    var x = e.touches[0].clientX, dx = x - sx, dy = e.touches[0].clientY - sy, now = Date.now();
+    if (mode === 1) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { mode = 0; return; } /* scrolling the menu */
+      if (dx < -8 && Math.abs(dx) > Math.abs(dy)) { mode = 2; setP(dr, 'transition', 'none'); setP(dr, 'animation', 'none'); setP(sc, 'transition', 'none'); }
+      else return;
+    }
+    if (now > lt) { vx = (x - lx) / (now - lt); lx = x; lt = now; }
+    var off = Math.min(0, dx);
+    setP(dr, 'transform', 'translate3d(' + off + 'px,0,0)'); setP(dr, 'opacity', '1');
+    setP(sc, 'opacity', String(Math.max(0, 1 + off / w)));
+  }, { passive: true, capture: true });
+  function end() {
+    if (mode !== 2) { mode = 0; return; } mode = 0;
+    var d = dr, s = sc, off = lx - sx, shut = off < -w * 0.25 || (vx < -0.35 && off < -20);
+    if (shut) {
+      var left = Math.max(80, Math.min(200, (w + off) / Math.max(1, Math.abs(vx) * 1.2)));
+      setP(d, 'transition', 'transform ' + left + 'ms cubic-bezier(.2,.7,.3,1)'); setP(d, 'transform', 'translate3d(-102%,0,0)');
+      setP(s, 'transition', 'opacity ' + left + 'ms ease'); setP(s, 'opacity', '0');
+      try { closeDrawer._now = true; closeDrawer(); } catch (x) { try { $('hamburger').click(); } catch (y) {} }
+      try { closeDrawer._now = false; } catch (x) {}
+      /* hold the drawer off-screen (animations off) until the app has shut it and its slide-out class is gone, so neither the
+         open slide nor the slide-out can replay from fully open after the finger already closed it */
+      var t0 = Date.now(), shut0 = false;
+      (function fin() {
+        var open = d.classList.contains('open'), out = d.classList.contains('drw-out');
+        if (!open) shut0 = true;
+        if (shut0 && open) { clr(d); clr(s); return; } /* reopened meanwhile: let it open normally */
+        if ((open || out || Date.now() - t0 < left + 40) && Date.now() - t0 < 1500) { setTimeout(fin, 30); return; }
+        clr(d); clr(s);
+      })();
+    } else {
+      setP(d, 'transition', 'transform .16s cubic-bezier(.2,.7,.3,1)'); setP(d, 'transform', 'translate3d(0,0,0)');
+      setP(s, 'transition', 'opacity .16s ease'); setP(s, 'opacity', '1');
+      setTimeout(function () { ['transform', 'transition', 'opacity'].forEach(function (p) { d.style.removeProperty(p); }); clr(s); }, 200); /* animation stays off until it closes, so the open pop doesn't replay */
+    }
+  }
+  document.addEventListener('touchend', end, { passive: true, capture: true });
+  document.addEventListener('touchcancel', end, { passive: true, capture: true });
+})();
 /* v228 (Hark, 2026-11-13, Dave 14:26-14:36):
    1. The "Loaded the Jobber job for ..." note that flashed behind the Jobber quote button is gone; any other note sits above the button.
    2. The bottom "Jobber quote" button shows the white Jobber logo (same file as the side menu footer). Its other state still reads
