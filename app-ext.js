@@ -1,3 +1,37 @@
+/* v222 (Hark, 2026-11-13, Dave 13:32 "swipe your finger to the left on the drawer that it closes"): while the side menu is open, a
+   leftward swipe (on the menu or the dimmed area beside it) closes it through the existing closeDrawer(), same as X / back.
+   Only a clearly sideways swipe counts (60 px left, more sideways than up/down), so scrolling the menu and taps still work. The version badge (bottom right) now also shows the patch version, ext v222. Nothing else changed. */
+(function () {
+  if (window.__v222) return; window.__v222 = 1;
+  var sx = 0, sy = 0, on = false, done = false;
+  function isOpen() { var d = document.getElementById('drawer'); return !!(d && d.classList.contains('open')); }
+  document.addEventListener('touchstart', function (e) {
+    on = false; done = false;
+    if (!isOpen() || !e.touches || e.touches.length !== 1) return;
+    var t = e.target; if (t && t.closest && t.closest('#detail, .modal, input, textarea, select')) return;
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; on = true;
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!on || done || !e.touches || !e.touches.length) return;
+    var dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+    if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)) { on = false; return; }
+    if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      done = true; on = false;
+      if (isOpen()) { try { closeDrawer(); } catch (x) { try { document.getElementById('hamburger').click(); } catch (y) {} } }
+    }
+  }, { passive: true, capture: true });
+  document.addEventListener('touchend', function () { on = false; }, { passive: true, capture: true });
+  document.addEventListener('touchcancel', function () { on = false; }, { passive: true, capture: true });
+  /* version tag: the bottom-right badge now shows the app version plus this patch version (e.g. "v175 · ext v222") */
+  var EXT = 'v222'; window.STORM_EXT = EXT;
+  function tag() {
+    var f = document.querySelector('.foot'), m = f && (f.textContent || '').match(/Inventory\s*\u00b7\s*(v\d+)/), txt = (m ? m[1] + ' \u00b7 ' : '') + 'ext ' + EXT;
+    var vb = document.getElementById('ver-badge'); if (vb && vb.textContent !== txt) vb.textContent = txt;
+    var t = document.getElementById('st-ver'); if (t && t.textContent !== txt) t.textContent = txt;
+  }
+  [0, 1700, 4000, 9000].forEach(function (ms) { setTimeout(tag, ms); });
+  window.addEventListener('load', function () { setTimeout(tag, 300); });
+})();
 /* v221 (Hark, 2026-11-13, Dave 13:26 "make it more responsive"): the menu button (top left) opens at once. The side menu used to be built
    (cl-menu, par ring, category counts, Receiving Orders / Ready to load rows, drawer categories) in timers fired by the tap itself, so the
    slide stalled on the first frames. Now it is built ahead of time, once the main list is drawn and the phone is idle: a synthetic tap on
