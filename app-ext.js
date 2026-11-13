@@ -1,3 +1,59 @@
+/* v231 (Hark, 2026-11-13, Dave 15:05 "put the dollar amount next to the job when the user is searching for the job"): in Find a Job
+   (and anywhere the Jobber job rows show), managers see each Jobber job's quote total on the right of the job's name. The amount comes
+   from the existing manager-only getJobberQuoteAmounts call (one job at a time, 3 at once, kept on the phone for 6 h), so crew never
+   see a price and Code.js, the sheet, the Jobber quote and the quote lock are untouched. A job with no quote total shows nothing. */
+(function () {
+  if (window.__v231) return; window.__v231 = 1;
+  try { Object.defineProperty(window, 'STORM_EXT', { value: 'v231', writable: false, configurable: false }); } catch (e) {}
+  var KEY = 'storm231:amt', OK = 6 * 3600e3, MISS = 3600e3, mem = null, busy = 0, Q = [], want = {};
+  function mgr() { try { return !!(window.stormAccess && stormAccess.isMgr()); } catch (e) { return false; } }
+  function tok() { try { return window.stormAccess ? stormAccess.token() : ''; } catch (e) { return ''; } }
+  function run() { try { return window.google && google.script && google.script.run; } catch (e) { return null; } }
+  function load() { if (!mem) { try { mem = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { mem = {}; } } return mem; }
+  function save() { try { var m = load(), now = Date.now(); Object.keys(m).forEach(function (k) { if (now - m[k].t > OK) delete m[k]; }); localStorage.setItem(KEY, JSON.stringify(m)); } catch (e) {} }
+  function have(id) { var o = load()[id]; return o && (Date.now() - o.t < (o.v == null ? MISS : OK)) ? o : null; }
+  function money(v) { var n = Number(v); if (v == null || v === '' || isNaN(n)) return ''; var c = Math.round(n * 100) % 100 !== 0;
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: c ? 2 : 0, maximumFractionDigits: c ? 2 : 0 }); }
+  function jobs() { try { var o = JSON.parse(localStorage.getItem('storm227:jj') || 'null'); var r = o && JSON.parse(o.j); return (r && r.jobs) || []; } catch (e) { return []; } }
+  function idFor(row) {
+    var m = /Job #\s*([A-Za-z0-9-]+)/.exec((row.querySelector('.jf-meta') || {}).textContent || ''); if (!m) return '';
+    var js = jobs(); for (var i = 0; i < js.length; i++) if (String(js[i].jobNumber) === m[1]) return js[i].id;
+    return '';
+  }
+  function pump() {
+    var r = run(), t = tok(); if (!r || !t) return;
+    while (busy < 3 && Q.length) (function (id) {
+      busy++;
+      function done(v) { busy--; load()[id] = { t: Date.now(), v: v }; delete want[id]; save(); paintSoon(); pump(); }
+      try { run().withSuccessHandler(function (x) { done(x && x.amounts && x.amounts.total != null ? Number(x.amounts.total) : null); })
+        .withFailureHandler(function () { busy--; delete want[id]; pump(); }).getJobberQuoteAmounts(id, t); }
+      catch (e) { busy--; delete want[id]; }
+    })(Q.shift());
+  }
+  function paint() {
+    if (!mgr()) return;
+    var rows = document.querySelectorAll('.jf-item[data-jf-jb]'); if (!rows.length) return;
+    [].forEach.call(rows, function (row) {
+      var id = row.__id231 || (row.__id231 = idFor(row)); if (!id) return;
+      var o = have(id), nm = row.querySelector('.jf-name'); if (!nm) return;
+      var cur = nm.querySelector('.amt231'), txt = o && o.v != null ? money(o.v) : '';
+      if (txt) { if (!cur) { cur = document.createElement('span'); cur.className = 'amt231'; nm.appendChild(cur); } if (cur.textContent !== txt) cur.textContent = txt; row.classList.add('has231'); }
+      else if (cur) { cur.remove(); row.classList.remove('has231'); }
+      if (!o && !want[id]) { want[id] = 1; Q.push(id); }
+    });
+    pump();
+  }
+  var pq = 0; function paintSoon() { if (!pq) pq = requestAnimationFrame(function () { pq = 0; try { paint(); } catch (e) {} }); }
+  var st = document.createElement('style'); st.id = 'storm-v231-css';
+  st.textContent = '.jf-item[data-jf-jb] { position: relative; } .jf-item.has231 > .jf-name { padding-right: 92px; }'
+    + ' .jf-item[data-jf-jb] .amt231 { position: absolute; top: 12px; right: 14px; padding: 3px 9px; border-radius: 999px; background: #E6F5FC; color: #1A8FC4; font-size: 13.5px; font-weight: 800; letter-spacing: 0; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 18px; }';
+  (document.head || document.documentElement).appendChild(st);
+  if (window.MutationObserver) new MutationObserver(function (ms) {
+    if (!document.getElementById('job-find') && !document.getElementById('oj-screen')) return;
+    for (var i = 0; i < ms.length; i++) { var a = ms[i].addedNodes; for (var k = 0; k < a.length; k++) { var n = a[k];
+      if (n.nodeType === 1 && (n.matches('.jf-item, #job-find, #jf-list, #oj-screen') || n.querySelector('.jf-item[data-jf-jb]'))) { paintSoon(); return; } } }
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
 /* v230 (Hark, 2026-11-13, Dave 15:02 "the button for the jobber ... jumps and has a very fast flash"): the Jobber logo on the bottom
    button no longer jumps or flashes. The logo is now built into this file (no download, so no empty pill while it loads), it switches
    with the button's own state (body.mgr-show-quote) instead of a script that ran a moment later, and the label keeps one fixed width
