@@ -1,3 +1,151 @@
+/* v228 (Hark, 2026-11-13, Dave 14:26-14:36):
+   1. The "Loaded the Jobber job for ..." note that flashed behind the Jobber quote button is gone; any other note sits above the button.
+   2. The bottom "Jobber quote" button shows the white Jobber logo (same file as the side menu footer). Its other state still reads
+      "Staging list". The button, the quote and the quote lock are untouched: crew still open the quote from it.
+   3. "Stage job" reads "Stage Job".
+   4. Pull list (after Stage Job): Print Preview and Print buttons at the bottom, above Staged Job Complete. Print sends the pull list
+      (customer, job #, every item, qty, pulled boxes) to the wrapper's print (same path the old Pull List print used).
+   5. Pull list opens with a smoother slide, the header no longer grows, and the items fade in once instead of popping in.
+   6. Check marks stick: a second tap on the same box within 0.45 s (a bounce) is ignored; saves are queued/retried and the
+      server's lists can't undo a tap (see the v228 part inside the v227 block).
+   7. Product details: the Edit button is gone from the top bar, so the STORM logo is centered again.
+   Version: window.STORM_EXT is locked to this block's version, since older blocks further down used to overwrite it. Future blocks:
+   Object.defineProperty(window, 'STORM_EXT', { value: 'vNNN', writable: false, configurable: true }). */
+(function () {
+  if (window.__v228) return; window.__v228 = 1;
+  try { Object.defineProperty(window, 'STORM_EXT', { value: 'v228', writable: false, configurable: true }); } catch (e) { window.STORM_EXT = 'v228'; }
+  var LOGO = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/jobber-logo-white-open.png?v=1';
+  var EZ = 'cubic-bezier(.32,.72,0,1)';
+  var css = ''
+    + '#detail .detail-bar .ap-dedit { display: none !important; }'
+    + ' [data-jc188-add] { text-transform: capitalize; }'
+    + ' #storm-bubble.lg228 #storm-bubble-t { display: inline-block; font-size: 0 !important; color: transparent; width: 84px; height: 15px; background: url("' + LOGO + '") center / contain no-repeat; vertical-align: middle; }'
+    + ' body.mgr-qf .jc-toast { bottom: calc(92px + env(safe-area-inset-bottom)) !important; }'
+    + ' #pl196 { padding-bottom: calc(236px + env(safe-area-inset-bottom)) !important; }' /* no will-change: it turns the fixed footer into a scrolling one */
+    + ' #pl196.open { animation: pl228in .36s ' + EZ + ' backwards !important; }'
+    + ' #pl196.closing { animation: pl228out .28s ' + EZ + ' forwards !important; }'
+    + ' @keyframes pl228in { from { transform: translate3d(100%,0,0); } to { transform: none; } }'
+    + ' @keyframes pl228out { from { transform: none; } to { transform: translate3d(100%,0,0); } }'
+    + ' #pl196 .h span { display: block; min-height: 17px; }'
+    + ' #pl196.in228 .l, #pl196.in228 .nt { animation: pl228row .3s ' + EZ + ' both; }'
+    + ' @keyframes pl228row { from { opacity: 0; transform: translate3d(0,6px,0); } to { opacity: 1; transform: none; } }'
+    + ' #pl196 .pr228 { display: flex; gap: 10px; max-width: 588px; margin: 0 auto 10px; }'
+    + ' #pl196 .pr228 button { flex: 1; min-height: 48px; border: 0; border-radius: 24px; background: #fff; color: #0F1720; font: inherit; font-size: 14.5px; font-weight: 800;'
+    + '  box-shadow: 0 2px 8px rgba(15,23,32,.08); transition: transform .12s ease; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }'
+    + ' #pl196 .pr228 button:active { transform: scale(.96); }'
+    + ' #pl196 .pr228 button { background: #fff !important; } [data-pv228]::after { content: "Print Preview"; } [data-pr228]::after, [data-pv-go]::after { content: "Print"; }' /* labels drawn by CSS: an older block hides any button whose text is just Print */
+    + ' #pv228 { position: fixed; inset: 0; z-index: 2147483647; display: flex; flex-direction: column; background: rgba(15,23,32,.55); font-family: Montserrat, -apple-system, Segoe UI, Roboto, sans-serif; animation: pv228f .22s ease both; }'
+    + ' #pv228.out { animation: pv228o .22s ease forwards; }'
+    + ' #pv228 .pg { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: calc(16px + env(safe-area-inset-top)) 14px 12px; }'
+    + ' #pv228 .sheet { max-width: 640px; margin: 0 auto; background: #fff; border-radius: 10px; padding: 22px 18px; box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: pv228u .32s ' + EZ + ' both; }'
+    + ' #pv228 .bar { display: flex; gap: 10px; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); background: #EAF0F7; }'
+    + ' #pv228 .bar button { flex: 1; min-height: 52px; border: 0; border-radius: 26px; font: inherit; font-size: 15px; font-weight: 800; touch-action: manipulation; transition: transform .12s ease; }'
+    + ' #pv228 .bar button:active { transform: scale(.96); }'
+    + ' #pv228 .bar [data-pv-x] { background: #fff; color: #0F1720; } #pv228 .bar [data-pv-go] { background: #29A8E0; color: #fff; }'
+    + ' @keyframes pv228f { from { opacity: 0; } to { opacity: 1; } } @keyframes pv228o { to { opacity: 0; } }'
+    + ' @keyframes pv228u { from { opacity: 0; transform: translate3d(0,14px,0) scale(.98); } to { opacity: 1; transform: none; } }';
+  var PCSS = '.p228 { font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 12pt; }'
+    + ' .p228 h1 { font-size: 18pt; margin: 0 0 2px; } .p228 .sub { color: #444; margin: 0 0 12px; font-size: 11pt; }'
+    + ' .p228 table { width: 100%; border-collapse: collapse; } .p228 th { text-align: left; font-size: 10pt; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #000; padding: 6px 4px; }'
+    + ' .p228 td { border-bottom: 1px solid #bbb; padding: 9px 4px; vertical-align: middle; } .p228 .c { text-align: center; width: 70px; }'
+    + ' .p228 .bx { display: inline-block; width: 18px; height: 18px; border: 2px solid #000; line-height: 18px; text-align: center; font-weight: bold; }'
+    + ' .p228 .pn { margin-top: 12px; font-size: 10.5pt; color: #444; } .p228 .pf { margin-top: 18px; font-size: 9.5pt; color: #666; display: flex; justify-content: space-between; }';
+  var st = document.createElement('style'); st.id = 'storm-v228-css'; st.textContent = css + ' #pv228 ' + PCSS.replace(/\} \./g, '} #pv228 .');
+  (document.head || document.documentElement).appendChild(st);
+
+  function E(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function cust() { try { return JSON.parse(localStorage.getItem('stormJobCustomerV1') || '{}') || {}; } catch (e) { return {}; } }
+
+  /* 1 + 2: the toast and the bubble logo */
+  function bubble() {
+    var t = document.getElementById('storm-bubble-t'), b = document.getElementById('storm-bubble'); if (!t || !b) return false;
+    var on = /^\s*Jobber quote\s*$/i.test(t.textContent); if (b.classList.contains('lg228') !== on) b.classList.toggle('lg228', on);
+    if (!t.__o228 && window.MutationObserver) { t.__o228 = 1; new MutationObserver(bubble).observe(t, { childList: true, characterData: true, subtree: true }); }
+    return true;
+  }
+  if (window.MutationObserver) new MutationObserver(function (ms) {
+    ms.forEach(function (m) { [].forEach.call(m.addedNodes, function (n) {
+      if (n.nodeType !== 1) return;
+      if (n.classList.contains('jc-toast') && /^\s*Loaded the Jobber job/i.test(n.textContent)) n.remove();
+      else if (n.id === 'storm-bubble') bubble();
+      else if (n.id === 'pl196') hookPl(n);
+    }); });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+
+  /* 4 + 5: Pull list */
+  var prevSk = false;
+  function hookPl(s) {
+    if (!s || s.__o228) return; s.__o228 = 1; dress(s);
+    new MutationObserver(function () { dress(s); }).observe(s, { childList: true });
+  }
+  function dress(s) {
+    var sk = !!s.querySelector('.sk203'), rows = s.querySelector('.l:not(.sk203)');
+    if (prevSk && !sk && rows) { s.classList.remove('in228'); void s.offsetWidth; s.classList.add('in228'); clearTimeout(s.__t228); s.__t228 = setTimeout(function () { s.classList.remove('in228'); }, 700); }
+    prevSk = sk;
+    var ft = s.querySelector('.ft'), go = ft && ft.querySelector('[data-pl-go]');
+    if (go && !ft.querySelector('.pr228')) ft.insertAdjacentHTML('afterbegin', '<div class="pr228"><button type="button" data-pv228 aria-label="Print preview"></button><button type="button" data-pr228 aria-label="Print"></button></div>');
+    if (ft && !ft.__ro228 && window.ResizeObserver) { ft.__ro228 = 1; new ResizeObserver(function () { pad(s); }).observe(ft); }
+    pad(s);
+  }
+  function pad(s) { /* the taller footer must not cover the last rows */
+    var ft = s && s.querySelector('.ft'); if (!ft || !ft.querySelector('.pr228')) return;
+    var want = Math.ceil(Math.max(window.innerHeight, s.getBoundingClientRect().bottom) - ft.offsetTop + 20); /* offsetTop ignores the slide-in transform */
+    if (want > 60 && parseFloat(getComputedStyle(s).paddingBottom) < want) s.style.setProperty('padding-bottom', want + 'px', 'important');
+  }
+  window.addEventListener('resize', function () { pad(document.getElementById('pl196')); });
+  setTimeout(function () { pad(document.getElementById('pl196')); }, 400);
+  function doc() {
+    var s = document.getElementById('pl196'); if (!s) return null;
+    var c = cust(), nm = (s.querySelector('.h b') || {}).textContent || [c.first, c.last].filter(Boolean).join(' ');
+    var num = c.jobberJobNumber || c.quoteJobberNumber || '', ti = c.jobberTitle || c.quoteJobberTitle || '';
+    var addr = c.address || c.addr || c.street || '';
+    var L = [].map.call(s.querySelectorAll('.l:not(.sk203)'), function (l) {
+      var n = l.querySelector('.n'), sm = n && n.querySelector('small'), name = n ? n.firstChild && n.firstChild.nodeType === 3 ? n.firstChild.nodeValue : n.textContent.replace(sm ? sm.textContent : '', '') : '';
+      return { name: String(name).trim(), qty: sm ? sm.textContent.replace(/^Qty\s*/i, '') : '', on: !!l.querySelector('.bx.on') };
+    });
+    if (!L.length) return null;
+    var nt = s.querySelector('.nt'), d = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' });
+    var h = '<div class="p228"><h1>Pull list \u00b7 ' + E(nm) + '</h1><div class="sub">' + [num ? 'Job #' + E(num) : '', E(ti), E(addr)].filter(Boolean).join(' \u00b7 ') + '</div>'
+      + '<table><thead><tr><th>Item</th><th class="c">Qty</th><th class="c">Pulled</th></tr></thead><tbody>'
+      + L.map(function (l) { return '<tr><td>' + E(l.name) + '</td><td class="c"><b>' + E(l.qty) + '</b></td><td class="c"><span class="bx">' + (l.on ? '\u2713' : '') + '</span></td></tr>'; }).join('')
+      + '</tbody></table>' + (nt && nt.textContent.trim() ? '<div class="pn">' + E(nt.textContent.trim()) + '</div>' : '')
+      + '<div class="pf"><span><b>STORM Basement Waterproofing</b></span><span>Printed ' + E(d) + '</span></div></div>';
+    return { css: PCSS, body: h };
+  }
+  function toast(m) { try { showToast(m); } catch (e) {} }
+  function print() {
+    var d = doc(); if (!d) { toast('The list is still loading.'); return; }
+    if (window.top !== window) { try { window.top.postMessage({ storm: 'printPull', css: d.css, body: d.body }, '*'); return; } catch (e) {} }
+    var root = document.getElementById('pull-print-root'); if (!root) { root = document.createElement('div'); root.id = 'pull-print-root'; document.body.appendChild(root); }
+    root.innerHTML = '<style>@media print{' + d.css + '}</style>' + d.body;
+    setTimeout(function () { try { window.print(); } catch (e) { toast('Printing is not available here'); } }, 300);
+  }
+  function preview() {
+    var d = doc(); if (!d) { toast('The list is still loading.'); return; }
+    var o = document.getElementById('pv228'); if (o) o.remove();
+    o = document.createElement('div'); o.id = 'pv228'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-label', 'Print preview');
+    o.innerHTML = '<div class="pg"><div class="sheet">' + d.body + '</div></div><div class="bar"><button type="button" data-pv-x>Close</button><button type="button" data-pv-go aria-label="Print"></button></div>';
+    (document.getElementById('pl196') || document.body).appendChild(o); /* inside the Pull list: v200 hides anything that covers it */
+  }
+  function unpreview() { var o = document.getElementById('pv228'); if (!o) return; o.classList.add('out'); setTimeout(function () { o.remove(); }, 230); }
+
+  /* 6: a bounce on the same box never unticks it */
+  var last = {};
+  window.addEventListener('click', function (ev) {
+    var t = ev.target; if (!t || !t.closest) return;
+    var b = t.closest('#pl196 [data-pl-bin], #sj214 [data-sj-bin]');
+    if (b) { var k = (b.getAttribute('data-pl-bin') ? 'p|' + b.getAttribute('data-pl-bin') : 's|' + b.getAttribute('data-sj-bin')), now = Date.now();
+      if (last[k] && now - last[k] < 450) { ev.preventDefault(); ev.stopImmediatePropagation(); return; } last[k] = now; return; }
+    if (t.closest('#pl196 [data-pv228]')) { ev.preventDefault(); ev.stopImmediatePropagation(); preview(); return; }
+    if (t.closest('#pl196 [data-pr228]')) { ev.preventDefault(); ev.stopImmediatePropagation(); print(); return; }
+    if (t.closest('#pv228 [data-pv-go]')) { ev.preventDefault(); ev.stopImmediatePropagation(); print(); return; }
+    if (t.closest('#pv228 [data-pv-x]')) { ev.preventDefault(); ev.stopImmediatePropagation(); unpreview(); return; }
+  }, true);
+  window.addEventListener('dblclick', function (ev) { var t = ev.target; if (t && t.closest && t.closest('#pl196 [data-pl-bin], #sj214 [data-sj-bin]')) ev.preventDefault(); }, true);
+
+  (function boot(n) { bubble(); var p = document.getElementById('pl196'); if (p) hookPl(p); if (n < 120 && (!document.getElementById('storm-bubble') || !p)) setTimeout(function () { boot(n + 1); }, 500); })(0);
+})();
+
 /* v227 (Hark, 2026-11-13, Dave 14:20 "find a job load a little quicker"): Find a Job (and Order for Upcoming Jobs) open with the
    job lists already there. The app quietly fetches the Jobber jobs and the saved jobs a few seconds after it starts and keeps a copy
    on the phone (up to 12 h). When Find a Job opens, that copy shows at once and a fresh one is fetched behind it; the list only
@@ -38,8 +186,42 @@
       if (p === 'withFailureHandler') return function (fn) { return wrap(v.call(t, fn), { s: h.s, f: fn, u: h.u }); };
       if (p === 'withUserObject') return function (o) { return wrap(v.call(t, o), { s: h.s, f: h.f, u: o }); };
       if (p === 'getJobberJobs' || p === 'searchJobs') return function () { return call(t, p, arguments, h); };
+      /* v228: Pulled / Loaded check marks always stick (see the v228 note at the top) */
+      if (p === 'setStagingCheck') return function () { return chk(t, arguments, h); };
+      if (p === 'getStaging' || p === 'getStagedJobs') return function () { var a = [].slice.call(arguments), rr = t.withSuccessHandler(function (r) { try { fix(p, a, r); } catch (e) {} if (h.s) h.s(r, h.u); }).withFailureHandler(function (e) { if (h.f) h.f(e, h.u); }); return rr[p].apply(rr, a); };
       return typeof v === 'function' ? v.bind(t) : v;
     } });
+  }
+  /* v228: check-mark saves. Each tap's wanted state is remembered per box; saves go out at most two at a time, a newer tap on the
+     same box replaces one still waiting, a failed save is retried 3 times before the screen hears about it, and any list the
+     server sends back (Pull list ticks, Ready to load boxes) shows the box as tapped while its save is pending and for 15 s after. */
+  var D = {}, Q = [], act = 0, HOLD = 15000;
+  function chk(t, a, h) {
+    var args = [].slice.call(a), key = String(args[0]) + '|' + String(args[2]), on = !!args[5];
+    var d = D[key] = D[key] || { n: 0 }; d.on = on; d.t = Date.now(); d.n++;
+    for (var i = 0; i < Q.length; i++) if (Q[i].key === key) { Q[i].old.push(Q[i].h); Q[i].h = h; Q[i].args = args; Q[i].t = t; d.n--; return; }
+    Q.push({ key: key, t: t, args: args, h: h, old: [], tries: 0 }); pump();
+  }
+  function pump() {
+    while (act < 2 && Q.length) (function (it) {
+      act++;
+      var rr = it.t.withSuccessHandler(function (r) { act--; var d = D[it.key]; if (d) { d.n = Math.max(0, d.n - 1); d.t = Date.now(); }
+          it.old.forEach(function (o) { if (o.s) try { o.s(r, o.u); } catch (e) {} }); if (it.h.s) try { it.h.s(r, it.h.u); } catch (e) {} pump(); })
+        .withFailureHandler(function (e) { act--; var m = String(e && (e.message || e) || '');
+          if (it.tries < 3 && !/STAGED|LOCKED|FINISHED|NOT_/.test(m)) { it.tries++; setTimeout(function () { Q.unshift(it); pump(); }, 600 * it.tries); pump(); return; }
+          var d = D[it.key]; if (d) { d.n = Math.max(0, d.n - 1); if (!d.n) delete D[it.key]; }
+          it.old.forEach(function (o) { if (o.s) try { o.s(null, o.u); } catch (x) {} }); if (it.h.f) try { it.h.f(e, it.h.u); } catch (x) {} pump(); });
+      rr.setStagingCheck.apply(rr, it.args);
+    })(Q.shift());
+  }
+  function want(key) { var d = D[key]; if (!d) return null; if (d.n > 0 || Date.now() - d.t < HOLD) return d.on; delete D[key]; return null; }
+  function fix(p, a, r) {
+    if (!r) return;
+    if (p === 'getStaging') {
+      var k = String(r.jobKey || a[0]), rows = r.rows = r.rows || [], seen = {};
+      rows.forEach(function (x) { if (!x || !x.itemBin) return; seen[x.itemBin] = 1; var w = want(k + '|' + x.itemBin); if (w !== null) x.checked = w; });
+      Object.keys(D).forEach(function (key) { if (key.indexOf(k + '|') !== 0) return; var b = key.slice(k.length + 1), w = want(key); if (w !== null && !seen[b]) rows.push({ itemBin: b, checked: w }); });
+    } else (r.jobs || []).forEach(function (j) { (j.lines || []).forEach(function (l) { var w = want('ld:' + j.jobKey + '|' + l.bin); if (w !== null) l.loaded = w; }); });
   }
   var real = null;
   function install() {
