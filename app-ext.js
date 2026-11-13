@@ -1,3 +1,31 @@
+/* v223 (Hark, 2026-11-13, Dave 13:37 "move the ready to load on truck above the order for upcoming jobs"): in the side menu,
+   Ready to load on truck now sits directly above Order for Upcoming Jobs (managers; crew don't see that row, so their menu is unchanged).
+   Each row's own script still pins it in place in the page (Order for Upcoming Jobs after Tool Checklist, Ready to load after Staging),
+   so moving the row itself would make them fight forever. Instead the menu is laid out as a column and only the visible order is set:
+   every row keeps its place except Ready to load, shown just before Order for Upcoming Jobs. Taps, history and the Jobber quote are untouched. */
+(function () {
+  if (window.__v223) return; window.__v223 = 1; window.STORM_EXT = 'v223';
+  var st = document.createElement('style'); st.id = 'storm-v223-css';
+  st.textContent = 'html:not(.storm-crew) #cl-menu.o223 { display: flex; flex-direction: column; }'
+    + ' html:not(.storm-crew) #cl-menu.o223 > .cl-lbl, html:not(.storm-crew) #cl-menu.o223 > #cl-more-lbl { margin-top: 16px; }'; /* flex margins don't collapse: keep the old 18 px gap */
+  (document.head || document.documentElement).appendChild(st);
+  function arrange() {
+    var mn = document.getElementById('cl-menu'); if (!mn) return false;
+    var r = mn.querySelector(':scope > [data-sj214]'), oj = mn.querySelector(':scope > [data-oj-menu]');
+    if (!r || !oj) { if (mn.classList.contains('o223')) mn.classList.remove('o223'); return false; }
+    var kids = mn.children, ojAt = 0;
+    for (var i = 0; i < kids.length; i++) { if (kids[i] === oj) ojAt = i; var o = String(i * 2); if (kids[i] !== r && kids[i].style.order !== o) kids[i].style.order = o; }
+    var ro = String(ojAt * 2 - 1); if (r.style.order !== ro) r.style.order = ro;
+    if (!mn.classList.contains('o223')) mn.classList.add('o223');
+    return true;
+  }
+  (function w(n) {
+    var mn = document.getElementById('cl-menu');
+    if (mn && !mn.__o223) { mn.__o223 = 1; try { new MutationObserver(function () { try { arrange(); } catch (e) {} }).observe(mn, { childList: true }); } catch (e) {} }
+    try { arrange(); } catch (e) {}
+    if (n < 240 && !(mn && mn.__o223)) setTimeout(function () { w(n + 1); }, 500);
+  })(0);
+})();
 /* v222 (Hark, 2026-11-13, Dave 13:32 "swipe your finger to the left on the drawer that it closes"): while the side menu is open, a
    leftward swipe (on the menu or the dimmed area beside it) closes it through the existing closeDrawer(), same as X / back.
    Only a clearly sideways swipe counts (60 px left, more sideways than up/down), so scrolling the menu and taps still work. The version badge (bottom right) now also shows the patch version, ext v222. Nothing else changed. */
@@ -23,7 +51,7 @@
   document.addEventListener('touchend', function () { on = false; }, { passive: true, capture: true });
   document.addEventListener('touchcancel', function () { on = false; }, { passive: true, capture: true });
   /* version tag: the bottom-right badge now shows the app version plus this patch version (e.g. "v175 · ext v222") */
-  var EXT = 'v222'; window.STORM_EXT = EXT;
+  var EXT = window.STORM_EXT || 'v222'; window.STORM_EXT = EXT; /* newest block sets STORM_EXT first */
   function tag() {
     var f = document.querySelector('.foot'), m = f && (f.textContent || '').match(/Inventory\s*\u00b7\s*(v\d+)/), txt = (m ? m[1] + ' \u00b7 ' : '') + 'ext ' + EXT;
     var vb = document.getElementById('ver-badge'); if (vb && vb.textContent !== txt) vb.textContent = txt;
