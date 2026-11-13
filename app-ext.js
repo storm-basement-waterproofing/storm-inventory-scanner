@@ -1,3 +1,201 @@
+/* v233 (Hark, 2026-11-13, Dave 17:10): save staging progress and see it on every job.
+   1. Pull list (after Stage Job): a "Save progress" button above Staged Job Complete. It waits for this phone's taps to reach the
+      Staging tab (the same setStagingCheck saves as always), says "Progress saved · N of M pulled", closes the Pull list and opens
+      Find a Job so the crew sees the job with its bar. Come back any time: the job opens with its ticks (same server rows as before).
+   2. Find a Job: every Jobber job this phone has started shows a progress bar ("Pulled for staging 4 of 7", IN PROGRESS) under it;
+      all pulled shows a green bar (ALL PULLED), a staged job shows STAGED. Counts come from this phone's Pull list copy and are
+      refreshed from the server with the existing read-only getStaging (one job at a time, at most once a minute each).
+      Saved jobs keep their existing "On the staging cart" bar.
+   3. Customer Search job card: a partly pulled job shows "N of M pulled · progress saved" under Stage Job.
+   4. Find a Job: opening a job starts at the top of the list (no jump), going back slides the results in once.
+   No server code, sheet, Jobber quote or quote lock changes. "Staged Job Complete" works exactly as before. Look in storm-clean-theme v4. */
+(function () {
+  if (window.__v233) return; window.__v233 = 1;
+  try { Object.defineProperty(window, 'STORM_EXT', { value: 'v233', writable: false, configurable: false }); } catch (e) {}
+  var LK = 'stormPullLinesV203';
+  function T(m, bad) { try { showToast(m, !!bad); } catch (e) {} }
+  function E(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function lines() { try { return JSON.parse(localStorage.getItem(LK) || '{}') || {}; } catch (e) { return {}; } }
+  function cust() { try { return JSON.parse(localStorage.getItem('stormJobCustomerV1') || '{}') || {}; } catch (e) { return {}; } }
+
+  /* ---- taps still on their way to the server (counted around setStagingCheck; every other call passes straight through) ---- */
+  var IN = 0, FAILS = 0;
+  function wrap(r, h) {
+    return new Proxy(r, { get: function (t, p) {
+      var v = t[p];
+      if (p === 'withSuccessHandler') return function (fn) { return wrap(v.call(t, fn), { s: fn, f: h.f, u: h.u }); };
+      if (p === 'withFailureHandler') return function (fn) { return wrap(v.call(t, fn), { s: h.s, f: fn, u: h.u }); };
+      if (p === 'withUserObject') return function (o) { return wrap(v.call(t, o), { s: h.s, f: h.f, u: o }); };
+      if (p === 'setStagingCheck') return function () {
+        var a = arguments, done = 0; IN++;
+        function fin() { if (!done) { done = 1; IN = Math.max(0, IN - 1); } }
+        var rr = t.withSuccessHandler(function (x) { fin(); if (h.s) h.s(x, h.u); }).withFailureHandler(function (e) { fin(); FAILS++; if (h.f) h.f(e, h.u); });
+        return rr.setStagingCheck.apply(rr, a);
+      };
+      return typeof v === 'function' ? v.bind(t) : v;
+    } });
+  }
+  (function install(n) {
+    var g = window.google && google.script;
+    if (!g || !g.run || typeof Proxy !== 'function') { if (n < 60) setTimeout(function () { install(n + 1); }, 250); return; }
+    if (!g.run.__v227 && n < 48) { setTimeout(function () { install(n + 1); }, 250); return; } /* after v227 so its check-mark queue sits underneath */
+    var w = wrap(g.run, {});
+    try { g.run = w; } catch (e) {}
+    if (g.run !== w) { try { Object.defineProperty(g, 'run', { configurable: true, get: function () { return w; } }); } catch (e) {} }
+    window.__v233run = 1;
+  })(0);
+  function run() { return google.script.run; }
+
+  /* ---- 1. Pull list: Save progress ---- */
+  function counts(s) { var L = s.querySelectorAll('.l:not(.sk203) [data-pl-bin]'), d = s.querySelectorAll('.l:not(.sk203) [data-pl-bin].on').length; return { n: L.length, d: d }; }
+  function label(c) { return c.n ? 'Save progress \u00b7 ' + c.d + ' of ' + c.n + ' pulled' : 'Save progress'; }
+  var saving = 0;
+  function dressPl(s) {
+    var ft = s.querySelector('.ft'), go = ft && ft.querySelector('[data-pl-go]');
+    var b = s.querySelector('[data-sv233]');
+    if (!go || !s.querySelector('.l:not(.sk203)')) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('button'); b.type = 'button'; b.className = 'sv233'; b.setAttribute('data-sv233', ''); go.parentNode.insertBefore(b, go); }
+    if (!saving) { var t = label(counts(s)); if (b.textContent !== t) b.textContent = t; }
+  }
+  function hookPl(s) {
+    if (!s || s.__v233) return; s.__v233 = 1;
+    var q = 0;
+    new MutationObserver(function (ms) {
+      for (var i = 0; i < ms.length; i++) { var x = ms[i].target; if (x && x.nodeType === 1 && x.hasAttribute && x.hasAttribute('data-sv233')) continue; if (ms[i].target === s || ms[i].type === 'attributes') { dressPl(s); return; } }
+    }).observe(s, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    dressPl(s);
+  }
+  function openFind() {
+    var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-jc-find', '1');
+    b.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none';
+    document.body.appendChild(b); try { b.click(); } finally { b.remove(); }
+  }
+  function save(b) {
+    var s = document.getElementById('pl196'); if (!s || saving) return;
+    saving = 1; b.disabled = true; b.textContent = 'Saving\u2026'; try { noteNum(); } catch (e) {}
+    var t0 = Date.now(), f0 = FAILS;
+    (function wait() {
+      if (IN > 0 && Date.now() - t0 < 15000) { setTimeout(wait, 150); return; }
+      saving = 0; b.disabled = false;
+      var er = s.querySelector('.er');
+      if (IN > 0 || (FAILS > f0 && er)) { dressPl(s); T('Not every tick reached the server yet. Check signal, then tap Save progress again.', true); return; }
+      var c = counts(s), x = s.querySelector('[data-pl-x]');
+      T(c.n ? 'Progress saved \u00b7 ' + c.d + ' of ' + c.n + ' pulled. Pick it up any time.' : 'Progress saved.');
+      if (x) x.click();
+      setTimeout(function () { var f = document.getElementById('job-find'); if (!f) openFind(); }, 320);
+    })();
+  }
+  window.addEventListener('click', function (ev) {
+    var t = ev.target; if (!t || !t.closest) return;
+    var b = t.closest('#pl196 [data-sv233]');
+    if (b) { ev.preventDefault(); ev.stopImmediatePropagation(); if (!b.disabled) save(b); }
+  }, true);
+
+  /* ---- 2. Find a Job: progress bar on every started Jobber job ---- */
+  var srv = {}, SRVTTL = 60e3, busy = 0, Q = [];
+  function jobsCache() { try { var o = JSON.parse(localStorage.getItem('storm227:jj') || 'null'); var r = o && JSON.parse(o.j); return (r && r.jobs) || []; } catch (e) { return []; } }
+  function idFor(row) {
+    if (row.__id233 !== undefined) return row.__id233;
+    var m = /Job #\s*([A-Za-z0-9-]+)/.exec((row.querySelector('.jf-meta') || {}).textContent || ''), id = '';
+    if (m) { var js = jobsCache(); for (var i = 0; i < js.length; i++) if (String(js[i].jobNumber) === m[1]) { id = js[i].id; break; } if (!id) id = nums()[m[1]] || ''; }
+    if (id) row.__id233 = id; /* unknown: look again next paint */
+    return id;
+  }
+  /* Jobber job # -> job id, remembered whenever a Jobber job is loaded into Customer Search on this phone */
+  function nums() { try { return JSON.parse(localStorage.getItem('storm233:num') || '{}') || {}; } catch (e) { return {}; } }
+  function noteNum() { var c = cust(); if (!c.jobberJobId || !c.jobberJobNumber) return; var m = nums(); if (m[c.jobberJobNumber] === c.jobberJobId) return; m[c.jobberJobNumber] = c.jobberJobId; var ks = Object.keys(m); if (ks.length > 200) delete m[ks[0]]; try { localStorage.setItem('storm233:num', JSON.stringify(m)); } catch (e) {} }
+  function stagedState(k) {
+    try { if (window.stormSJFin203 && stormSJFin203()[k]) return 'done'; } catch (e) {}
+    try { if (window.stormSJ202 && stormSJ202.state(k) === 'staged') return 'staged'; } catch (e) {}
+    var r = srv[k]; return r && r.staged ? 'staged' : '';
+  }
+  function prog(k) {
+    var m = lines()[k], st = stagedState(k);
+    if (!m || !m.l || !m.l.length) return st ? { st: st, n: 0, d: 0 } : null;
+    var on = (m.on || {}), r = srv[k];
+    if (r && r.t > (m.t || 0)) { on = {}; (r.rows || []).forEach(function (x) { if (x && x.itemBin) on[x.itemBin] = !!x.checked; }); }
+    var n = m.l.length, d = m.l.filter(function (l) { return on[l.bin]; }).length;
+    if (!d && !st) return null;
+    return { st: st, n: n, d: d };
+  }
+  function refresh(k) {
+    var r = srv[k]; if (r && Date.now() - r.t < SRVTTL) return; if (Q.indexOf(k) >= 0) return;
+    Q.push(k); pump();
+  }
+  function pump() {
+    while (busy < 1 && Q.length) (function (k) {
+      busy++;
+      try {
+        run().withSuccessHandler(function (res) { busy--; if (res && res.jobKey === k) { srv[k] = { t: Date.now(), rows: res.rows || [], staged: res.staged || null }; } paintSoon(); pump(); })
+          .withFailureHandler(function () { busy--; srv[k] = srv[k] || { t: Date.now(), rows: null, staged: null, fail: 1 }; if (srv[k].fail) srv[k].t = Date.now(); pump(); })
+          .getStaging(k);
+      } catch (e) { busy--; }
+    })(Q.shift());
+  }
+  function barHtml(p) {
+    var full = p.st || (p.n && p.d >= p.n), pct = p.st ? 100 : Math.round(p.d / p.n * 100);
+    var lab = p.st === 'done' ? 'Completed' : p.st === 'staged' ? 'Staged \u00b7 on Ready to load on truck' : 'Pulled for staging';
+    var pill = p.st === 'done' ? 'COMPLETED' : p.st === 'staged' ? 'STAGED \u2713' : full ? 'ALL PULLED' : 'IN PROGRESS';
+    var num = p.st ? '' : '<b>' + p.d + '</b> of ' + p.n;
+    return { cls: 'tk-jp p233' + (full ? ' full' : ''), html: '<div class="tk-row"><span><em class="pl233' + (full ? ' ok' : '') + '">' + pill + '</em>' + lab + '</span><span>' + num + '</span></div><div class="tk-bar"><i style="width:' + pct + '%"></i></div>' };
+  }
+  function paint() {
+    var L = document.getElementById('jf-list'); if (!L) return;
+    [].forEach.call(L.querySelectorAll('.jf-item[data-jf-jb]'), function (row) {
+      var id = idFor(row), k = id ? 'jb:' + id : '', p = k ? prog(k) : null, cur = row.querySelector('.p233');
+      if (k && lines()[k]) refresh(k);
+      if (!p) { if (cur) cur.remove(); return; }
+      var b = barHtml(p);
+      if (!cur) { cur = document.createElement('div'); row.appendChild(cur); }
+      if (cur.className !== b.cls) cur.className = b.cls;
+      if (cur.__h !== b.html) { cur.__h = b.html; cur.innerHTML = b.html; }
+    });
+  }
+  var pq = 0; function paintSoon() { if (!pq) pq = requestAnimationFrame(function () { pq = 0; try { paint(); } catch (e) {} }); }
+  var css = ''
+    + 'html body #job-find .p233 { margin-top: 10px; }'
+    + ' html body #job-find .p233 .tk-row span:first-child { display: flex; align-items: center; gap: 8px; min-width: 0; }'
+    + ' html body #job-find .p233 em.pl233 { flex: none; font-style: normal; padding: 2px 8px; border-radius: 7px; font-size: 10.5px; font-weight: 800; letter-spacing: .05em; background: rgba(41,171,226,.15); color: #1A8FC4; }'
+    + ' html body #job-find .p233 em.pl233.ok { background: rgba(34,197,94,.15); color: #15803D; }'
+    + ' html body #job-find .p233.full .tk-bar i { background: #16A34A !important; }'
+    + ' html body #job-find .p233 .tk-bar i { transition: none !important; }'
+    + ' .jc188 .pg233 { margin-top: 8px; font-size: 13px; font-weight: 700; color: #1A8FC4; text-align: center; }'
+    + ' .jc188 .pg233 i { display: block; height: 6px; margin: 6px 0 0; border-radius: 3px; background: #E3E8EF; overflow: hidden; }'
+    + ' .jc188 .pg233 i b { display: block; height: 100%; border-radius: 3px; background: #29ABE2; }';
+  var st = document.createElement('style'); st.id = 'storm-v233-css'; st.textContent = css; (document.head || document.documentElement).appendChild(st);
+
+  /* ---- 4. Find a Job: job opens at the top; Back to results slides the list in once ---- */
+  function hookList(L) {
+    if (!L || L.__v233) return; L.__v233 = 1;
+    new MutationObserver(function () { if (L.querySelector(':scope > .jf-detail')) { if (L.scrollTop) L.scrollTop = 0; } try { paint(); } catch (e) {} }).observe(L, { childList: true });
+    paint();
+  }
+  window.addEventListener('click', function (ev) {
+    var t = ev.target; if (!t || !t.closest || !t.closest('#job-find [data-jf-back]')) return;
+    var L = document.getElementById('jf-list'); if (!L) return;
+    L.classList.add('back233'); clearTimeout(L.__b233); L.__b233 = setTimeout(function () { L.classList.remove('back233'); }, 320);
+  }, true);
+
+  /* ---- 3. Customer Search job card: progress under Stage Job ---- */
+  function jcPaint() {
+    var box = document.querySelector('#pull-sheet .jc188'); if (!box) return;
+    var c = cust(), k = c.jobberJobId ? 'jb:' + c.jobberJobId : '', p = k ? prog(k) : null, cur = box.querySelector('.pg233');
+    if (!p || p.st || !p.n) { if (cur) cur.remove(); return; }
+    var h = (p.d >= p.n ? 'All ' + p.n + ' pulled \u00b7 tap Stage Job to finish' : p.d + ' of ' + p.n + ' pulled \u00b7 progress saved') + '<i><b style="width:' + Math.round(p.d / p.n * 100) + '%"></b></i>';
+    if (!cur) { cur = document.createElement('div'); cur.className = 'pg233'; box.appendChild(cur); }
+    if (cur.__h !== h) { cur.__h = h; cur.innerHTML = h; }
+  }
+
+  if (window.MutationObserver) new MutationObserver(function (ms) {
+    for (var i = 0; i < ms.length; i++) { var a = ms[i].addedNodes; for (var j = 0; j < a.length; j++) { var n = a[j]; if (n.nodeType !== 1) continue;
+      if (n.id === 'pl196') hookPl(n);
+      if (n.id === 'job-find' || n.id === 'jf-list' || (n.querySelector && n.querySelector('#jf-list'))) hookList(document.getElementById('jf-list'));
+      if (n.classList && (n.classList.contains('jc188') || (n.querySelector && n.querySelector('.jc188')))) jcPaint();
+    } }
+  }).observe(document.documentElement, { childList: true, subtree: true });
+  (function boot(n) { var p = document.getElementById('pl196'); if (p) hookPl(p); hookList(document.getElementById('jf-list')); if (n < 60 && !p) setTimeout(function () { boot(n + 1); }, 500); })(0);
+  setInterval(function () { if (document.hidden) return; try { noteNum(); } catch (e) {} jcPaint(); if (document.getElementById('jf-list')) paintSoon(); }, 1500);
+})();
 /* v231 (Hark, 2026-11-13, Dave 15:05 "put the dollar amount next to the job when the user is searching for the job"): in Find a Job
    (and anywhere the Jobber job rows show), managers see each Jobber job's quote total on the right of the job's name. The amount comes
    from the existing manager-only getJobberQuoteAmounts call (one job at a time, 3 at once, kept on the phone for 6 h), so crew never
