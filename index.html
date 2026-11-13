@@ -155,6 +155,7 @@
   #camisl.shrink { clip-path: inset(12px calc(50% - 56px) calc(100% - 44px) calc(50% - 56px) round 16px); opacity: 0; transition: clip-path .5s cubic-bezier(.32,.72,0,1), opacity .2s ease .32s; }
   #camwrap.isl { animation: none !important; clip-path: none !important; }
   #camwrap.slow { transition: opacity .38s ease !important; }
+#camwrap.pre226 { opacity: 0 !important; pointer-events: none !important; } /* v226: camera warming up behind the island */
   #camwrap.isl-out { animation: none !important; }
   /* v145: keyframes come from islRule(); the base island just waits hidden */
   #camisl { transition: none !important; clip-path: none; opacity: 0; will-change: clip-path, opacity; }
@@ -430,7 +431,10 @@ html, body, #app, #cover, #bootvid { background: #EAF0F7 !important; }
     islTop = headerBottom(); islRule(islTop);
     var d = islandEl(); d.className = ''; void d.offsetWidth;
     requestAnimationFrame(function () { requestAnimationFrame(function () { d.className = 'grow'; }); });
-    setTimeout(function () { openCam(q, src); var w = document.getElementById('camwrap'); if (w) w.classList.add('isl', 'slow'); }, 600);
+    /* v226 (Hark, 2026-11-13, Dave 14:03 "when the screen animation is complete the camera is on"): the camera page now loads and the camera
+       starts at the tap, hidden behind the growing island, instead of only after it (600 ms later). When the island is done it fades in already live. */
+    openCam(q, src); var w0 = document.getElementById('camwrap'); if (w0) w0.classList.add('isl', 'slow', 'pre226');
+    setTimeout(function () { var w = document.getElementById('camwrap'); if (w && w === w0) w.classList.remove('pre226'); else if (w) w.classList.add('isl', 'slow'); }, 600);
     /* v147: the island stays as the card's frosted frame while the camera is open */
   }
   function closeCam(silent, viaPop) {

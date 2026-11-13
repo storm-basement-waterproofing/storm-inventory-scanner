@@ -1413,7 +1413,7 @@ html body header #cam-close { left: auto !important; right: calc(14px + env(safe
 /* scan v149 (Hark, 2026-11-13, Dave 13:48 "when the camera opens up i want it to be smoothed out, it seems very jumpy"): the picture stays
    dark until the camera has settled (lens picked, 1x zoom, focus and light applied), then fades in once, instead of popping in, jumping
    zoom or blinking while the lens is swapped. The lens chips and flash button fade in instead of popping. Decoding, beep, cart unchanged. */
-html body #video { opacity: 0; transition: opacity .32s ease; }
+html body #video { opacity: 0; transition: opacity .22s ease; }
 html body #video.v149-on { opacity: 1; }
 html body #lens-bar.on, html body #torch.on { animation: v149In .28s ease both; }
 @keyframes v149In { from { opacity: 0; } to { opacity: 1; } }
@@ -1427,7 +1427,7 @@ html body #lens-bar.on, html body #torch.on { animation: v149In .28s ease both; 
   function show() { clearTimeout(fail); v.classList.add('v149-on'); }
   function settle() {
     var g = gen, n = 0;
-    function frame() { if (g !== gen) return; if (++n >= 3) { setTimeout(function () { if (g === gen) show(); }, 220); return; } next(); }
+    function frame() { if (g !== gen) return; if (++n >= 2) { setTimeout(function () { if (g === gen) show(); }, 90); return; } /* scan v150: shown sooner (2 frames + 90 ms) */ next(); }
     function next() { if (v.requestVideoFrameCallback) { try { v.requestVideoFrameCallback(frame); return; } catch (e) {} } requestAnimationFrame(frame); }
     next();
   }
