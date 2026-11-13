@@ -147,6 +147,7 @@ video { image-rendering: auto; }
 <div id="pop"><img id="pop-img" alt=""><div><div id="pop-name"></div><div id="pop-sub">Added to cart</div></div></div>
 <div id="safe-probe"></div><svg id="edge" aria-hidden="true" preserveAspectRatio="none"><path id="edge-path" pathLength="100"></path></svg><div id="glow"></div>
 <div id="sheet" role="dialog" aria-label="Cart"><div id="sheet-head"><h2>Cart</h2><button id="sheet-min" type="button" aria-label="Minimize">&minus;</button><button id="sheet-x" type="button" aria-label="Close">&times;</button></div><div id="sheet-list"></div><div id="sheet-foot"><span id="sheet-units">0 items</span><span id="sheet-total">$0.00</span></div></div>
+<script>/* scan v149 (Hark, 2026-11-13, Dave 13:48): the flashlight comes on by itself when the camera opens (where the phone allows it); the flash button still turns it off and on. */ window.__stormTorchOn = true;</script>
 <label class="hap" aria-hidden="true"><input type="checkbox" switch id="hap-input"></label>
 <script>
 (function () {
@@ -1408,5 +1409,36 @@ html body header #cam-close { position: fixed !important; top: calc(10px + env(s
 html body header #cam-close { left: auto !important; right: calc(14px + env(safe-area-inset-right)) !important;
   background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230F1720' stroke-width='2.4' stroke-linecap='round'><path d='M6 6l12 12M18 6L6 18'/></svg>") center / 20px 20px no-repeat !important; }
 </style>
+<style>
+/* scan v149 (Hark, 2026-11-13, Dave 13:48 "when the camera opens up i want it to be smoothed out, it seems very jumpy"): the picture stays
+   dark until the camera has settled (lens picked, 1x zoom, focus and light applied), then fades in once, instead of popping in, jumping
+   zoom or blinking while the lens is swapped. The lens chips and flash button fade in instead of popping. Decoding, beep, cart unchanged. */
+html body #video { opacity: 0; transition: opacity .32s ease; }
+html body #video.v149-on { opacity: 1; }
+html body #lens-bar.on, html body #torch.on { animation: v149In .28s ease both; }
+@keyframes v149In { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { html body #video { transition: none; } html body #lens-bar.on, html body #torch.on { animation: none; } }
+</style>
+<script>
+(function () {
+  var v = document.getElementById('video'); if (!v) return;
+  var gen = 0, fail = 0;
+  function hide() { gen++; v.classList.remove('v149-on'); clearTimeout(fail); fail = setTimeout(show, 2500); } /* never stays dark */
+  function show() { clearTimeout(fail); v.classList.add('v149-on'); }
+  function settle() {
+    var g = gen, n = 0;
+    function frame() { if (g !== gen) return; if (++n >= 3) { setTimeout(function () { if (g === gen) show(); }, 220); return; } next(); }
+    function next() { if (v.requestVideoFrameCallback) { try { v.requestVideoFrameCallback(frame); return; } catch (e) {} } requestAnimationFrame(frame); }
+    next();
+  }
+  v.addEventListener('emptied', hide);
+  v.addEventListener('loadstart', hide);
+  v.addEventListener('playing', settle);
+  /* a lens swap or coming back to the app replaces the stream: dark, settle, fade back in */
+  var d = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'srcObject');
+  if (d && d.set) { try { Object.defineProperty(v, 'srcObject', { configurable: true, get: function () { return d.get.call(this); }, set: function (s) { if (s !== d.get.call(this)) hide(); d.set.call(this, s); } }); } catch (e) {} }
+  if (v.readyState >= 2 && !v.paused) settle(); else hide();
+})();
+</script>
 </body>
 </html>
