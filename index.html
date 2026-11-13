@@ -177,7 +177,7 @@ input, textarea, select, [contenteditable="true"] { -webkit-user-select: text !i
 
 /* FL (Hark, 2026-11-13, Dave: fast launch): light page under everything (no black ever), crossfade from the video to the app, small loader if the app is not ready yet */
 html, body, #app, #cover, #bootvid { background: #EAF0F7 !important; }
-#boot.fl-x { opacity: 0 !important; transition: opacity .7s cubic-bezier(.4,0,.2,1) !important; pointer-events: none; } #flwait { display: none !important; }
+#boot.fl-x { opacity: 0 !important; transition: opacity .6s ease !important; pointer-events: none; } #boot.fl-black #bootvid, #boot.fl-black #bootbg, #boot.fl-black #wpick { opacity: 0 !important; transition: opacity .35s ease !important; } #boot.fl-black #cover { z-index: 3; background: #000 !important; } #flwait { display: none !important; }
 #boot.fl-x #bootvid, #boot.fl-x #wpick { transition: none !important; }
 #boot.fl-wait.fl-wait.fl-wait #bootvid, #boot.fl-wait #bootbg { opacity: 0 !important; transition: opacity .35s ease !important; }
 #boot.fl-wait #wpick { opacity: 0 !important; }
@@ -304,8 +304,11 @@ html, body, #app, #cover, #bootvid { background: #EAF0F7 !important; }
     setTimeout(function () { boot.classList.remove('fl-wait'); boot.classList.add('gone'); var bv = document.getElementById('bootvid'); if (bv) { try { bv.pause(); } catch (e) {} bv.removeAttribute('poster'); bv.style.visibility = 'hidden'; bv.removeAttribute('src'); try { bv.load(); } catch (e) {} }
       var w = document.getElementById('wpick'); if (w && w.parentNode) w.parentNode.removeChild(w); }, 750);
   }
-  function flGo() { flTapped = true; if (ready && src) return flCross(); /* FL2 (Dave 08:36): no spinner - the front screen video keeps playing until the app is ready, then one smooth fade */ setTimeout(flCross, 8000); }
-  function flReady() { if (flTapped && !flDone) flCross(); }
+  function flGo() { flTapped = true; /* FL3 (Dave 08:45): tap anywhere -> smooth fade to black (no spinner, no logo) -> fade into the loaded app */
+    cover.style.transition = 'opacity .35s ease'; cover.style.opacity = '1'; boot.classList.add('fl-black'); flBlackAt = Date.now();
+    if (ready && src) setTimeout(flCross, 360); setTimeout(flCross, 8000); }
+  var flBlackAt = 0;
+  function flReady() { if (flTapped && !flDone) setTimeout(flCross, Math.max(0, 360 - (Date.now() - flBlackAt))); }
   function plainFade() { markReady(null); }
   /* v149 (Hark, 2026-11-10): the app re-measures its banner logo after the mode tap and on rotate, so the outline trace sits exactly on it in landscape and on iPad */
   window.addEventListener('message', function (e) { var m = e.data; if (m && m.storm === 'logoPos' && m.w > 20) { var r2 = { x: m.x, y: m.y, w: m.w, h: m.h, vw: window.innerWidth, vh: window.innerHeight }; try { localStorage.setItem(KEY, JSON.stringify(r2)); } catch (x) {} if (!rect || Math.abs(rect.x - m.x) > .5 || Math.abs(rect.y - m.y) > .5 || Math.abs(rect.w - m.w) > .5 || Math.abs(rect.h - m.h) > .5) { placeLogo(r2); if (entering || boot.classList.contains('pulse1')) { lt.style.opacity = ''; drawLogo(1); } } else rect = r2; } });
