@@ -1,3 +1,4 @@
+/* v214 (Hark, 2026-11-12, Dave): side menu "Staged jobs" + Loaded on truck boxes (block at the end of this file). Needs app v190 (getStagedJobs). */
 /* v213 (Hark, 2026-11-12, Dave): search magnifier + camera button sit inside the search bar (block at the end of this file). */
 /* v212 (Hark, 2026-11-12, Dave): Staged banner - green check only at 100% staged, otherwise a % ring coloured red -> yellow -> green (block at the end of this file). */
 /* v211 (Hark, 2026-11-12, Dave): Stocked to par ring - "STOCKED" label under the % and red -> yellow -> green colour by the % (block at the end of this file). */
@@ -9265,4 +9266,145 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function start() { run(); var n = 0, iv = setInterval(function () { run(); if (++n > 40) { clearInterval(iv); setInterval(run, 3000); } }, 250); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   window.addEventListener('load', function () { document.head.appendChild(st); run(); });
+})();
+
+/* v214 (Hark, 2026-11-12, Dave approved 21:41): "Staged jobs" + "Loaded on truck".
+   Side menu row "Staged jobs" (right under Staging) opens a full screen list of every staged job (server getStagedJobs, app v190),
+   newest first, with "N of M loaded". Tap a job: its staged items, each with a big Loaded box. A tap saves through
+   setStagingCheck under the key "ld:<jobKey>" so every phone sees it (refreshes every 5 s while open). Loading never moves stock. */
+(function () {
+  if (window.__storm214) return; window.__storm214 = 1;
+  var $ = function (id) { return document.getElementById(id); };
+  var HD = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/items-hd/';
+  var TRUCK = '<path d="M1.5 6.5h12v9h-12z"/><path d="M13.5 9.5h4l3 3v3h-7z"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>';
+  var CHK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function dev() { try { return String(localStorage.getItem('stormDeviceNameV1') || '').slice(0, 60); } catch (e) { return ''; } }
+  function run() { try { return window.google && google.script && google.script.run; } catch (e) { return null; } }
+  var css = ''
+    + '#sj214 { position: fixed; inset: 0; z-index: 136; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #EAF0F7; color: #0F1720; font-family: Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; transform: translateX(100%); transition: transform .26s cubic-bezier(.2,.8,.2,1); visibility: hidden; padding-bottom: calc(30px + env(safe-area-inset-bottom)); }'
+    + '#sj214.open { transform: none; visibility: visible; }'
+    + '#sj214 .s-top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: calc(14px + env(safe-area-inset-top)) 16px 10px; background: #EAF0F7; }'
+    + '#sj214 .s-top h2 { flex: 1; margin: 0; font-size: 22px; font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }'
+    + '#sj214 .s-btn { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: #fff; color: #0F1720; font-size: 24px; line-height: 42px; padding: 0; box-shadow: 0 4px 14px rgba(15,23,32,.08); font-family: inherit; }'
+    + '#sj214 .s-wrap { max-width: 620px; margin: 0 auto; padding: 4px 16px; }'
+    + '#sj214 .s-note { padding: 30px 10px; text-align: center; color: #6B7280; font-size: 15px; font-weight: 600; line-height: 1.45; }'
+    + '#sj214 .s-job { display: flex; align-items: center; gap: 14px; width: 100%; margin: 0 0 10px; padding: 14px 16px; border: 0; border-radius: 16px; background: #fff; box-shadow: 0 4px 14px rgba(15,23,32,.06); text-align: left; font-family: inherit; color: inherit; }'
+    + '#sj214 .s-ring { flex: none; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 800; }'
+    + '#sj214 .s-ring i { width: 40px; height: 40px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-style: normal; }'
+    + '#sj214 .s-nm { font-size: 16.5px; font-weight: 800; line-height: 1.25; }'
+    + '#sj214 .s-sub { margin-top: 3px; font-size: 13px; font-weight: 600; color: #6B7280; line-height: 1.35; }'
+    + '#sj214 .s-done { color: #15803D; }'
+    + '#sj214 .s-head { margin: 2px 0 12px; padding: 14px 16px; border-radius: 16px; background: #fff; box-shadow: 0 4px 14px rgba(15,23,32,.06); }'
+    + '#sj214 .s-line { display: flex; align-items: center; gap: 12px; margin: 0 0 8px; padding: 10px 12px; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px rgba(15,23,32,.05); }'
+    + '#sj214 .s-line img { width: 48px; height: 48px; flex: none; border-radius: 10px; object-fit: contain; background: #F3F6FA; }'
+    + '#sj214 .s-li { flex: 1; min-width: 0; }'
+    + '#sj214 .s-ln { font-size: 15px; font-weight: 700; line-height: 1.25; }'
+    + '#sj214 .s-lq { margin-top: 2px; font-size: 13px; font-weight: 600; color: #6B7280; }'
+    + '#sj214 .s-box { flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; border: 0; background: none; padding: 0; font-family: inherit; color: #6B7280; font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; -webkit-tap-highlight-color: transparent; }'
+    + '#sj214 .s-box b { width: 44px; height: 44px; border-radius: 12px; border: 2.5px solid #B8C4D0; background: #fff; color: #fff; display: flex; align-items: center; justify-content: center; }'
+    + '#sj214 .s-box b svg { width: 26px; height: 26px; opacity: 0; }'
+    + '#sj214 .s-box.on { color: #15803D; }'
+    + '#sj214 .s-box.on b { border-color: #16A34A; background: #16A34A; }'
+    + '#sj214 .s-box.on b svg { opacity: 1; }'
+    + '#sj214 .s-line.on { background: #F0FBF3; }'
+    + '#sj214 .s-err { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: #FEECEC; color: #B42318; font-size: 13.5px; font-weight: 700; }';
+  var st = document.createElement('style'); st.id = 'storm-v214-css'; st.textContent = css;
+  (document.head || document.documentElement).appendChild(st);
+
+  var S = { open: false, jobs: [], cur: null, busy: 0, err: '', loaded: false, timer: 0, pend: {} };
+  function scr() {
+    var s = $('sj214'); if (s) return s;
+    s = document.createElement('div'); s.id = 'sj214'; s.setAttribute('role', 'dialog'); s.setAttribute('aria-label', 'Staged jobs');
+    document.body.appendChild(s); return s;
+  }
+  function pct(j) { var n = j.lines.length, d = j.lines.filter(function (l) { return l.loaded; }).length; return { n: n, d: d, p: n ? d / n : 0 }; }
+  function col(p) { return p >= 1 ? '#16A34A' : p > 0 ? '#29ABE2' : '#D5DDE6'; }
+  function when(ms) { try { return new Date(ms).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
+  function find(k) { for (var i = 0; i < S.jobs.length; i++) if (S.jobs[i].jobKey === k) return S.jobs[i]; return null; }
+  function render() {
+    var s = scr(), h = '';
+    var j = S.cur ? find(S.cur) : null;
+    if (S.cur && !j && S.loaded) S.cur = null;
+    if (j) {
+      var c = pct(j);
+      h += '<div class="s-top"><button type="button" class="s-btn" data-sj-back aria-label="Back">\u2039</button><h2>' + esc(j.customer.split(' \u00b7 ')[0] || 'Staged job') + '</h2><button type="button" class="s-btn" data-sj-x aria-label="Close">\u00d7</button></div><div class="s-wrap">'
+        + '<div class="s-head"><div class="s-sub">' + esc(j.customer.split(' \u00b7 ').slice(1).join(' \u00b7 ')) + '</div>'
+        + '<div class="s-nm' + (c.p >= 1 ? ' s-done' : '') + '" style="margin-top:6px">' + (c.p >= 1 ? 'All loaded on the truck' : c.d + ' of ' + c.n + ' loaded on the truck') + '</div>'
+        + '<div class="s-sub">Staged ' + esc(when(j.at)) + (j.by ? ' by ' + esc(j.by) : '') + '</div></div>'
+        + (S.err ? '<div class="s-err">' + esc(S.err) + '</div>' : '');
+      if (!j.lines.length) h += '<div class="s-note">No staged items on this job.</div>';
+      j.lines.forEach(function (l) {
+        h += '<div class="s-line' + (l.loaded ? ' on' : '') + '"><img src="' + HD + encodeURIComponent(l.bin) + '.jpg?v=1" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+          + '<div class="s-li"><div class="s-ln">' + esc(l.name || l.bin) + '</div><div class="s-lq">Qty ' + esc(l.qty === '' ? '-' : l.qty) + (l.loaded && l.loadedBy ? ' \u00b7 ' + esc(l.loadedBy) : '') + '</div></div>'
+          + '<button type="button" class="s-box' + (l.loaded ? ' on' : '') + '" data-sj-bin="' + esc(l.bin) + '" aria-pressed="' + (l.loaded ? 'true' : 'false') + '"><b>' + CHK + '</b>Loaded</button></div>';
+      });
+      h += '</div>';
+    } else {
+      h += '<div class="s-top"><h2>Staged jobs</h2><button type="button" class="s-btn" data-sj-x aria-label="Close">\u00d7</button></div><div class="s-wrap">'
+        + (S.err ? '<div class="s-err">' + esc(S.err) + '</div>' : '');
+      if (!S.loaded) h += '<div class="s-note">Loading staged jobs\u2026</div>';
+      else if (!S.jobs.length) h += '<div class="s-note">No staged jobs yet.<br>Stage a job in Customer Search and tap Staged Job Complete.</div>';
+      S.jobs.forEach(function (j) {
+        var c = pct(j), nm = j.customer.split(' \u00b7 ')[0] || j.jobKey, ad = j.customer.split(' \u00b7 ').slice(1).join(' \u00b7 ');
+        h += '<button type="button" class="s-job" data-sj-job="' + esc(j.jobKey) + '"><span class="s-ring" style="background:conic-gradient(' + col(c.p) + ' ' + Math.round(c.p * 360) + 'deg,#E3E8EF 0)"><i>' + c.d + '/' + c.n + '</i></span>'
+          + '<span style="flex:1;min-width:0"><div class="s-nm">' + esc(nm) + '</div><div class="s-sub">' + (ad ? esc(ad) + '<br>' : '') + 'Staged ' + esc(when(j.at)) + '</div>'
+          + '<div class="s-sub' + (c.p >= 1 ? ' s-done' : '') + '">' + (c.p >= 1 ? 'All loaded' : c.d + ' of ' + c.n + ' loaded') + '</div></span></button>';
+      });
+      h += '</div>';
+    }
+    var y = s.scrollTop; s.innerHTML = h; s.scrollTop = y;
+  }
+  function load() {
+    var r = run(); if (!r) { S.err = 'Open the app with signal to see staged jobs.'; S.loaded = true; render(); return; }
+    if (S.busy) return;
+    r.withSuccessHandler(function (res) {
+      if (S.busy) return;
+      var jobs = (res && res.jobs) || [];
+      jobs.forEach(function (j) { j.lines.forEach(function (l) { var p = S.pend[j.jobKey + '|' + l.bin]; if (p != null) l.loaded = p; }); });
+      S.jobs = jobs; S.loaded = true; if (S.err && /signal|load/i.test(S.err)) S.err = ''; if (S.open) render();
+    }).withFailureHandler(function () { S.loaded = true; S.err = 'Couldn\u2019t load staged jobs. Check signal.'; if (S.open) render(); }).getStagedJobs();
+  }
+  function tap(bin) {
+    var j = find(S.cur); if (!j) return;
+    var l = null; j.lines.forEach(function (x) { if (x.bin === bin) l = x; }); if (!l) return;
+    var on = !l.loaded, key = j.jobKey + '|' + bin, r = run();
+    l.loaded = on; l.loadedBy = on ? dev() : ''; S.pend[key] = on; S.err = ''; render();
+    if (!r) { S.err = 'No signal. That tap wasn\u2019t saved.'; l.loaded = !on; delete S.pend[key]; render(); return; }
+    S.busy++;
+    r.withSuccessHandler(function () { S.busy--; delete S.pend[key]; })
+     .withFailureHandler(function (er) { S.busy--; delete S.pend[key]; l.loaded = !on; S.err = 'Couldn\u2019t save that. Try again.' + (er && er.message ? ' (' + String(er.message).slice(0, 80) + ')' : ''); render(); })
+     .setStagingCheck('ld:' + j.jobKey, j.customer, bin, l.name, l.qty, on, dev(), (window.stormCrewPin && window.stormCrewPin.get) ? window.stormCrewPin.get() : '');
+  }
+  function open() { var s = scr(); S.open = true; S.cur = null; S.err = ''; render(); requestAnimationFrame(function () { s.classList.add('open'); }); load(); clearInterval(S.timer); S.timer = setInterval(function () { if (S.open && !document.hidden) load(); }, 5000); }
+  function close() { var s = $('sj214'); S.open = false; clearInterval(S.timer); if (s) s.classList.remove('open'); }
+  window.stormOpenStagedJobs = open;
+
+  /* side menu row */
+  function menu() {
+    var sg = document.querySelector('#cl-menu [data-cl-go="staging"]'); if (!sg) return;
+    var r = sg.parentNode.querySelector('[data-sj214]');
+    if (!r) {
+      r = document.createElement('button'); r.type = 'button'; r.className = 'cl-row'; r.setAttribute('data-sj214', '1');
+      r.innerHTML = '<svg class="cl-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TRUCK + '</svg><span class="cl-name">Staged jobs</span>';
+    }
+    if (sg.nextElementSibling !== r) sg.insertAdjacentElement('afterend', r);
+  }
+  (function w(n) { try { menu(); } catch (e) {} var m = $('cl-menu'); if (m && !m.__o214) { m.__o214 = 1; try { new MutationObserver(function () { try { menu(); } catch (e) {} }).observe(m, { childList: true, subtree: true }); } catch (e) {} } if (n < 240 && !(m && m.__o214)) setTimeout(function () { w(n + 1); }, 500); })(0);
+
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest('#cl-menu [data-sj214]')) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      try { closeDrawer(); } catch (x) { var sc = $('drawer-scrim'); if (sc) sc.click(); }
+      setTimeout(open, 220); return;
+    }
+    if (!t.closest('#sj214')) { if (t.closest('#hamburger')) setTimeout(menu, 20); return; }
+    var b;
+    if (t.closest('[data-sj-x]')) { e.preventDefault(); close(); return; }
+    if (t.closest('[data-sj-back]')) { e.preventDefault(); S.cur = null; S.err = ''; render(); scr().scrollTop = 0; return; }
+    if ((b = t.closest('[data-sj-job]'))) { e.preventDefault(); S.cur = b.getAttribute('data-sj-job'); S.err = ''; render(); scr().scrollTop = 0; return; }
+    if ((b = t.closest('[data-sj-bin]'))) { e.preventDefault(); tap(b.getAttribute('data-sj-bin')); return; }
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.open) close(); });
 })();
