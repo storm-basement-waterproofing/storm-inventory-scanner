@@ -1,3 +1,4 @@
+/* v213 (Hark, 2026-11-12, Dave): search magnifier + camera button sit inside the search bar (block at the end of this file). */
 /* v212 (Hark, 2026-11-12, Dave): Staged banner - green check only at 100% staged, otherwise a % ring coloured red -> yellow -> green (block at the end of this file). */
 /* v211 (Hark, 2026-11-12, Dave): Stocked to par ring - "STOCKED" label under the % and red -> yellow -> green colour by the % (block at the end of this file). */
 /* v210 (Hark, 2026-11-12 15:20, Dave): CREW VIEW SIMPLE. Only Dave and his 2 managers (Manager Login) see Inventory and Needs Ordering.
@@ -9238,4 +9239,30 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var q = 0; function soon() { if (q) return; q = 1; setTimeout(function () { q = 0; run(); }, 40); }
   function start() { run(); try { new MutationObserver(soon).observe(document.body, { childList: true, subtree: true }); } catch (e) {} setInterval(run, 1200); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+
+/* v213 (Hark, 2026-11-12, Dave): the search magnifier (was top-right) and the camera button (was beside the bar, v183) sit INSIDE the search bar:
+   magnifier on the left (tap = focus the search), camera on the right (same scan as before). */
+(function () {
+  if (window.__storm213) return; window.__storm213 = 1;
+  var X = 'html body.cl', st = document.createElement('style'); st.id = 'storm-v213-css';
+  st.textContent = ''
+    + X + ' .st213-box { position: relative; flex: 1 1 auto; min-width: 0; display: block; }'
+    + X + ' .st213-box #search { width: 100% !important; box-sizing: border-box !important; padding-left: 42px !important; padding-right: 50px !important; }'
+    + X + ' .st213-box #search::-webkit-search-cancel-button { display: none; }'
+    + X + ' #gd-find.st213 { position: absolute !important; left: 6px !important; right: auto !important; top: 50% !important; transform: translateY(-50%) !important; width: 32px !important; height: 32px !important; margin: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; color: #8A94A3 !important; z-index: 3; display: flex; align-items: center; justify-content: center; }'
+    + X + ' #gd-find.st213 svg { width: 18px !important; height: 18px !important; }'
+    + X + ' #storm-qr-btn.st213 { position: absolute !important; right: 5px !important; left: auto !important; bottom: auto !important; top: 50% !important; transform: translateY(-50%) !important; width: 36px !important; height: 36px !important; margin: 0 !important; border: 0 !important; border-radius: 50% !important; background: transparent !important; box-shadow: none !important; color: #0F1720 !important; z-index: 3; }'
+    + X + ' #storm-qr-btn.st213:active { transform: translateY(-50%) scale(.92) !important; }';
+  (document.head || document.documentElement).appendChild(st);
+  function run() {
+    var q = document.getElementById('search'), row = q && q.closest('.search-row'); if (!row) return;
+    var box = q.parentNode.classList && q.parentNode.classList.contains('st213-box') ? q.parentNode : null;
+    if (!box) { box = document.createElement('span'); box.className = 'st213-box'; q.parentNode.insertBefore(box, q); box.appendChild(q); }
+    var f = document.getElementById('gd-find'); if (f && f.parentNode !== box) { f.classList.add('st213'); box.appendChild(f); }
+    var c = document.getElementById('storm-qr-btn'); if (c && c.parentNode !== box) { c.classList.add('st213'); box.appendChild(c); }
+  }
+  function start() { run(); var n = 0, iv = setInterval(function () { run(); if (++n > 40) { clearInterval(iv); setInterval(run, 3000); } }, 250); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+  window.addEventListener('load', function () { document.head.appendChild(st); run(); });
 })();
