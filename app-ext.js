@@ -1,3 +1,36 @@
+/* v225 (Hark, 2026-11-13, Dave 13:44 "put in order in the side menu: Home, Orders for upcoming jobs, Receiving orders, Staging jobs,
+   Ready to load on truck"): the side menu rows now show in that order, at the top. The other rows (Customer Search, Box Truck Check,
+   Tool Checklist) follow right after in their old order, then Categories and More. Rows a person can't see (crew don't get Order for
+   Upcoming Jobs or Receiving Orders) are simply skipped. Each row's script still pins it in the page, so only the visible order is set
+   (flex order on #cl-menu), same as v223, which this replaces. Taps, labels and the Jobber quote are untouched. */
+(function () {
+  if (window.__v225) return; window.__v225 = 1; window.__v223 = 1; /* v223 stands down */ window.STORM_EXT = 'v225';
+  var st = document.createElement('style'); st.id = 'storm-v225-css';
+  st.textContent = '#cl-menu.o225 { display: flex; flex-direction: column; }'
+    + ' #cl-menu.o225 > .cl-lbl, #cl-menu.o225 > #cl-more-lbl { margin-top: 16px; }'; /* flex margins don't collapse: keep the old 18 px gap */
+  (document.head || document.documentElement).appendChild(st);
+  var WANT = ['[data-cl-go="home"]', '[data-oj-menu]', '[data-ro199]', '[data-cl-go="staging"]', '[data-sj214]'];
+  function arrange() {
+    var mn = document.getElementById('cl-menu'); if (!mn) return false;
+    var home = mn.querySelector(':scope > [data-cl-go="home"]'); if (!home) return false;
+    var rank = new Map();
+    WANT.forEach(function (q, k) { var el = mn.querySelector(':scope > ' + q); if (el) rank.set(el, 100 + k); });
+    var kids = mn.children, before = true;
+    for (var i = 0; i < kids.length; i++) {
+      var el = kids[i]; if (el === home) before = false;
+      var o = String(rank.has(el) ? rank.get(el) : (before ? i : 200 + i));
+      if (el.style.order !== o) el.style.order = o;
+    }
+    if (!mn.classList.contains('o225')) mn.classList.add('o225');
+    return true;
+  }
+  (function w(n) {
+    var mn = document.getElementById('cl-menu');
+    if (mn && !mn.__o225) { mn.__o225 = 1; try { new MutationObserver(function () { try { arrange(); } catch (e) {} }).observe(mn, { childList: true }); } catch (e) {} }
+    try { arrange(); } catch (e) {}
+    if (n < 240 && !(mn && mn.__o225)) setTimeout(function () { w(n + 1); }, 500);
+  })(0);
+})();
 /* v224 (Hark, 2026-11-13, Dave 13:41 "a little more responsive on the sliding"): the side menu now follows your finger as you swipe it left
    (the dimmed area fades with it), and lets go the moment you lift: past about a quarter of its width, or a quick flick, it slides shut
    from right where it is; otherwise it springs back open. The close skips closeDrawer()'s 140 ms wait for this path only. Replaces the
