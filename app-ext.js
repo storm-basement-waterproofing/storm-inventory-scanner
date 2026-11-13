@@ -1,4 +1,5 @@
-/* v214 (Hark, 2026-11-12, Dave): side menu "Staged jobs" + Loaded on truck boxes (block at the end of this file). Needs app v190 (getStagedJobs). */
+/* v215 (Hark, 2026-11-13, Dave): Ready to load on truck patched in place (no flash), photos with placeholder + fade, cached list, open straight on a job (block v214 at the end). Needs app v203.
+   v214 (Hark, 2026-11-12, Dave): side menu "Staged jobs" + Loaded on truck boxes (block at the end of this file). Needs app v190 (getStagedJobs). */
 /* v213 (Hark, 2026-11-12, Dave): search magnifier + camera button sit inside the search bar (block at the end of this file). */
 /* v212 (Hark, 2026-11-12, Dave): Staged banner - green check only at 100% staged, otherwise a % ring coloured red -> yellow -> green (block at the end of this file). */
 /* v211 (Hark, 2026-11-12, Dave): Stocked to par ring - "STOCKED" label under the % and red -> yellow -> green colour by the % (block at the end of this file). */
@@ -7130,7 +7131,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
       try { closeDrawer(); } catch (x) {}
       fromStaging = Date.now();
       if (!isJob()) { var seg = document.querySelector('#mode-switch .cl-seg-job') || document.getElementById('mode-switch'); if (seg) seg.click(); setTimeout(openFindOnly, 420); }
-      else setTimeout(openFindOnly, 200);
+      else setTimeout(openFindOnly, 90); /* v215: Find a Job starts while the menu slides away (was 200 ms after) */
       return;
     }
     if (t.closest('#job-find [data-jf-edit], #job-find [data-jf-load], #job-find [data-jf-jb-load]')) {
@@ -9308,7 +9309,23 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#sj214 .s-box.on b { border-color: #16A34A; background: #16A34A; }'
     + '#sj214 .s-box.on b svg { opacity: 1; }'
     + '#sj214 .s-line.on { background: #F0FBF3; }'
-    + '#sj214 .s-err { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: #FEECEC; color: #B42318; font-size: 13.5px; font-weight: 700; }';
+    + '#sj214 .s-err { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: #FEECEC; color: #B42318; font-size: 13.5px; font-weight: 700; }'
+    /* v215: photo placeholder + fade-in, job-list thumbnails, skeleton rows, list <-> job slide/fade */
+    + '#sj214 .ph215 { flex: none; display: block; width: 48px; height: 48px; border-radius: 10px; background: #EEF2F7; overflow: hidden; }'
+    + '#sj214 .ph215 img { display: block; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity .22s ease; }'
+    + '#sj214 .ph215 img.ld { opacity: 1; }'
+    + '#sj214 .s-ths { display: flex; gap: 6px; margin-top: 8px; align-items: center; }'
+    + '#sj214 .ph215.th { width: 30px; height: 30px; border-radius: 8px; }'
+    + '#sj214 .s-ths em { font-style: normal; font-size: 12px; font-weight: 800; color: #6B7280; }'
+    + '#sj214 .sk215 { pointer-events: none; }'
+    + '#sj214 .s-ring.sk { background: #E3E8EF; }'
+    + '#sj214 .skl { display: block; height: 11px; margin: 5px 0; border-radius: 6px; background: linear-gradient(90deg,#EEF2F7 0,#F6F8FB 50%,#EEF2F7 100%); background-size: 200% 100%; animation: sk215 1.2s ease-in-out infinite; }'
+    + '@keyframes sk215 { from { background-position: 100% 0; } to { background-position: -100% 0; } }'
+    + '#sj214 .in-f215 { animation: in215f .24s cubic-bezier(.2,.8,.2,1); }'
+    + '#sj214 .in-b215 { animation: in215b .24s cubic-bezier(.2,.8,.2,1); }'
+    + '@keyframes in215f { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }'
+    + '@keyframes in215b { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }'
+    + '@media (prefers-reduced-motion: reduce) { #sj214 .in-f215, #sj214 .in-b215, #sj214 .skl { animation: none; } #sj214 .ph215 img { transition: none; } }';
   var st = document.createElement('style'); st.id = 'storm-v214-css'; st.textContent = css;
   (document.head || document.documentElement).appendChild(st);
 
@@ -9322,49 +9339,165 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function col(p) { return p >= 1 ? '#16A34A' : p > 0 ? '#29ABE2' : '#D5DDE6'; }
   function when(ms) { try { return new Date(ms).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
   function find(k) { for (var i = 0; i < S.jobs.length; i++) if (S.jobs[i].jobKey === k) return S.jobs[i]; return null; }
-  function render() {
-    var s = scr(), h = '';
+  /* v215 (Hark, 2026-11-13, Dave: "photos not populating", "Ready to load on truck flashes"): the screen is patched in place (morph below)
+     instead of rebuilt every 5 s poll, so nothing blinks; the final labels (title, Ready to load / Completed) are painted in the same frame
+     (Index stormSJFin203 = finished jobs), photos use the main list's photo (card image / photoUrl, then the HD copy) with a neutral
+     placeholder and a fade-in, the job list is cached on the phone and shown at once, and list <-> job moves with a short slide/fade.
+     Elements marked data-keep (Index's Finish / manager buttons) are left where they are. */
+  var CK = 'stormStagedJobsV215', PH = {}, BAD = {};
+  function fin() { try { return (window.stormSJFin203 && window.stormSJFin203()) || {}; } catch (e) { return {}; } }
+  /* photo order (Dave 06:43): sheetimg photo (same lookup as Customer Search: phone cache, then getProductImages) -> main-list photo ->
+     assets/items-hd/<bin>.jpg -> grey placeholder. While a sheetimg photo is being fetched the placeholder shows, then it fades in. */
+  var PEND = {}, NOREF = {}, LBAD = {};
+  function upd(bin) {
+    [].forEach.call(document.querySelectorAll('.ph215[data-ph]'), function (sp) {
+      if (sp.getAttribute('data-ph') !== bin) return; var u = photo(bin), im = sp.querySelector('img');
+      if (!u) { if (im) im.remove(); return; }
+      if (!im) { im = document.createElement('img'); im.alt = ''; im.decoding = 'async'; im.src = u; sp.appendChild(im); } else if (im.getAttribute('src') !== u) { im.classList.remove('ld'); im.__w215 = 0; im.src = u; }
+      wire(sp);
+    });
+  }
+  function photo(bin) {
+    if (PH[bin]) return PH[bin];
+    var u = '', si = null;
+    if (!NOREF[bin]) { try { si = window.stormImg203 && window.stormImg203.now(bin); } catch (e) { si = null; } }
+    if (si) {
+      if (si.d) { PH[bin] = si.d; return si.d; }
+      if (!PEND[bin]) { PEND[bin] = 1; try { window.stormImg203.get(bin, function (d) { delete PEND[bin]; if (d) PH[bin] = d; else NOREF[bin] = 1; upd(bin); }); } catch (e) { delete PEND[bin]; NOREF[bin] = 1; } }
+      if (PEND[bin]) return '';
+    }
+    try { var im = document.querySelector('#list .card[data-bin="' + String(bin).replace(/["\\]/g, '\\$&') + '"] img'); u = im && (im.currentSrc || im.src) || ''; } catch (e) {}
+    if (u && LBAD[bin] === u) u = '';
+    if (!u) { var it = null; try { it = findItem(bin); } catch (e) {} var p = it && it.photoUrl; if (p && !/^sheetimg:/.test(String(p)) && LBAD[bin] !== String(p)) u = String(p); }
+    if (!u && !BAD[bin]) u = HD + encodeURIComponent(bin) + '.jpg?v=1';
+    if (u) PH[bin] = u; return u;
+  }
+  function img(bin, cls) {
+    var u = photo(bin);
+    return '<span class="ph215' + (cls ? ' ' + cls : '') + '" data-ph="' + esc(bin) + '">' + (u ? '<img src="' + esc(u) + '" alt="" decoding="async">' : '') + '</span>';
+  }
+  /* an image that answers: fade in; one that fails: drop to the next source, else keep the grey placeholder */
+  function wire(root) {
+    [].forEach.call(root.querySelectorAll('.ph215 img'), function (im) {
+      if (im.__w215) return; im.__w215 = 1;
+      function ok() { im.classList.add('ld'); }
+      function bad() {
+        var sp = im.parentNode, bin = sp && sp.getAttribute('data-ph'); if (!bin) return;
+        var was = im.getAttribute('src') || ''; delete PH[bin];
+        if (was.indexOf(HD) === 0) BAD[bin] = 1; else if (/^data:/.test(was)) NOREF[bin] = 1; else LBAD[bin] = was; /* next source in the order */
+        var nx = photo(bin);
+        if (nx && nx !== was) { im.src = nx; } else { BAD[bin] = 1; im.remove(); }
+      }
+      if (im.complete && im.naturalWidth) ok(); else if (im.complete && im.src) bad();
+      im.addEventListener('load', ok); im.addEventListener('error', bad);
+    });
+  }
+  window.stormPhoto215 = { url: photo, html: img, wire: wire };
+  /* minimal DOM morph: same tag -> sync attributes/text and recurse; else replace. data-keep elements in the old tree are left alone. */
+  function keep(n) { return n.nodeType === 1 && n.hasAttribute('data-keep'); }
+  function morph(a, b) {
+    if (a.nodeType !== b.nodeType || a.nodeName !== b.nodeName) { a.parentNode.replaceChild(b, a); return; }
+    if (a.nodeType === 3) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+    if (a.nodeType !== 1) return;
+    if (a.nodeName === 'IMG') { if (a.getAttribute('src') !== b.getAttribute('src')) { a.classList.remove('ld'); a.__w215 = 0; a.setAttribute('src', b.getAttribute('src')); } return; }
+    var i, at;
+    for (i = a.attributes.length - 1; i >= 0; i--) { at = a.attributes[i].name; if (!b.hasAttribute(at)) a.removeAttribute(at); }
+    for (i = 0; i < b.attributes.length; i++) { at = b.attributes[i]; if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value); }
+    if (a.nodeName === 'BUTTON' && a.disabled !== b.disabled) a.disabled = b.disabled;
+    var ka = [].filter.call(a.childNodes, function (n) { return !keep(n); }), kb = [].slice.call(b.childNodes);
+    var anchor = [].filter.call(a.childNodes, keep)[0] || null;
+    for (i = 0; i < kb.length; i++) {
+      if (i < ka.length) {
+        var o = ka[i], n = kb[i];
+        /* keyed rows: a different job / item in this slot is a replacement, not a patch */
+        var oka = o.nodeType === 1 && (o.getAttribute('data-sj-job') || o.getAttribute('data-k215')), okb = n.nodeType === 1 && (n.getAttribute('data-sj-job') || n.getAttribute('data-k215'));
+        if (oka !== okb) { a.replaceChild(n, o); continue; }
+        morph(o, n);
+      } else a.insertBefore(kb[i], anchor);
+    }
+    for (i = kb.length; i < ka.length; i++) ka[i].remove();
+  }
+  var view = '';
+  function html() {
+    var h = '', F = fin();
     var j = S.cur ? find(S.cur) : null;
     if (S.cur && !j && S.loaded) S.cur = null;
     if (j) {
-      var c = pct(j);
-      h += '<div class="s-top"><button type="button" class="s-btn" data-sj-back aria-label="Back">\u2039</button><h2>' + esc(j.customer.split(' \u00b7 ')[0] || 'Staged job') + '</h2><button type="button" class="s-btn" data-sj-x aria-label="Close">\u00d7</button></div><div class="s-wrap">'
+      var c = pct(j), done = !!F[j.jobKey];
+      h += '<div class="s-top"><button type="button" class="s-btn" data-sj-back aria-label="Back">\u2039</button><h2>' + esc(j.customer.split(' \u00b7 ')[0] || 'Staged job') + '</h2><button type="button" class="s-btn" data-sj-x aria-label="Close">\u00d7</button></div><div class="s-wrap" data-v215="job">'
         + '<div class="s-head"><div class="s-sub">' + esc(j.customer.split(' \u00b7 ').slice(1).join(' \u00b7 ')) + '</div>'
-        + '<div class="s-nm' + (c.p >= 1 ? ' s-done' : '') + '" style="margin-top:6px">' + (c.p >= 1 ? 'All loaded on the truck' : c.d + ' of ' + c.n + ' loaded on the truck') + '</div>'
+        + '<div class="s-nm' + (done ? ' c196' : c.p >= 1 ? ' s-done' : '') + '" style="margin-top:6px">' + (done ? 'Completed' : c.p >= 1 ? 'All loaded on the truck' : c.d + ' of ' + c.n + ' loaded on the truck') + '</div>'
         + '<div class="s-sub">Staged ' + esc(when(j.at)) + (j.by ? ' by ' + esc(j.by) : '') + '</div></div>'
         + (S.err ? '<div class="s-err">' + esc(S.err) + '</div>' : '');
       if (!j.lines.length) h += '<div class="s-note">No staged items on this job.</div>';
       j.lines.forEach(function (l) {
-        h += '<div class="s-line' + (l.loaded ? ' on' : '') + '"><img src="' + HD + encodeURIComponent(l.bin) + '.jpg?v=1" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+        h += '<div class="s-line' + (l.loaded ? ' on' : '') + '" data-k215="' + esc(l.bin) + '">' + img(l.bin)
           + '<div class="s-li"><div class="s-ln">' + esc(l.name || l.bin) + '</div><div class="s-lq">Qty ' + esc(l.qty === '' ? '-' : l.qty) + (l.loaded && l.loadedBy ? ' \u00b7 ' + esc(l.loadedBy) : '') + '</div></div>'
           + '<button type="button" class="s-box' + (l.loaded ? ' on' : '') + '" data-sj-bin="' + esc(l.bin) + '" aria-pressed="' + (l.loaded ? 'true' : 'false') + '"><b>' + CHK + '</b>Loaded</button></div>';
       });
       h += '</div>';
-    } else {
-      h += '<div class="s-top"><h2>Staged jobs</h2><button type="button" class="s-btn" data-sj-x aria-label="Close">\u00d7</button></div><div class="s-wrap">'
-        + (S.err ? '<div class="s-err">' + esc(S.err) + '</div>' : '');
-      if (!S.loaded) h += '<div class="s-note">Loading staged jobs\u2026</div>';
-      else if (!S.jobs.length) h += '<div class="s-note">No staged jobs yet.<br>Stage a job in Customer Search and tap Staged Job Complete.</div>';
-      S.jobs.forEach(function (j) {
-        var c = pct(j), nm = j.customer.split(' \u00b7 ')[0] || j.jobKey, ad = j.customer.split(' \u00b7 ').slice(1).join(' \u00b7 ');
-        h += '<button type="button" class="s-job" data-sj-job="' + esc(j.jobKey) + '"><span class="s-ring" style="background:conic-gradient(' + col(c.p) + ' ' + Math.round(c.p * 360) + 'deg,#E3E8EF 0)"><i>' + c.d + '/' + c.n + '</i></span>'
-          + '<span style="flex:1;min-width:0"><div class="s-nm">' + esc(nm) + '</div><div class="s-sub">' + (ad ? esc(ad) + '<br>' : '') + 'Staged ' + esc(when(j.at)) + '</div>'
-          + '<div class="s-sub' + (c.p >= 1 ? ' s-done' : '') + '">' + (c.p >= 1 ? 'All loaded' : c.d + ' of ' + c.n + ' loaded') + '</div></span></button>';
-      });
-      h += '</div>';
+      return { v: 'job:' + j.jobKey, h: h };
     }
-    var y = s.scrollTop; s.innerHTML = h; s.scrollTop = y;
+    h += '<div class="s-top"><h2>Ready to load on truck</h2><button type="button" class="s-btn" data-sj-x aria-label="Close">\u00d7</button></div><div class="s-wrap" data-v215="list">'
+      + (S.err ? '<div class="s-err">' + esc(S.err) + '</div>' : '');
+    if (!S.loaded && !S.jobs.length) { for (var q = 0; q < 3; q++) h += '<div class="s-job sk215" data-k215="sk' + q + '" aria-hidden="true"><span class="s-ring sk"></span><span style="flex:1;min-width:0"><i class="skl" style="width:55%"></i><i class="skl" style="width:80%"></i><i class="skl" style="width:35%"></i></span></div>'; }
+    else if (!S.jobs.length) h += '<div class="s-note">No staged jobs yet.<br>Stage a job in Customer Search and tap Staged Job Complete.</div>';
+    S.jobs.forEach(function (j) {
+      var c = pct(j), nm = j.customer.split(' \u00b7 ')[0] || j.jobKey, ad = j.customer.split(' \u00b7 ').slice(1).join(' \u00b7 ');
+      var st = F[j.jobKey] ? ['s-sub c196', 'Completed'] : c.p >= 1 ? ['s-sub s-done', 'All loaded'] : c.d === 0 ? ['s-sub r196', 'Ready to load \u00b7 0 of ' + c.n + ' loaded'] : ['s-sub', c.d + ' of ' + c.n + ' loaded'];
+      h += '<button type="button" class="s-job" data-sj-job="' + esc(j.jobKey) + '"><span class="s-ring" style="background:conic-gradient(' + col(c.p) + ' ' + Math.round(c.p * 360) + 'deg,#E3E8EF 0)"><i>' + c.d + '/' + c.n + '</i></span>'
+        + '<span style="flex:1;min-width:0"><div class="s-nm">' + esc(nm) + '</div><div class="s-sub">' + (ad ? esc(ad) + '<br>' : '') + 'Staged ' + esc(when(j.at)) + '</div>'
+        + '<div class="' + st[0] + '">' + st[1] + '</div>'
+        + (j.lines.length ? '<span class="s-ths">' + j.lines.slice(0, 5).map(function (l) { return img(l.bin, 'th'); }).join('') + (j.lines.length > 5 ? '<em>+' + (j.lines.length - 5) + '</em>' : '') + '</span>' : '')
+        + '</span></button>';
+    });
+    h += '</div>';
+    return { v: 'list', h: h };
   }
+  function render(anim) {
+    var s = scr(), r = html();
+    var t = document.createElement('div'); t.innerHTML = r.h;
+    if (r.v !== view || !s.firstChild) {
+      var back = view.indexOf('job:') === 0 && r.v === 'list';
+      var was = view; view = r.v;
+      [].forEach.call(s.querySelectorAll(':scope > [data-keep]'), function (k) { k.remove(); });
+      s.textContent = ''; while (t.firstChild) s.appendChild(t.firstChild);
+      s.scrollTop = 0;
+      var w = s.querySelector('.s-wrap'); if (w && was && anim !== false) { w.classList.add(back ? 'in-b215' : 'in-f215'); setTimeout(function () { w.classList.remove('in-b215', 'in-f215'); }, 300); }
+    } else {
+      var y = s.scrollTop;
+      var ch = [].filter.call(s.childNodes, function (n) { return !keep(n); });
+      var nb = [].slice.call(t.childNodes);
+      for (var i = 0; i < nb.length; i++) { if (ch[i]) morph(ch[i], nb[i]); else s.appendChild(nb[i]); }
+      for (i = nb.length; i < ch.length; i++) ch[i].remove();
+      if (s.scrollTop !== y) s.scrollTop = y;
+    }
+    wire(s);
+  }
+  function save() { try { localStorage.setItem(CK, JSON.stringify({ t: Date.now(), jobs: S.jobs.slice(0, 40) })); } catch (e) {} }
+  try { var c0 = JSON.parse(localStorage.getItem(CK) || 'null'); if (c0 && c0.jobs && Date.now() - c0.t < 7 * 864e5) S.jobs = c0.jobs; } catch (e) {}
+  var sig = '';
   function load() {
-    var r = run(); if (!r) { S.err = 'Open the app with signal to see staged jobs.'; S.loaded = true; render(); return; }
-    if (S.busy) return;
+    var r = run(); if (!r) { S.err = 'Open the app with signal to see staged jobs.'; S.loaded = true; if (S.open) render(); return; }
+    if (S.busy || (S.inflight && Date.now() - S.inflight < 20000)) return; /* one call at a time; a reply that never comes frees the slot after 20 s */
+    S.inflight = Date.now();
     r.withSuccessHandler(function (res) {
+      S.inflight = 0;
       if (S.busy) return;
       var jobs = (res && res.jobs) || [];
       jobs.forEach(function (j) { j.lines.forEach(function (l) { var p = S.pend[j.jobKey + '|' + l.bin]; if (p != null) l.loaded = p; }); });
-      S.jobs = jobs; S.loaded = true; if (S.err && /signal|load/i.test(S.err)) S.err = ''; if (S.open) render();
-    }).withFailureHandler(function () { S.loaded = true; S.err = 'Couldn\u2019t load staged jobs. Check signal.'; if (S.open) render(); }).getStagedJobs();
+      /* a seeded job (just staged on this phone) stays until the server lists it */
+      (S.seed || []).forEach(function (sd) { if (Date.now() - sd.t < 20000 && !jobs.some(function (x) { return x.jobKey === sd.j.jobKey; })) jobs.unshift(sd.j); });
+      var ns = JSON.stringify(jobs), ce = S.err && /signal|load/i.test(S.err);
+      var wasLoaded = S.loaded; S.loaded = true; if (ce) S.err = '';
+      if (ns === sig && wasLoaded && !ce) return; /* nothing changed: no repaint at all */
+      jobs.forEach(function (j) { var pv = find(j.jobKey); if (!pv) return; var ix = {}; pv.lines.forEach(function (l, i) { ix[l.bin] = i; }); j.lines.sort(function (a, b) { return (a.bin in ix ? ix[a.bin] : 1e4) - (b.bin in ix ? ix[b.bin] : 1e4); }); }); /* keep the order on screen (no row shuffle) */
+      ns = JSON.stringify(jobs); if (ns === sig && wasLoaded && !ce) return;
+      sig = ns; S.jobs = jobs; save(); jobs.forEach(function (j) { j.lines.forEach(function (l) { photo(l.bin); }); });
+      if (S.open) render();
+    }).withFailureHandler(function () { S.inflight = 0; S.loaded = true; S.err = 'Couldn\u2019t load staged jobs. Check signal.'; if (S.open) render(); }).getStagedJobs();
   }
+
   function tap(bin) {
     var j = find(S.cur); if (!j) return;
     var l = null; j.lines.forEach(function (x) { if (x.bin === bin) l = x; }); if (!l) return;
@@ -9372,13 +9505,29 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     l.loaded = on; l.loadedBy = on ? dev() : ''; S.pend[key] = on; S.err = ''; render();
     if (!r) { S.err = 'No signal. That tap wasn\u2019t saved.'; l.loaded = !on; delete S.pend[key]; render(); return; }
     S.busy++;
-    r.withSuccessHandler(function () { S.busy--; delete S.pend[key]; })
+    r.withSuccessHandler(function () { S.busy--; delete S.pend[key]; sig = ''; save(); })
      .withFailureHandler(function (er) { S.busy--; delete S.pend[key]; l.loaded = !on; S.err = 'Couldn\u2019t save that. Try again.' + (er && er.message ? ' (' + String(er.message).slice(0, 80) + ')' : ''); render(); })
      .setStagingCheck('ld:' + j.jobKey, j.customer, bin, l.name, l.qty, on, dev(), (window.stormCrewPin && window.stormCrewPin.get) ? window.stormCrewPin.get() : '');
   }
-  function open() { var s = scr(); S.open = true; S.cur = null; S.err = ''; render(); requestAnimationFrame(function () { s.classList.add('open'); }); load(); clearInterval(S.timer); S.timer = setInterval(function () { if (S.open && !document.hidden) load(); }, 5000); }
+  /* open(jobKey?, seedJob?, instant?): jobKey opens straight on that job's load screen (no list first); seedJob = the job this phone just
+     staged, shown at once until the server lists it; instant = no slide (something else is covering the screen and fades away) */
+  function open(k, seed, instant) {
+    var s = scr(); S.open = true; S.err = '';
+    if (seed && seed.jobKey) { S.seed = (S.seed || []).filter(function (x) { return x.j.jobKey !== seed.jobKey; }); S.seed.push({ t: Date.now(), j: seed }); if (!find(seed.jobKey)) S.jobs.unshift(seed); }
+    S.cur = (typeof k === 'string' && k) ? k : null; view = '';
+    if (instant) { s.style.transition = 'none'; s.classList.add('open'); render(false); void s.offsetWidth; setTimeout(function () { s.style.removeProperty('transition'); }, 50); }
+    else { render(false); void s.offsetWidth; requestAnimationFrame(function () { s.classList.add('open'); }); }
+    load(); clearInterval(S.timer); S.timer = setInterval(function () { if (S.open && !document.hidden) load(); }, 5000);
+  }
   function close() { var s = $('sj214'); S.open = false; clearInterval(S.timer); if (s) s.classList.remove('open'); }
   window.stormOpenStagedJobs = open;
+  /* v215: Index hooks (Finish / manager tools): current job, repaint, back to the list, drop a job, refresh now */
+  window.stormSJ215 = {
+    cur: function () { return S.open ? S.cur : null; }, job: function (k) { return find(k); }, open: function () { return S.open; },
+    paint: function () { if (S.open) render(); }, back: function () { S.cur = null; S.err = ''; if (S.open) render(); },
+    drop: function (k) { S.jobs = S.jobs.filter(function (j) { return j.jobKey !== k; }); S.seed = (S.seed || []).filter(function (x) { return x.j.jobKey !== k; }); sig = ''; save(); if (S.cur === k) S.cur = null; if (S.open) render(); },
+    refresh: function () { sig = ''; load(); }, prefetch: function () { if (!S.open) load(); }
+  };
 
   /* side menu row */
   function menu() {
@@ -9386,7 +9535,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var r = sg.parentNode.querySelector('[data-sj214]');
     if (!r) {
       r = document.createElement('button'); r.type = 'button'; r.className = 'cl-row'; r.setAttribute('data-sj214', '1');
-      r.innerHTML = '<svg class="cl-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TRUCK + '</svg><span class="cl-name">Staged jobs</span>';
+      r.innerHTML = '<svg class="cl-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TRUCK + '</svg><span class="cl-name">Ready to load on truck</span>';
     }
     if (sg.nextElementSibling !== r) sg.insertAdjacentElement('afterend', r);
   }
@@ -9397,13 +9546,13 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (t.closest('#cl-menu [data-sj214]')) {
       e.preventDefault(); e.stopImmediatePropagation();
       try { closeDrawer(); } catch (x) { var sc = $('drawer-scrim'); if (sc) sc.click(); }
-      setTimeout(open, 220); return;
+      setTimeout(open, 90); return; /* v215: slides in while the menu slides away (was 220 ms after) */
     }
-    if (!t.closest('#sj214')) { if (t.closest('#hamburger')) setTimeout(menu, 20); return; }
+    if (!t.closest('#sj214')) { if (t.closest('#hamburger')) { setTimeout(menu, 20); try { window.stormSJ215.prefetch(); } catch (x) {} } return; } /* v215: the list is fetched while the menu slides open */
     var b;
     if (t.closest('[data-sj-x]')) { e.preventDefault(); close(); return; }
-    if (t.closest('[data-sj-back]')) { e.preventDefault(); S.cur = null; S.err = ''; render(); scr().scrollTop = 0; return; }
-    if ((b = t.closest('[data-sj-job]'))) { e.preventDefault(); S.cur = b.getAttribute('data-sj-job'); S.err = ''; render(); scr().scrollTop = 0; return; }
+    if (t.closest('[data-sj-back]')) { e.preventDefault(); S.cur = null; S.err = ''; render(); return; }
+    if ((b = t.closest('[data-sj-job]'))) { e.preventDefault(); if (b.classList.contains('sk215')) return; S.cur = b.getAttribute('data-sj-job'); S.err = ''; render(); return; }
     if ((b = t.closest('[data-sj-bin]'))) { e.preventDefault(); tap(b.getAttribute('data-sj-bin')); return; }
   }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.open) close(); });
