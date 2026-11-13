@@ -1362,5 +1362,41 @@ html body #sheet .qty span.qn:active { background: #CDEBF8; }
   v.addEventListener('playing', refresh);
 })();
 </script>
+<script>
+/* scan v146 (Hark, 2026-11-12, Dave): Open-details scan (&detail=1, from the camera button on the app's main screen).
+   The first STORM label read closes the camera and the app opens that item's Item details. Nothing is added to the cart:
+   X / Cancel hand back nothing. A code that isn't a STORM item shows in red and the camera stays on.
+   Only active with &detail=1, so the normal cart scan and the Receiving scan are unchanged. */
+(function () {
+  if (params.get('detail') !== '1') return;
+  document.documentElement.classList.add('detail');
+  var st = document.createElement('style');
+  st.textContent = 'html.detail #cart-pill, html.detail #done, html.detail #sheet { display: none !important; }';
+  document.head.appendChild(st);
+  try { setMsg('Point at a bin label to open the item'); } catch (e) {}
+  function out(r) {
+    if (done) return; done = true;
+    try { stopStream(); } catch (e) {}
+    if (inLayer()) { layerDone(r); return; }
+    var url = returnUrl + (returnUrl.indexOf('?') === -1 ? '?' : '&');
+    location.href = r.detail ? url + 'detail=' + encodeURIComponent(r.detail) : returnUrl;
+  }
+  goBack = function () { out({ detailClosed: '1' }); };
+  goBackWithCart = function () { out({ detailClosed: '1' }); };
+  onDecoded = function (raw) {
+    if (!raw || done) return;
+    var text = cleanCode(raw); if (!text) return;
+    var now = Date.now();
+    if (text === lastText && now - lastAt < 1500) return;
+    lastText = text; lastAt = now;
+    var it = findScanItem(text);
+    if (!it) { setMsg("That code isn't a Storm inventory item. Scanned: " + text, true); return; }
+    try { beep(); haptic(); } catch (e) {}
+    try { edgeHit(); } catch (e) {}
+    setMsg('Opening ' + (it.t || it.i) + '\u2026');
+    setTimeout(function () { out({ detail: String(it.i) }); }, 260);
+  };
+})();
+</script>
 </body>
 </html>
