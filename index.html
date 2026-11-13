@@ -267,7 +267,7 @@ html, body, #app, #cover, #bootvid { background: #EAF0F7 !important; }
     function nextVid() { if (finished) return; bv.removeAttribute('poster'); /* v150: poster is only for the very first frame; never show the box truck again between clips or on exit */ vi = (vi + 1) % VIDS.length; bv.src = VIDS[vi]; try { var pr2 = bv.play(); if (pr2 && pr2.catch) pr2.catch(function () {}); } catch (e) {} }
     bv.addEventListener('ended', nextVid); bv.addEventListener('error', function () { if (finished) return; vErr++; if (vErr >= VIDS.length) { VIDS = ['assets/boot-montage.mp4?v=2']; vi = -1; vErr = -99; } nextVid(); }); bv.addEventListener('playing', function () { if (vErr > 0) vErr = 0; });
     if (wp) { setTimeout(function () { if (!picked) wp.classList.add('in'); }, 250);
-      wp.addEventListener('click', function (e) { if (picked) return; /* v186 (Hark, 2026-11-11, Dave): no mode buttons on the video; a tap anywhere enters the app in the last-used mode (Stock by default) */ var lm = null; try { lm = localStorage.getItem('stormWrapMode'); } catch (e3) {} picked = (lm === 'job' || lm === 'stock') ? lm : 'stock';
+      wp.addEventListener('click', function (e) { if (picked) return; /* v186 (Hark, 2026-11-11, Dave): no mode buttons on the video; a tap anywhere enters the app in the last-used mode (Stock by default) */ picked = 'stock'; /* SNAP (Dave 08:51): the tap always lands on the main screen (Stock home), whatever mode was used last */
         try { localStorage.setItem('stormWrapMode', picked); } catch (e2) {}
         wp.classList.add('exiting'); /* v139: buttons pop out in reverse first */
         entering = true; flGo(); /* FL (Hark, 2026-11-13, Dave): no fade to black, no logo pulse: crossfade straight to the app (already loaded behind the video), or to a light loader until it is ready */ }); }
@@ -298,17 +298,61 @@ html, body, #app, #cover, #bootvid { background: #EAF0F7 !important; }
   function flCross() {
     if (flDone) return; flDone = true; finished = true; settled = true;
     f.classList.add('ready');
-    try { (src || f.contentWindow).postMessage({ storm: 'wrapMode', mode: picked }, '*'); } catch (e) {}
-    try { (src || f.contentWindow).postMessage({ storm: 'landed', present: false }, '*'); } catch (e) {}
+    if (!wmSent) { wmSent = true; try { (src || capSrc || f.contentWindow).postMessage({ storm: 'wrapMode', mode: 'stock' }, '*'); } catch (e) {} }
+    try { (src || capSrc || f.contentWindow).postMessage({ storm: 'landed', present: false }, '*'); } catch (e) {}
     requestAnimationFrame(function () { boot.classList.add('fl-x'); });
     setTimeout(function () { boot.classList.remove('fl-wait'); boot.classList.add('gone'); var bv = document.getElementById('bootvid'); if (bv) { try { bv.pause(); } catch (e) {} bv.removeAttribute('poster'); bv.style.visibility = 'hidden'; bv.removeAttribute('src'); try { bv.load(); } catch (e) {} }
       var w = document.getElementById('wpick'); if (w && w.parentNode) w.parentNode.removeChild(w); }, 750);
   }
-  function flGo() { flTapped = true; /* FL3 (Dave 08:45): tap anywhere -> smooth fade to black (no spinner, no logo) -> fade into the loaded app */
+  /* SNAP (Hark, 2026-11-13, Dave 08:45/08:51): tap anywhere at any moment -> 0.35 s fade to black -> the main screen.
+     App v219 says 'cap' (it will announce 'list'/'home'), 'list' (main screen drawn with its list, in Stock) and 'home' (same, fades done). Until then, if this phone has a
+     snapshot of the main screen for this width (sent by the app as {storm:'snap'}), it fades in (0.5 s) as a still picture that takes no taps,
+     then crossfades (0.3 s) to the real app on 'home'. No snapshot: black until 'list' (or 'ready' from an older app), then the 0.6 s fade. 8 s fallback. */
+  var flCap = false, flHome = false, flList = false, wmSent = false, capSrc = null, SNAPK = 'stormSnapV1:';
+  function flSendMode() { var t = src || capSrc; if (wmSent || !t) return; wmSent = true; try { t.postMessage({ storm: 'wrapMode', mode: 'stock' }, '*'); } catch (e) {} }
+  function flCan() { return flCap ? (sn.st === 'show' ? flHome : (flList || flHome)) : (ready && !!src); } /* snapshot up: wait for the still page it shows; none: the drawn list */
+  function flGo() { flTapped = true; picked = 'stock'; flSendMode();
     cover.style.transition = 'opacity .35s ease'; cover.style.opacity = '1'; boot.classList.add('fl-black'); flBlackAt = Date.now();
-    if (ready && src) setTimeout(flCross, 360); setTimeout(flCross, 8000); }
-  var flBlackAt = 0;
-  function flReady() { if (flTapped && !flDone) setTimeout(flCross, Math.max(0, 360 - (Date.now() - flBlackAt))); }
+    snapTap(); flTry(); setTimeout(function () { if (!flDone) { if (sn.st === 'show') snapCross(); else { snapDrop(); flCross(); } } }, 8000); }
+  var flBlackAt = 0, flT = 0;
+  function flTry() { if (!flTapped || flDone || flT || !flCan()) return;
+    var now = Date.now(), wait = Math.max(0, 360 - (now - flBlackAt));
+    if (sn.st === 'show') { flT = setTimeout(snapCross, Math.max(wait, sn.at - now, 0)); return; }
+    snapDrop(); flT = setTimeout(flCross, wait); }
+  function flReady() { if (flTapped) flSendMode(); flTry(); }
+  /* the snapshot layer: a sandboxed srcdoc frame (no scripts) prepared hidden while the video plays, so its pictures are loaded by the tap */
+  var sn = { st: 'none', el: null, w: 0, ok: false, at: 0 };
+  function snapGet() { try { var o = JSON.parse(localStorage.getItem(SNAPK + window.innerWidth) || 'null'); if (o && typeof o.html === 'string' && Date.now() - (o.t || 0) < 30 * 864e5) return o; } catch (e) {} return null; }
+  function snapPrep() { if (sn.st !== 'none' || flDone || !WPICK) return; var o = snapGet(); if (!o) return;
+    var d = document.createElement('div'); d.id = 'flsnap'; d.setAttribute('aria-hidden', 'true');
+    d.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;z-index:1;opacity:1;background:transparent;touch-action:none;-webkit-tap-highlight-color:transparent;will-change:opacity;pointer-events:none'; /* drawn under the video (z 1 < #boot z 2), so it is already painted when it fades in */
+    var fr = document.createElement('iframe'); fr.setAttribute('sandbox', 'allow-same-origin'); fr.setAttribute('tabindex', '-1'); fr.setAttribute('scrolling', 'no');
+    fr.style.cssText = 'border:0;width:100%;height:100%;display:block;pointer-events:none;background:transparent';
+    fr.addEventListener('load', function () { requestAnimationFrame(function () { requestAnimationFrame(function () { sn.ok = true; snapMaybe(); }); }); });
+    ['click', 'pointerdown', 'pointerup', 'touchstart', 'touchend', 'mousedown', 'mouseup', 'contextmenu'].forEach(function (t) { d.addEventListener(t, function (e) { e.preventDefault(); e.stopPropagation(); }, { passive: false }); });
+    fr.srcdoc = o.html; d.appendChild(fr); document.body.appendChild(d); sn.el = d; sn.w = window.innerWidth; sn.st = 'prep'; }
+  function snapDrop() { if (sn.el && sn.el.parentNode) sn.el.parentNode.removeChild(sn.el); sn.el = null; sn.st = 'gone'; }
+  function snapTap() { if (sn.st === 'prep' && sn.w !== window.innerWidth) { snapDrop(); sn.st = 'none'; } if (sn.st === 'none') snapPrep(); if (sn.st !== 'prep') return;
+    setTimeout(snapMaybe, 360); setTimeout(function () { if (sn.st === 'prep') snapDrop(); }, 1500); /* not drawn 1.5 s after the tap: stay on black (FL3) */ }
+  function snapMaybe() { if (sn.st !== 'prep' || !flTapped || flDone || !sn.ok || Date.now() - flBlackAt < 350) return;
+    if (flCan()) { snapDrop(); flTry(); return; } /* the app got there first: straight to it */
+    sn.st = 'show'; var d = sn.el; d.style.transition = 'none'; d.style.opacity = '0'; d.style.zIndex = '6'; d.style.pointerEvents = 'auto'; void d.offsetWidth; requestAnimationFrame(function () { d.style.transition = 'opacity .5s ease'; d.style.opacity = '1'; }); sn.at = Date.now() + 540; }
+  function snapCross() { if (flDone) return; flDone = true; finished = true; settled = true;
+    if (!f.classList.contains('ready')) { f.style.transition = 'none'; f.classList.add('ready'); }
+    try { (src || capSrc || f.contentWindow).postMessage({ storm: 'landed', present: false }, '*'); } catch (e) {}
+    boot.style.transition = 'none'; boot.style.opacity = '0'; boot.classList.remove('fl-wait'); boot.classList.add('gone'); /* hidden under the opaque snapshot */
+    var bv = document.getElementById('bootvid'); if (bv) { try { bv.pause(); } catch (e) {} bv.removeAttribute('poster'); bv.style.visibility = 'hidden'; bv.removeAttribute('src'); try { bv.load(); } catch (e) {} }
+    var w = document.getElementById('wpick'); if (w && w.parentNode) w.parentNode.removeChild(w);
+    var d = sn.el; requestAnimationFrame(function () { requestAnimationFrame(function () { if (!d) return; d.style.pointerEvents = 'none'; d.style.transition = 'opacity .3s ease'; d.style.opacity = '0'; setTimeout(snapDrop, 380); }); });
+    sn.st = 'out'; }
+  if (WPICK) setTimeout(snapPrep, 150);
+  window.addEventListener('message', function (e) { var m = e.data; if (!m || !flOk(e) || !e.source) return;
+    if (m.storm === 'cap') { flCap = true; if (!capSrc) capSrc = e.source; if (flTapped) flSendMode(); return; }
+    if (m.storm === 'list') { flCap = true; flList = true; if (!capSrc) capSrc = e.source; if (!src) { markReady(e.source, null); } flTry(); return; }
+    if (m.storm === 'home') { flCap = true; flHome = true; if (!capSrc) capSrc = e.source; if (!src) { markReady(e.source, null); } flTry(); return; }
+    if (m.storm === 'snap' && typeof m.html === 'string' && m.html.length > 500 && m.html.length < 320000 && m.w === window.innerWidth && !/<script/i.test(m.html)) {
+      try { for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (k && k.indexOf(SNAPK) === 0 && k !== SNAPK + m.w && Object.keys(localStorage).filter(function (x) { return x.indexOf(SNAPK) === 0; }).length > 2) localStorage.removeItem(k); }
+        localStorage.setItem(SNAPK + m.w, JSON.stringify({ t: Date.now(), h: m.h, html: m.html })); } catch (x) { try { localStorage.removeItem(SNAPK + m.w); } catch (y) {} } } });
   function plainFade() { markReady(null); }
   /* v149 (Hark, 2026-11-10): the app re-measures its banner logo after the mode tap and on rotate, so the outline trace sits exactly on it in landscape and on iPad */
   window.addEventListener('message', function (e) { var m = e.data; if (m && m.storm === 'logoPos' && m.w > 20) { var r2 = { x: m.x, y: m.y, w: m.w, h: m.h, vw: window.innerWidth, vh: window.innerHeight }; try { localStorage.setItem(KEY, JSON.stringify(r2)); } catch (x) {} if (!rect || Math.abs(rect.x - m.x) > .5 || Math.abs(rect.y - m.y) > .5 || Math.abs(rect.w - m.w) > .5 || Math.abs(rect.h - m.h) > .5) { placeLogo(r2); if (entering || boot.classList.contains('pulse1')) { lt.style.opacity = ''; drawLogo(1); } } else rect = r2; } });
