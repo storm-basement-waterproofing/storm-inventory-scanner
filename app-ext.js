@@ -1,4 +1,6 @@
-/* v216 (Hark, 2026-11-13, Dave 07:28 "uncheck the green boxes it still says completed"): a Completed job's Loaded boxes are locked (greyed, a tap only
+/* v217 (Hark, 2026-11-13, Dave): the phone's Pull List tick cache is kept per server job (jb:<Jobber job id>, else the c: customer key, the same
+   key as the Pull list's line cache), so a repeat customer's next job starts with no ticks. Needs app v206.
+   v216 (Hark, 2026-11-13, Dave 07:28 "uncheck the green boxes it still says completed"): a Completed job's Loaded boxes are locked (greyed, a tap only
    shows a toast, nothing is sent), and a poll that left before a tap can no longer undo that tap on screen (block v214 at the end). Needs app v205.
    v215 (Hark, 2026-11-13, Dave): Ready to load on truck patched in place (no flash), photos with placeholder + fade, cached list, open straight on a job (block v214 at the end). Needs app v203.
    v214 (Hark, 2026-11-12, Dave): side menu "Staged jobs" + Loaded on truck boxes (block at the end of this file). Needs app v190 (getStagedJobs). */
@@ -2173,9 +2175,10 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function cust() { try { return JSON.parse(localStorage.getItem(CUST) || '{}') || {}; } catch (e) { return {}; } }
   function jobKey() { var c = cust(); return 'c:' + norm(c.first) + '|' + norm(c.last) + '|' + norm(c.address); }
   function allChecks() { try { return JSON.parse(localStorage.getItem(CK) || '{}') || {}; } catch (e) { return {}; } }
-  function checked() { var a = allChecks()[jobKey()]; return (a && Array.isArray(a.bins)) ? a.bins : []; }
+  function ckey() { return srvKey() || jobKey(); } /* v217: per job, not per customer */
+  function checked() { var a = allChecks()[ckey()]; return (a && Array.isArray(a.bins)) ? a.bins : []; }
   function saveChecked(bins, k) {
-    var all = allChecks(); k = k || jobKey();
+    var all = allChecks(); k = k || ckey();
     if (bins.length) all[k] = { bins: bins, t: Date.now() }; else delete all[k];
     var keys = Object.keys(all).sort(function (a, b) { return (all[b].t || 0) - (all[a].t || 0); });
     keys.slice(40).forEach(function (x) { delete all[x]; }); /* keep the 40 most recent jobs */
@@ -2276,7 +2279,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     var prev = JSON.stringify(STAGED[k] || null); STAGED[k] = st ? { at: st.at, by: st.by || '', rows: rows || (STAGED[k] && STAGED[k].rows) || null } : null;
     if (st && rows) { /* the server's marks win on a staged job: drop this phone's unsent taps for it */
       var q = getQ(), q2 = q.filter(function (o) { return o.k !== k; }); if (q2.length !== q.length) putQ(q2);
-      if (k === srvKey()) { var on = rows.filter(function (r) { return r.checked; }).map(function (r) { return r.itemBin; }); saveChecked(on, jobKey()); var sh = sheet(); if (sh && sh.querySelector('.tc-top')) paintChecks(sh); }
+      if (k === srvKey()) { var on = rows.filter(function (r) { return r.checked; }).map(function (r) { return r.itemBin; }); saveChecked(on, ckey()); var sh = sheet(); if (sh && sh.querySelector('.tc-top')) paintChecks(sh); }
     }
     if (prev !== JSON.stringify(STAGED[k] || null)) { try { window.dispatchEvent(new Event('stormstaged')); } catch (e) {} }
   }
