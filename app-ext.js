@@ -1,3 +1,4 @@
+/* v220 (Hark, 2026-11-13, Dave 10:43): the launch snapshot scrolls and takes taps at once - full main list in the snapshot, the real app scrolls to the same spot and opens what was tapped at handoff, 'home' posted the moment the list is drawn. Needs wrapper SNAP2. */
 /* v219 (Hark, 2026-11-13, Dave 08:45/08:51): launch snapshot - posts the launch wrapper a static HTML picture of the home screen (stormSnap219) so an early tap fades straight into it, plus a 'home' handshake (main screen drawn, list loaded, at rest) and a quiet launch (header logo just there, no first-entry title/card slide). Needs wrapper SNAP. */
 /* v219: inside the launch wrapper the main screen fades in fully drawn - skip the v137/v153 first-entry title and card slide (its guard flag). */
 (function () { try { var ao = location.ancestorOrigins; if (ao) for (var i = 0; i < ao.length; i++) if (/github\.io$/.test(ao[i])) window.__stormIntroFx = true; } catch (e) {} })();
@@ -9696,6 +9697,131 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   }
   window.stormSnap219 = { now: function () { last = 0; snap(true); }, build: build, ok: homeOk, home: homeNow, sent: function () { return sent; }, why: function () { return why; } };
   if (window.top === window) return; /* nothing to send outside the launch wrapper (the harness calls stormSnap219.build directly) */
+  (function w(n) { if (wm && $('list') && $('list').querySelector('.card')) { sched(1800); try { new MutationObserver(function () { sched(2500); }).observe($('list'), { childList: true, subtree: true, characterData: true }); } catch (e) {} return; } if (n < 2400) setTimeout(function () { w(n + 1); }, 250); })(0);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Date.now() - last > 30000) snap(false); });
+})();
+
+/* v220 (Hark, 2026-11-13, Dave 10:43): the launch snapshot can be used at once. (1) The snapshot holds the whole main list (not just the
+   first screen) so the wrapper lets it scroll natively; at handoff the wrapper sends {storm:'snapScroll', bin, top, y} and this block scrolls
+   the real list so that same card sits at the same spot, then answers {storm:'snapScrolled'} before the crossfade (no jump).
+   (2) A tap on the snapshot is sent as {storm:'snapTap', k}: 'bin:<bin>' opens that item's Details, 'id:<button>' presses one of a few
+   safe header buttons (menu, scan, cart, tabs). Anything else (steppers, Par, Add to order, Order) is ignored: no count or order changes
+   from a replayed tap. (3) 'home' is posted the moment the list is drawn (MutationObserver, no 50 ms polling).
+   Only messages from the launch wrapper's origin (github.io) to this frame are acted on; replies go to e.source. */
+(function () {
+  if (window.__snap220) return; window.__snap220 = 1;
+  if (window.top === window) { window.stormSnap220 = { build: function (o) { return build(o); } }; }
+  var WRAP = /^https:\/\/storm-basement-waterproofing\.github\.io$/, LIMIT = 400000, last = 0, timer = 0, sent = 0, why = '', tries = 0;
+  function $(id) { return document.getElementById(id); }
+  function busy() { try { var a = document.getAnimations ? document.getAnimations() : []; for (var i = 0; i < a.length; i++) { var x = a[i], t = x.effect && x.effect.getComputedTiming ? x.effect.getComputedTiming() : null; if (x.playState === 'running' && t && isFinite(t.endTime)) return true; } } catch (e) {} return false; }
+  function homeOk() { var ok = false; try { ok = window.stormSnap219 ? stormSnap219.ok() : false; why = ok ? '' : 'v219:' + stormSnap219.why(); } catch (e) { why = 'err'; }
+    if (ok && (window.scrollY || 0) > 4) { why = 'scrolled'; return false; } /* the fixed header changes with scroll: capture only at the top */
+    return ok; }
+  var BAD = /tok|secret|pass|pin\b|code/i;
+  function scrub(C) {
+    var all = C.querySelectorAll('script,noscript,style,link,iframe,video,audio,template,object,embed');
+    for (var i = all.length - 1; i >= 0; i--) all[i].parentNode && all[i].parentNode.removeChild(all[i]);
+    var tw = document.createTreeWalker(C, NodeFilter.SHOW_COMMENT), cm = [], nd; while ((nd = tw.nextNode())) cm.push(nd); cm.forEach(function (x) { x.parentNode.removeChild(x); });
+    var els = [C].concat([].slice.call(C.querySelectorAll('*')));
+    els.forEach(function (e) { for (var j = e.attributes.length - 1; j >= 0; j--) { var n = e.attributes[j].name; if (/^on/i.test(n) || (/^data-/.test(n) && BAD.test(n)) || (n === 'value' && !(e.tagName === 'INPUT' && e.closest && e.closest('.card') && /^\d{1,5}$/.test(e.getAttribute('value') || ''))) || n === 'autofocus' || n === 'contenteditable') e.removeAttribute(n); }
+      for (var a = e.attributes.length - 1; a >= 0; a--) { var an = e.attributes[a].name; if (/^aria-|^(decoding|inputmode|tabindex|title|role|draggable|autocomplete|spellcheck)$/.test(an) || (an === 'alt' && !e.attributes[a].value) || (an === 'type' && e.tagName === 'BUTTON')) e.removeAttribute(an); } /* v220: not needed for a still picture; keeps the full list small */
+      if (e.tagName === 'TEXTAREA') e.textContent = ''; if (e.tagName === 'A') e.removeAttribute('href'); if (e.tagName === 'FORM') e.removeAttribute('action'); });
+  }
+  /* like v219's prune, but keeps the whole page (limit = Infinity for the full list); photos more than two screens down carry their
+     address as data-snapsrc and the wrapper sets src when the snapshot is scrolled near them (no 200 downloads during launch) */
+  function prune(L, C, fixed, limit, lazyY) {
+    var lk = L.children, ck = C.children, drop = [];
+    for (var i = 0; i < lk.length && i < ck.length; i++) {
+      var l = lk[i], c = ck[i], cs; try { cs = getComputedStyle(l); } catch (e) { continue; }
+      if (cs.display === 'none') { drop.push(c); continue; }
+      var fx = fixed || cs.position === 'fixed', r = l.getBoundingClientRect(), top = r.top + (fx ? 0 : scrollY);
+      if (fx && !fixed && (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth || +cs.opacity < 0.05 || cs.visibility === 'hidden')) { drop.push(c); continue; }
+      if (!fx && r.height > 0 && top > limit) { drop.push(c); continue; }
+      if (l.tagName === 'CANVAS') { try { var im = document.createElement('img'); im.src = l.toDataURL(); im.className = l.className; im.setAttribute('style', (l.getAttribute('style') || '') + ';width:' + r.width + 'px;height:' + r.height + 'px'); C.replaceChild(im, c); } catch (e) { drop.push(c); } continue; }
+      if ((l.tagName === 'INPUT') && l.type !== 'search' && l.type !== 'password' && l.closest('.card') && /^\d{1,5}$/.test(l.value)) c.setAttribute('value', l.value);
+      if (l.tagName === 'IMG') {
+        if (c.classList.contains('f12-w')) { c.classList.remove('f12-w'); c.classList.add('f12-in'); }
+        var u = l.currentSrc || l.getAttribute('src') || ''; c.removeAttribute('srcset'); c.removeAttribute('loading');
+        if (u && !fx && top > lazyY && !/^data:/.test(u)) { c.removeAttribute('src'); c.setAttribute('data-snapsrc', u); } else if (u) c.setAttribute('src', u);
+      }
+      if (l.tagName !== 'svg' && l.tagName !== 'SVG') prune(l, c, fx, limit, lazyY);
+    }
+    drop.forEach(function (c) { if (c.parentNode) c.parentNode.removeChild(c); });
+  }
+  function strip(s) { return s.replace(/::?[a-zA-Z-]+(\((?:[^()]|\([^()]*\))*\))?/g, '').replace(/[>+~,\s]+$/, '').trim() || '*'; }
+  /* only rules that match something in the snapshot itself (the clone), so the full list fits; html/:root rules checked on the page */
+  var CL = null;
+  function used(sel) { var p = sel.split(','); for (var i = 0; i < p.length; i++) { var q = strip(p[i]); try { if (CL ? (CL.matches(q) || CL.querySelector(q) || (/\bhtml\b|:root/i.test(q) && document.querySelector(q))) : document.querySelector(q)) return true; } catch (e) { return true; } } return false; }
+  function rules(list) { var out = '';
+    for (var i = 0; i < list.length; i++) { var r = list[i];
+      if (r.type === 1) { if (used(r.selectorText)) out += r.cssText; }
+      else if (r.type === 4) { var inner = rules(r.cssRules); if (inner) out += '@media ' + r.media.mediaText + '{' + inner + '}'; }
+      else if (r.type === 12) { var in2 = rules(r.cssRules); if (in2) out += '@supports ' + r.conditionText + '{' + in2 + '}'; }
+      else if (r.type === 5) out += r.cssText; }
+    return out; }
+  function css() { var out = ''; for (var i = 0; i < document.styleSheets.length; i++) { var s = document.styleSheets[i]; try { if (s.href) continue; out += rules(s.cssRules); } catch (e) {} } return out; }
+  var CSS = null;
+  function build(o) {
+    o = o || {}; var limit = o.limit || Infinity, B = document.body, C = B.cloneNode(true);
+    prune(B, C, false, limit, innerHeight * 2.5); scrub(C); CL = C;
+    var fonts = [].slice.call(document.querySelectorAll('link[rel=stylesheet]')).filter(function (l) { return /^https:\/\/fonts\.googleapis\.com\//.test(l.href); }).map(function (l) { return '<link rel="stylesheet" href="' + l.href.replace(/"/g, '') + '">'; }).join('');
+    var H = document.documentElement, hc = (H.getAttribute('class') || '').replace(/\bstorm-handoff\b/g, '').replace(/"/g, ''), hs = (H.getAttribute('style') || '').replace(/"/g, '&quot;');
+    var body = C.outerHTML.replace(/>\s+</g, '> <');
+    return '<!doctype html><html class="' + hc + '" style="' + hs + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><base href="' + document.baseURI.replace(/"/g, '') + '">' + fonts +
+      '<style>' + (CSS = (function () { try { return css(); } finally { CL = null; } })()) + '</style><style>*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}html{overflow-x:hidden!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior:contain;background:#EAF0F7}body{overflow:visible!important;background:#EAF0F7}</style></head>' + body + '</html>';
+  }
+  function snap(force) {
+    var now = Date.now(); if (!force && now - last < 30000) { sched(30000 - (now - last) + 50); return; }
+    if (!homeOk()) { sched(4000); return; }
+    if (busy()) { if (++tries < 40) sched(700); return; } tries = 0;
+    var t0 = performance.now(), html, full = 1;
+    try { html = build(); if (html.length > LIMIT) { full = 0; html = build({ limit: innerHeight * 3 }); } if (html.length > LIMIT) html = build({ limit: innerHeight + 120 }); } catch (e) { return; }
+    try { localStorage.setItem(TBK + innerWidth, String(tbH())); } catch (e) {}
+    last = now; window.__snap220ms = Math.round(performance.now() - t0); window.__snap220len = html.length; window.__snap220full = full;
+    if (html.length > LIMIT) return;
+    try { window.top.postMessage({ storm: 'snap', html: html, w: innerWidth, h: innerHeight, scrollY: 0, full: full, v: 220 }, '*'); } catch (e) {}
+    sent++;
+  }
+  function sched(ms) { clearTimeout(timer); timer = setTimeout(function () { (window.requestIdleCallback || function (f) { f(); })(function () { snap(false); }, { timeout: 1500 }); }, ms); }
+  /* (2)+(1) handoff from the snapshot */
+  var SAFE = { hamburger: 1, 'scan-btn': 1, 'cart-fab': 1, 'tab-all': 1, 'tab-need': 1 };
+  function cardOf(bin) { var L = $('list'); if (!L || typeof bin !== 'string' || bin.length > 60) return null; var cs = L.querySelectorAll('.card[data-bin]'); for (var i = 0; i < cs.length; i++) if (cs[i].getAttribute('data-bin') === bin) return cs[i]; return null; }
+  function scrollTo220(d) {
+    var y = Math.max(0, +d.y || 0), c = d.bin ? cardOf(d.bin) : null, top = +d.top, n = 0;
+    window.scrollTo(0, y);
+    if (c && isFinite(top)) { for (; n < 4; n++) { var dy = c.getBoundingClientRect().top - top; if (Math.abs(dy) < 1) break; window.scrollTo(0, Math.max(0, window.scrollY + dy)); } }
+    try { window.dispatchEvent(new Event('scroll')); } catch (e) {} /* header lift/fade follows at once */
+    return { anchored: !!c, y: Math.round(window.scrollY), off: c ? Math.round(c.getBoundingClientRect().top - top) : null };
+  }
+  function tap220(k) {
+    if (typeof k !== 'string' || k.length > 80) return 'bad';
+    var m = /^bin:(.+)$/.exec(k);
+    if (m) { var it = null; try { it = findItem(m[1]); } catch (e) {} if (!it) return 'nobin'; try { openDetail(m[1]); return 'detail'; } catch (e) { return 'err'; } }
+    m = /^id:([\w-]+)$/.exec(k);
+    if (m && SAFE[m[1]]) { var b = $(m[1]); if (!b || b.disabled || !b.getClientRects().length) return 'gone'; try { b.click(); return 'click'; } catch (e) { return 'err'; } }
+    return 'ignored';
+  }
+  window.stormSnap220 = { now: function () { last = 0; snap(true); }, build: build, sent: function () { return sent; }, why: function () { return why; }, scroll: scrollTo220, tap: tap220 };
+  if (window.top === window) return;
+  try { window.top.postMessage({ storm: 'cap', v: 220 }, '*'); } catch (e) {}
+  var wm = 0, homeSent = 0;
+  /* 'home' = list drawn AND the header block above it (stock summary, chips) at the height the snapshot was taken with, so the real
+     list sits exactly where the snapshot's does (max 1 s wait for it; #gd-sum lands ~0.25 s after the list) */
+  var TBK = 'stormSnap220tb:';
+  function tbH() { var t = $('topbar'); return t ? Math.round(t.getBoundingClientRect().height) : 0; }
+  function homeTry() { window.__h220n = (window.__h220n || 0) + 1; if (homeSent || !wm) return; var ok = false; try { ok = stormSnap219.home(); } catch (e) {} window.__h220ok = ok; if (!ok) return;
+    var want = 0; try { want = +localStorage.getItem(TBK + innerWidth) || 0; } catch (e) {}
+    if (!homeTry.at) homeTry.at = Date.now();
+    if (want && Math.abs(tbH() - want) > 2 && Date.now() - homeTry.at < 1000) { clearTimeout(homeTry.t); homeTry.t = setTimeout(homeTry, 40); return; }
+    window.__home220tb = [tbH(), want, Date.now() - homeTry.at];
+    homeSent = 1; /* drawn and interactive is enough: no waiting for photo / card fades (they finish under the crossfade) */
+    var done = 0; function post() { if (done++) return; window.__home220at = Date.now(); try { window.top.postMessage({ storm: 'home', v: 220 }, '*'); window.top.postMessage({ storm: 'list', v: 220 }, '*'); } catch (e) {} }
+    post(); } /* at once: rAF and timers in this frame can be held back for seconds while the wrapper still hides it (820: posted at 11.5 s); message and mutation callbacks are not */
+  window.addEventListener('message', function (e) { var d = e.data; if (!d || !WRAP.test(e.origin) || e.source !== window.top) return;
+    if (d.storm === 'wrapMode' && !wm) { wm = 1; window.__wm220at = Date.now(); homeTry(); try { var mo = new MutationObserver(function () { homeTry(); if (homeSent) mo.disconnect(); }); mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] }); setTimeout(function () { mo.disconnect(); }, 20000); } catch (x) {} return; }
+    if (d.storm === 'snapScroll') { var r = scrollTo220(d); window.__snapScroll220 = r; try { e.source.postMessage({ storm: 'snapScrolled', r: r, v: 220 }, '*'); } catch (x) {} return; }
+    if (d.storm === 'snapTap') { var t = tap220(d.k); window.__snapTap220 = [d.k, t]; return; }
+  });
   (function w(n) { if (wm && $('list') && $('list').querySelector('.card')) { sched(1800); try { new MutationObserver(function () { sched(2500); }).observe($('list'), { childList: true, subtree: true, characterData: true }); } catch (e) {} return; } if (n < 2400) setTimeout(function () { w(n + 1); }, 250); })(0);
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Date.now() - last > 30000) snap(false); });
 })();
