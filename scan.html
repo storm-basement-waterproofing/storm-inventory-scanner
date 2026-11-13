@@ -1404,7 +1404,9 @@ html body #sheet .qty span.qn:active { background: #CDEBF8; }
 html body header #cam-close { position: fixed !important; top: calc(10px + env(safe-area-inset-top)) !important; right: calc(14px + env(safe-area-inset-right)) !important; left: auto !important;
   z-index: 2147483000 !important; display: flex !important; align-items: center; justify-content: center; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important;
   box-shadow: 0 2px 10px rgba(15,23,32,.28) !important; }
-@media (orientation: portrait) { html body header #cam-close { left: calc(14px + env(safe-area-inset-left)) !important; right: auto !important; } }
+/* scan v148 (Hark, 2026-11-12, Dave): an X, top right, on every screen (was a back arrow on the left in portrait) */
+html body header #cam-close { left: auto !important; right: calc(14px + env(safe-area-inset-right)) !important;
+  background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230F1720' stroke-width='2.4' stroke-linecap='round'><path d='M6 6l12 12M18 6L6 18'/></svg>") center / 20px 20px no-repeat !important; }
 </style>
 </body>
 </html>
