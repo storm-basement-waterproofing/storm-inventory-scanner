@@ -1,3 +1,6 @@
+/* v219 (Hark, 2026-11-13, Dave 08:45/08:51): launch snapshot - posts the launch wrapper a static HTML picture of the home screen (stormSnap219) so an early tap fades straight into it, plus a 'home' handshake (main screen drawn, list loaded, at rest) and a quiet launch (header logo just there, no first-entry title/card slide). Needs wrapper SNAP. */
+/* v219: inside the launch wrapper the main screen fades in fully drawn - skip the v137/v153 first-entry title and card slide (its guard flag). */
+(function () { try { var ao = location.ancestorOrigins; if (ao) for (var i = 0; i < ao.length; i++) if (/github\.io$/.test(ao[i])) window.__stormIntroFx = true; } catch (e) {} })();
 /* v218 (Hark, 2026-11-13, Dave 08:21): Ready to load on truck hooks for an instant Remove & return (stormSJ215.hide / gone / unhide / hidden; the 5 s poll keeps a job being removed off the list). Needs app v207.
 /* v217 (Hark, 2026-11-13, Dave): the phone's Pull List tick cache is kept per server job (jb:<Jobber job id>, else the c: customer key, the same
    key as the Pull list's line cache), so a repeat customer's next job starts with no ticks. Needs app v206.
@@ -9581,4 +9584,118 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     if (t.closest('.lk216 .s-line')) { e.preventDefault(); toast216(FINMSG); return; } /* v216: the greyed box takes no taps; its row answers */
   }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.open) close(); });
+})();
+
+
+/* v219 (Hark, 2026-11-13, Dave 08:45/08:51): launch snapshot. Once the home list has painted (and again at most every 30 s after it changes,
+   or when the phone leaves the app), post the launch wrapper a static picture of the top of the home screen as HTML:
+   {storm:'snap', html, w, h, scrollY:0}. The wrapper keeps the newest one per screen width and fades it in on an early tap while
+   Apps Script is still starting, then crossfades to the real app. No scripts, no input values, no data-* tokens, under ~300 KB.
+   Only the screen a fresh launch lands on is captured (Stock home for a manager, Stage Job home for crew), never with a menu or sheet open. */
+(function () {
+  if (window.__snap219) return; window.__snap219 = 1;
+  var LIMIT = 300000, last = 0, timer = 0, sent = 0, why = '', tries = 0;
+  function busy() { try { var a = document.getAnimations ? document.getAnimations() : []; for (var i = 0; i < a.length; i++) { var x = a[i], t = x.effect && x.effect.getComputedTiming ? x.effect.getComputedTiming() : null; if (x.playState === 'running' && t && isFinite(t.endTime)) return true; } } catch (e) {} return false; }
+  function $(id) { return document.getElementById(id); }
+  function crew() { try { return !!(window.stormAccess && stormAccess.isCrew()); } catch (e) { return false; } }
+  function homeOk() {
+    var L = $('list'); why = 'list'; if (!L || !L.querySelector('.card')) return false; why = 'mode';
+    try { var m = (typeof appMode !== 'undefined') ? appMode : null; if (m && m !== (crew() ? 'job' : 'stock')) return false; } catch (e) {}
+    why = 'input';
+    var q = document.querySelector('#search, input[type=search]'); if (q && q.value) return false;
+    if (document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return false;
+    why = 'cover';
+    /* nothing big covering the home screen (menu, sheet, detail, staged jobs, camera, lock) */
+    var keep = { topbar: 1, 'fab-dock': 1, 'ver-badge': 1 }, kids = document.body.children, A = innerWidth * innerHeight;
+    for (var i = 0; i < kids.length; i++) { var k = kids[i]; if (keep[k.id] || k.id === 'list') continue; var cs = getComputedStyle(k);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity < 0.05 || (cs.position !== 'fixed' && cs.position !== 'absolute')) continue;
+      var r = k.getBoundingClientRect(), w = Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0)), h = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0));
+      if (w * h > A * 0.25) { why = 'cover:' + k.id; return false; } }
+    why = ''; return true;
+  }
+  var BAD = /tok|secret|pass|pin\b|code/i;
+  function scrub(C) {
+    var all = C.querySelectorAll('script,noscript,style,link,iframe,video,audio,template,object,embed');
+    for (var i = all.length - 1; i >= 0; i--) all[i].parentNode && all[i].parentNode.removeChild(all[i]);
+    var tw = document.createTreeWalker(C, NodeFilter.SHOW_COMMENT), cm = [], nd; while ((nd = tw.nextNode())) cm.push(nd); cm.forEach(function (x) { x.parentNode.removeChild(x); });
+    var els = [C].concat([].slice.call(C.querySelectorAll('*')));
+    els.forEach(function (e) { for (var j = e.attributes.length - 1; j >= 0; j--) { var n = e.attributes[j].name; if (/^on/i.test(n) || (/^data-/.test(n) && BAD.test(n)) || (n === 'value' && !(e.tagName === 'INPUT' && e.closest && e.closest('.card') && /^\d{1,5}$/.test(e.getAttribute('value') || ''))) || n === 'autofocus' || n === 'contenteditable') e.removeAttribute(n); }
+      if (e.tagName === 'TEXTAREA') e.textContent = ''; if (e.tagName === 'A') e.removeAttribute('href'); if (e.tagName === 'FORM') e.removeAttribute('action'); });
+  }
+  /* walk the live body and its clone together: drop hidden things and everything below the first screen; freeze animated end states */
+  function prune(L, C, fixed, limit) {
+    var lk = L.children, ck = C.children, drop = [];
+    for (var i = 0; i < lk.length && i < ck.length; i++) {
+      var l = lk[i], c = ck[i], cs; try { cs = getComputedStyle(l); } catch (e) { continue; }
+      if (cs.display === 'none') { drop.push(c); continue; }
+      var fx = fixed || cs.position === 'fixed', r = l.getBoundingClientRect(), top = r.top + (fx ? 0 : scrollY);
+      if (fx && !fixed && (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth || +cs.opacity < 0.05 || cs.visibility === 'hidden')) { drop.push(c); continue; }
+      if (!fx && r.height > 0 && top > limit) { drop.push(c); continue; }
+      if (l.tagName === 'CANVAS') { try { var im = document.createElement('img'); im.src = l.toDataURL(); im.className = l.className; im.setAttribute('style', (l.getAttribute('style') || '') + ';width:' + r.width + 'px;height:' + r.height + 'px'); C.replaceChild(im, c); } catch (e) { drop.push(c); } continue; }
+      if ((l.tagName === 'INPUT') && l.type !== 'search' && l.type !== 'password' && l.closest('.card') && /^\d{1,5}$/.test(l.value)) c.setAttribute('value', l.value);
+      if (l.tagName === 'IMG' && c.classList.contains('f12-w')) { c.classList.remove('f12-w'); c.classList.add('f12-in'); } /* photos still fading in show as loaded */
+      if (l.tagName === 'IMG' && l.currentSrc) c.setAttribute('src', l.currentSrc), c.removeAttribute('srcset'), c.removeAttribute('loading');
+      if (l.tagName !== 'svg' && l.tagName !== 'SVG') prune(l, c, fx, limit);
+    }
+    drop.forEach(function (c) { if (c.parentNode) c.parentNode.removeChild(c); });
+  }
+  function strip(s) { return s.replace(/::?[a-zA-Z-]+(\((?:[^()]|\([^()]*\))*\))?/g, '').replace(/[>+~,\s]+$/, '').trim() || '*'; }
+  function used(sel) { var p = sel.split(','); for (var i = 0; i < p.length; i++) { try { if (document.querySelector(strip(p[i]))) return true; } catch (e) { return true; } } return false; }
+  function rules(list) {
+    var out = '';
+    for (var i = 0; i < list.length; i++) { var r = list[i];
+      if (r.type === 1) { if (used(r.selectorText)) out += r.cssText; }
+      else if (r.type === 4) { var inner = rules(r.cssRules); if (inner) out += '@media ' + r.media.mediaText + '{' + inner + '}'; }
+      else if (r.type === 12) { var in2 = rules(r.cssRules); if (in2) out += '@supports ' + r.conditionText + '{' + in2 + '}'; }
+      else if (r.type === 5) out += r.cssText; /* @font-face */
+    }
+    return out;
+  }
+  function css() { var out = ''; for (var i = 0; i < document.styleSheets.length; i++) { var s = document.styleSheets[i]; try { if (s.href) continue; out += rules(s.cssRules); } catch (e) {} } return out; }
+  function build() {
+    var limit = innerHeight + 120, B = document.body, C = B.cloneNode(true);
+    prune(B, C, false, limit); scrub(C);
+    var fonts = [].slice.call(document.querySelectorAll('link[rel=stylesheet]')).filter(function (l) { return /^https:\/\/fonts\.googleapis\.com\//.test(l.href); }).map(function (l) { return '<link rel="stylesheet" href="' + l.href.replace(/"/g, '') + '">'; }).join('');
+    var H = document.documentElement, hc = (H.getAttribute('class') || '').replace(/\bstorm-handoff\b/g, '').replace(/"/g, ''), hs = (H.getAttribute('style') || '').replace(/"/g, '&quot;');
+    var html = '<!doctype html><html class="' + hc + '" style="' + hs + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><base href="' + document.baseURI.replace(/"/g, '') + '">' + fonts +
+      '<style>' + css() + '</style><style>*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}html,body{overflow:hidden!important;background:#EAF0F7}</style></head>' + C.outerHTML.replace(/^<body/i, '<body') + '</html>';
+    return html;
+  }
+  function snap(force) {
+    var now = Date.now(); if (!force && now - last < 30000) { sched(30000 - (now - last) + 50); return; }
+    if (!homeOk()) { sched(4000); return; }
+    if (busy()) { if (++tries < 40) sched(700); return; } tries = 0; /* only a page at rest: no entrance fade or slide still running */
+    var t0 = performance.now(), html; try { html = build(); } catch (e) { return; }
+    last = now; window.__snap219ms = Math.round(performance.now() - t0); window.__snap219len = html.length;
+    if (html.length > LIMIT) return;
+    var m = { storm: 'snap', html: html, w: innerWidth, h: innerHeight, scrollY: 0, v: 219 };
+    try { if (window.top !== window) window.top.postMessage(m, '*'); } catch (e) {}
+    sent++;
+  }
+  function sched(ms) { clearTimeout(timer); timer = setTimeout(function () { (window.requestIdleCallback || function (f) { f(); })(function () { snap(false); }, { timeout: 1500 }); }, ms); }
+  /* launch handshake for the wrapper: 'cap' = this app announces 'list'/'home'; 'list' = the main screen is drawn with its list in the mode the wrapper asked for; 'home' = same, and its fades have finished (what the snapshot shows) */
+  var wm = null, homeSent = 0;
+  function homeNow() {
+    var L = $('list'), em = $('empty'), ok = (L && L.querySelector('.card')) || (em && getComputedStyle(em).display !== 'none' && em.textContent.trim());
+    if (!ok) return false; var ld = $('loading'); if (ld && getComputedStyle(ld).display !== 'none') return false;
+    try { if (typeof appMode !== 'undefined' && appMode !== (crew() ? 'job' : (wm === 'job' ? 'job' : 'stock'))) return false; } catch (e) {}
+    return true;
+  }
+  /* the launch hands over to a fully drawn, still page: wait (max 1.2 s) for the list's entrance fades to finish before saying 'home' */
+  function homeWatch() { var n = 0, at = 0; (function c() { if (homeSent) return; if (homeNow()) { if (!at) { at = Date.now(); requestAnimationFrame(function () { requestAnimationFrame(function () { try { window.top.postMessage({ storm: 'list', v: 219 }, '*'); } catch (e) {} }); }); } if (busy() && Date.now() - at < 1200) { setTimeout(c, 50); return; } window.__home219wait = Date.now() - at; try { window.__home219anims = document.getAnimations().filter(function (a) { return a.playState === 'running'; }).map(function (a) { var t = a.effect && a.effect.target; return (a.animationName || a.transitionProperty || '?') + '@' + (t ? (t.id || String(t.className)).slice(0, 40) : '') + ':' + a.effect.getComputedTiming().endTime; }).slice(0, 15); } catch (e) {} requestAnimationFrame(function () { requestAnimationFrame(function () { if (homeSent) return; homeSent = 1; window.__home219at = Date.now(); try { window.top.postMessage({ storm: 'home', v: 219 }, '*'); } catch (e) {} }); }); return; } if (++n < 400) setTimeout(c, 50); })(); }
+  if (window.top !== window) { try { window.top.postMessage({ storm: 'cap', v: 219 }, '*'); } catch (e) {}
+    window.addEventListener('message', function (e) { var d = e.data; if (d && d.storm === 'wrapMode' && !wm) { wm = d.mode; window.__wm219at = Date.now(); quiet(); homeWatch(); } }); }
+  /* launch from the wrapper: the header logo is simply there (no trace/flash replay), so the app matches the snapshot it crossfades from */
+  function quiet() {
+    var until = Date.now() + 12000, f0 = window.stormLogoFlash;
+    if (typeof f0 === 'function' && !f0.__q219) { var q = function () { if (Date.now() < until) return; return f0.apply(this, arguments); }; q.__q219 = 1; window.stormLogoFlash = q; }
+    function still() { var lit = document.querySelector('header .storm-logo-lit'); if (lit && (lit.classList.contains('flash') || lit.classList.contains('present'))) { lit.classList.remove('flash'); lit.classList.remove('present'); }
+      var sh = $('sll-shade'); if (sh && sh.classList.contains('flash')) sh.classList.remove('flash'); }
+    still(); document.documentElement.classList.remove('storm-handoff');
+    try { var mo = new MutationObserver(still); mo.observe(document.querySelector('header') || document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] }); setTimeout(function () { mo.disconnect(); }, 12000); } catch (e) {} /* the logo's own first-load flash too */
+  }
+  window.stormSnap219 = { now: function () { last = 0; snap(true); }, build: build, ok: homeOk, home: homeNow, sent: function () { return sent; }, why: function () { return why; } };
+  if (window.top === window) return; /* nothing to send outside the launch wrapper (the harness calls stormSnap219.build directly) */
+  (function w(n) { if (wm && $('list') && $('list').querySelector('.card')) { sched(1800); try { new MutationObserver(function () { sched(2500); }).observe($('list'), { childList: true, subtree: true, characterData: true }); } catch (e) {} return; } if (n < 2400) setTimeout(function () { w(n + 1); }, 250); })(0);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Date.now() - last > 30000) snap(false); });
 })();
