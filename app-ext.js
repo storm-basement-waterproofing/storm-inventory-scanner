@@ -1,3 +1,4 @@
+/* v218 (Hark, 2026-11-13, Dave 08:21): Ready to load on truck hooks for an instant Remove & return (stormSJ215.hide / gone / unhide / hidden; the 5 s poll keeps a job being removed off the list). Needs app v207.
 /* v217 (Hark, 2026-11-13, Dave): the phone's Pull List tick cache is kept per server job (jb:<Jobber job id>, else the c: customer key, the same
    key as the Pull list's line cache), so a repeat customer's next job starts with no ticks. Needs app v206.
    v216 (Hark, 2026-11-13, Dave 07:28 "uncheck the green boxes it still says completed"): a Completed job's Loaded boxes are locked (greyed, a tap only
@@ -9316,6 +9317,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     + '#sj214 .s-line.on { background: #F0FBF3; }'
     + '#sj214 .lk216 .s-box { opacity: .55; pointer-events: none; }' /* v216: Completed job: boxes locked */
     + '#sj214 .s-err { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: #FEECEC; color: #B42318; font-size: 13.5px; font-weight: 700; }'
+    + '#sj214 .rb218 { animation: rb218 .32s cubic-bezier(.2,.8,.2,1); } @keyframes rb218 { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }' /* v218: a job whose Remove failed slides back in */
     /* v215: photo placeholder + fade-in, job-list thumbnails, skeleton rows, list <-> job slide/fade */
     + '#sj214 .ph215 { flex: none; display: block; width: 48px; height: 48px; border-radius: 10px; background: #EEF2F7; overflow: hidden; }'
     + '#sj214 .ph215 img { display: block; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity .22s ease; }'
@@ -9335,7 +9337,7 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   var st = document.createElement('style'); st.id = 'storm-v214-css'; st.textContent = css;
   (document.head || document.documentElement).appendChild(st);
 
-  var S = { open: false, jobs: [], cur: null, busy: 0, err: '', loaded: false, timer: 0, pend: {} };
+  var S = { open: false, jobs: [], cur: null, busy: 0, err: '', loaded: false, timer: 0, pend: {}, hid: {} }; /* v218: hid = jobs a manager is removing on this phone */
   function scr() {
     var s = $('sj214'); if (s) return s;
     s = document.createElement('div'); s.id = 'sj214'; s.setAttribute('role', 'dialog'); s.setAttribute('aria-label', 'Staged jobs');
@@ -9486,12 +9488,13 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
   function load() {
     var r = run(); if (!r) { S.err = 'Open the app with signal to see staged jobs.'; S.loaded = true; if (S.open) render(); return; }
     if (S.busy || (S.inflight && Date.now() - S.inflight < 20000)) return; /* one call at a time; a reply that never comes frees the slot after 20 s */
-    S.inflight = Date.now(); var tq = S.tq || 0;
+    S.inflight = Date.now(); var tq = S.tq || 0, t0 = Date.now();
     r.withSuccessHandler(function (res) {
       S.inflight = 0;
       if (S.busy) return;
       if (tq !== (S.tq || 0)) { setTimeout(load, 400); return; } /* v216: this poll left before a Loaded tap: its answer is older than the tap, ask again */
       var jobs = (res && res.jobs) || [];
+      jobs = jobs.filter(function (j) { var h = S.hid[j.jobKey]; return !(h && (h.p || t0 <= h.r)); }); /* v218: a job being removed (or removed after this poll left) never comes back */
       jobs.forEach(function (j) { j.lines.forEach(function (l) { var p = S.pend[j.jobKey + '|' + l.bin]; if (p != null) l.loaded = p; }); });
       /* a seeded job (just staged on this phone) stays until the server lists it */
       (S.seed || []).forEach(function (sd) { if (Date.now() - sd.t < 20000 && !jobs.some(function (x) { return x.jobKey === sd.j.jobKey; })) jobs.unshift(sd.j); });
@@ -9539,7 +9542,15 @@ function stormOpenApp(kind) { var ua = navigator.userAgent || ''; var isAndroid 
     cur: function () { return S.open ? S.cur : null; }, job: function (k) { return find(k); }, open: function () { return S.open; },
     paint: function () { if (S.open) render(); }, back: function () { S.cur = null; S.err = ''; if (S.open) render(); },
     drop: function (k) { S.jobs = S.jobs.filter(function (j) { return j.jobKey !== k; }); S.seed = (S.seed || []).filter(function (x) { return x.j.jobKey !== k; }); sig = ''; save(); if (S.cur === k) S.cur = null; if (S.open) render(); },
-    refresh: function () { sig = ''; load(); }, prefetch: function () { if (!S.open) load(); }
+    refresh: function () { sig = ''; load(); }, prefetch: function () { if (!S.open) load(); },
+    /* v218 (Dave 08:21 "that needs to be instant"): optimistic Remove. hide = off the list now (the 5 s poll keeps it off while the call runs);
+       gone = the server removed it (polls that left before now still drop it); unhide = the call failed: back in its place with a short slide-in */
+    hide: function (k) { var i = -1; S.jobs.forEach(function (j, x) { if (j.jobKey === k) i = x; }); S.hid[k] = { p: 1, j: i >= 0 ? S.jobs[i] : find(k), i: i };
+      S.jobs = S.jobs.filter(function (j) { return j.jobKey !== k; }); S.seed = (S.seed || []).filter(function (x) { return x.j.jobKey !== k; }); sig = ''; save(); if (S.cur === k) S.cur = null; if (S.open) render(); },
+    gone: function (k) { var h = S.hid[k]; if (!h) return; h.p = 0; h.r = Date.now(); setTimeout(function () { if (S.hid[k] === h) delete S.hid[k]; }, 60000); },
+    unhide: function (k) { var h = S.hid[k]; delete S.hid[k]; if (!h || !h.j || find(k)) return; S.jobs.splice(Math.min(Math.max(h.i, 0), S.jobs.length), 0, h.j); sig = ''; save();
+      if (!S.open) return; render(); var s = scr(); [].forEach.call(s.querySelectorAll('[data-sj-job]'), function (b) { if (b.getAttribute('data-sj-job') === k) { b.classList.add('rb218'); setTimeout(function () { b.classList.remove('rb218'); }, 400); } }); },
+    hidden: function (k) { return !!S.hid[k]; }
   };
 
   /* side menu row */
