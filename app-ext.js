@@ -1,3 +1,33 @@
+/* v221 (Hark, 2026-11-13, Dave 13:26 "make it more responsive"): the menu button (top left) opens at once. The side menu used to be built
+   (cl-menu, par ring, category counts, Receiving Orders / Ready to load rows, drawer categories) in timers fired by the tap itself, so the
+   slide stalled on the first frames. Now it is built ahead of time, once the main list is drawn and the phone is idle: a synthetic tap on
+   #hamburger runs the existing builders while a capture stop on its parent keeps openDrawer from running (nothing opens, no history entry).
+   The drawer gets its own GPU layer and the slide is .26 s. Nothing else changed; the Jobber quote is untouched. */
+(function () {
+  if (window.__v221) return; window.__v221 = 1;
+  var st = document.createElement('style'); st.id = 'storm-v221-css';
+  st.textContent = '#hamburger { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }'
+    + ' html body #drawer { will-change: transform; backface-visibility: hidden; -webkit-backface-visibility: hidden; contain: layout paint; }'
+    + ' html body #drawer.open { animation-duration: .26s !important; }';
+  (document.head || document.documentElement).appendChild(st);
+  var warmed = false;
+  function prewarm() {
+    if (warmed) return true;
+    var h = document.getElementById('hamburger'), dr = document.getElementById('drawer');
+    if (!h || !dr || !h.parentNode || dr.classList.contains('open') || !document.querySelector('#list .card')) return false;
+    warmed = true;
+    try { var dc = document.getElementById('cats-hd'); if (dc && !dc.innerHTML && typeof buildDrawerCats === 'function' && typeof items !== 'undefined' && items && items.length) buildDrawerCats(); } catch (e) {}
+    var p = h.parentNode, stop = function (e) { e.stopPropagation(); };
+    p.addEventListener('click', stop, true);
+    try { h.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); } catch (e) {}
+    p.removeEventListener('click', stop, true);
+    h.classList.remove('f13-x'); /* the menu-icon morph only runs for a real open */
+    setTimeout(function () { var d = document.getElementById('drawer'), b = document.getElementById('hamburger'); if (d && b && !d.classList.contains('open')) b.classList.remove('f13-x'); }, 450);
+    return true;
+  }
+  function idle(fn) { if (window.requestIdleCallback) requestIdleCallback(fn, { timeout: 2500 }); else setTimeout(fn, 900); }
+  (function w(n) { if (document.querySelector('#list .card') && document.getElementById('hamburger')) { idle(function () { if (!prewarm() && n < 80) setTimeout(function () { w(n + 1); }, 500); }); return; } if (n < 240) setTimeout(function () { w(n + 1); }, 250); })(0);
+})();
 /* v220 (Hark, 2026-11-13, Dave 10:43): the launch snapshot scrolls and takes taps at once - full main list in the snapshot, the real app scrolls to the same spot and opens what was tapped at handoff, 'home' posted the moment the list is drawn. Needs wrapper SNAP2. */
 /* v219 (Hark, 2026-11-13, Dave 08:45/08:51): launch snapshot - posts the launch wrapper a static HTML picture of the home screen (stormSnap219) so an early tap fades straight into it, plus a 'home' handshake (main screen drawn, list loaded, at rest) and a quiet launch (header logo just there, no first-entry title/card slide). Needs wrapper SNAP. */
 /* v219: inside the launch wrapper the main screen fades in fully drawn - skip the v137/v153 first-entry title and card slide (its guard flag). */
