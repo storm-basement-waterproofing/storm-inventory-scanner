@@ -1440,5 +1440,13 @@ html body #lens-bar.on, html body #torch.on { animation: v149In .28s ease both; 
   if (v.readyState >= 2 && !v.paused) settle(); else hide();
 })();
 </script>
+<style id="scan-v151-css">
+/* scan v151 (Hark, 2026-11-13, Dave 15:56 "the logo in the camera ... needs to match the one at the main page"): camera header matches the
+   app's clean theme (app v209): dark top, the same white STORM logo with the blue drop, white X on a dark glass circle. Look only. */
+html:not(#scx) body header { background: linear-gradient(180deg, #0B1118 0%, #121A24 100%) !important; color: #fff !important; box-shadow: none !important; border: 0 !important; }
+html:not(#scx) body header .cl-cam-logo img.cl-w { display: none !important; }
+html:not(#scx) body header .cl-cam-logo img.cl-d { content: url("https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/storm-logo-white.png") !important; height: 30px !important; width: auto !important; filter: none !important; }
+html:not(#scx) body #cam-close { background-color: rgba(255,255,255,.12) !important; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFFFFF' stroke-width='2.2' stroke-linecap='round'><path d='M6 6l12 12M18 6L6 18'/></svg>") !important; background-repeat: no-repeat !important; background-position: center !important; background-size: 20px 20px !important; border: 1px solid rgba(255,255,255,.22) !important; color: transparent !important; box-shadow: none !important; }
+</style>
 </body>
 </html>

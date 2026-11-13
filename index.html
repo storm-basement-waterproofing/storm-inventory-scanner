@@ -187,6 +187,11 @@ html, body, #app, #cover, #bootvid { background: #EAF0F7 !important; }
 #boot.fl-wait #flwait { opacity: 1; }
 @keyframes flspin { to { transform: rotate(360deg); } }
 #boot #edge, #boot #ltrace { display: none !important; }
+/* wrapper v232 (Hark, 2026-11-13, Dave 15:56): while the camera is open, the app behind it sits under a soft Gaussian blur that fades in with
+   the camera and out as it closes, and the page behind can't be scrolled or tapped. */
+#camblur { position: fixed; inset: 0; z-index: 3; background: rgba(11,17,24,.30); -webkit-backdrop-filter: blur(18px) saturate(1.15); backdrop-filter: blur(18px) saturate(1.15);
+  opacity: 0; transition: opacity .45s cubic-bezier(.32,.72,0,1); touch-action: none; overscroll-behavior: contain; will-change: opacity; }
+#camblur.on { opacity: 1; }
 </style>
 <!-- v110: loader fade at end --></head>
 <body style="background:#EAF0F7">
@@ -398,6 +403,14 @@ html, body, #app, #cover, #bootvid { background: #EAF0F7 !important; }
   /* v82 (Hark, 2026-11-07): the camera opens as a layer on top of the app. Closing it (X, Cancel or Done) just removes the layer,
      so the app is still exactly where it was. Scans and cart changes are handed straight to the app. */
   var camApp = null;
+  /* wrapper v232: blur layer behind the camera (fades in/out, swallows scrolls and taps) */
+  var blurT = 0;
+  function camBlurOn() { clearTimeout(blurT); var b = document.getElementById('camblur'); if (!b) { b = document.createElement('div'); b.id = 'camblur'; b.setAttribute('aria-hidden', 'true');
+      ['touchmove', 'wheel'].forEach(function (ev) { b.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false }); });
+      document.body.appendChild(b); void b.offsetWidth; }
+    requestAnimationFrame(function () { b.classList.add('on'); }); }
+  function camBlurOff(delay) { clearTimeout(blurT); blurT = setTimeout(function () { var b = document.getElementById('camblur'); if (!b) return; b.classList.remove('on');
+      blurT = setTimeout(function () { if (b.parentNode && !b.classList.contains('on')) b.parentNode.removeChild(b); }, 520); }, delay || 0); }
   function openCam(q, src) {
     closeCam(true); camApp = src;
     var w = document.createElement('div'); w.id = 'camwrap';
@@ -405,6 +418,7 @@ html, body, #app, #cover, #bootvid { background: #EAF0F7 !important; }
     fr.setAttribute('allow', 'camera; microphone; autoplay; clipboard-read; clipboard-write');
     fr.src = 'scan.html' + q + (q.indexOf('?') >= 0 ? '&' : '?') + 'layer=1&cb=' + Math.floor(Date.now() / 60000); /* v104: always the newest camera page (no 10-minute stale copy) */
     w.appendChild(fr); document.body.appendChild(w);
+    camBlurOn();
     requestAnimationFrame(function () { w.classList.add('on'); });
     try { history.pushState({ stormCam: 1 }, ''); } catch (e) {}
   }
@@ -440,7 +454,7 @@ html, body, #app, #cover, #bootvid { background: #EAF0F7 !important; }
   function closeCam(silent, viaPop) {
     var w = document.getElementById('camwrap'); if (!w) return;
     try { var ap = camApp || (document.getElementById('app') || {}).contentWindow; if (ap) ap.postMessage({ storm: 'camClosed' }, '*'); } catch (eCC) {} /* v152: send to the app's own frame (camApp), not the outer Google frame */ /* v151: the app brings its bottom icons back */
-    var isl = !silent && w.classList.contains('isl'); w.removeAttribute('id'); /* v142: the closing copy gives up its id so a reopen never grabs it */
+    var isl = !silent && w.classList.contains('isl'); w.removeAttribute('id'); if (!silent) camBlurOff(isl ? 400 : 0); /* v142: the closing copy gives up its id so a reopen never grabs it */
     if (isl) { /* v144: camera fades onto a black island, the camera turns off, then the island shrinks back into the pill */
       var d = islandEl(); d.className = 'full'; w.classList.remove('on');
       setTimeout(function () { if (w.parentNode) w.parentNode.removeChild(w); islRule(islTop); requestAnimationFrame(function () { d.className = 'shrink'; }); setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 640); }, 400);
