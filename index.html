@@ -433,7 +433,10 @@ html, body, #app, #cover, #bootvid { background: #EAF0F7 !important; }
   function cardRect(top) { var vw = window.innerWidth, vh = window.innerHeight, l = 10; var h = Math.round(Math.min(vh * .64, vh - top - 20)); return { t: top, l: l, r: l, b: Math.max(0, vh - top - h), w: vw - 2 * l, h: h }; }
   function islRule(top) {
     var vw = window.innerWidth, vh = window.innerHeight, pw = 112, ph = 32, sx = Math.round((vw - pw) / 2), mx = Math.round(vw * .07), c = cardRect(top); islCard = c;
-    var pill = 'inset(' + top + 'px ' + sx + 'px ' + (vh - top - ph) + 'px ' + sx + 'px round 16px)', wide = 'inset(' + top + 'px ' + mx + 'px ' + (vh - top - ph - 8) + 'px ' + mx + 'px round 20px)', card = 'inset(' + c.t + 'px ' + c.r + 'px ' + c.b + 'px ' + c.l + 'px round 28px)';
+    /* fix-motion (Hark, 2026-11-13, Dave's fix list 19 "the animation should start at the very top of the user's screen so it blends in"): the pill
+       now grows out of the very top edge of the screen (flat top flush with the status bar, rounded underneath), widens there, then drops
+       into the camera card; closing runs it back up into the top edge. */
+    var pill = 'inset(0px ' + sx + 'px ' + (vh - ph) + 'px ' + sx + 'px round 0px 0px 16px 16px)', wide = 'inset(0px ' + mx + 'px ' + (vh - ph - 14) + 'px ' + mx + 'px round 0px 0px 22px 22px)', card = 'inset(' + c.t + 'px ' + c.r + 'px ' + c.b + 'px ' + c.l + 'px round 28px 28px 28px 28px)';
     var st = document.getElementById('camisl-kf'); if (!st) { st = document.createElement('style'); st.id = 'camisl-kf'; document.head.appendChild(st); }
     st.textContent = '@keyframes islGrow { 0% { clip-path: ' + pill + '; opacity: 0; } 8% { opacity: 1; } 34% { clip-path: ' + wide + '; } 100% { clip-path: ' + card + '; opacity: 1; } }'
       + '@keyframes islShrink { 0% { clip-path: ' + card + '; opacity: 1; } 66% { clip-path: ' + wide + '; } 92% { opacity: 1; } 100% { clip-path: ' + pill + '; opacity: 0; } }'

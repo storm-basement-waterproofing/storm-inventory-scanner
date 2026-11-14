@@ -1448,5 +1448,10 @@ html:not(#scx) body header .cl-cam-logo img.cl-w { display: none !important; }
 html:not(#scx) body header .cl-cam-logo img.cl-d { content: url("https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/storm-logo-white.png") !important; height: 30px !important; width: auto !important; filter: none !important; }
 html:not(#scx) body #cam-close { background-color: rgba(255,255,255,.12) !important; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFFFFF' stroke-width='2.2' stroke-linecap='round'><path d='M6 6l12 12M18 6L6 18'/></svg>") !important; background-repeat: no-repeat !important; background-position: center !important; background-size: 20px 20px !important; border: 1px solid rgba(255,255,255,.22) !important; color: transparent !important; box-shadow: none !important; }
 </style>
+<style id="scan-v152-css">
+/* scan v152 (Hark, 2026-11-13, Dave's fix list 12 "the top right and top left corners of the camera are cut off. They need to extend to the
+   edges just like the bottom"): the camera picture is square-cornered on every side, so it runs right out to the edges at the top too. */
+html:not(#scx):not(#scy) body #view { border-radius: 0 !important; }
+</style>
 </body>
 </html>
