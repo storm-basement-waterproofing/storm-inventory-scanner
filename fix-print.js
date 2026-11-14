@@ -2,7 +2,7 @@
    storm-clean-theme.js. Everything here is an overlay: CSS with higher specificity, window capture-phase click handlers registered
    before the Index inline blocks, and only EXISTING server functions (managerLogin, unstageJob, removeStagedJob via the v204 sheet,
    getStaging). No server change.
-   v1: 29 + 30.
+   v1: 29 + 30. v2: 31-35 (print), second block below.
    29. A Completed job on Ready to load on truck: a manager can put its items back into inventory (unstageJob: exactly what staging
        took off On hand goes back, the job leaves Ready to load, its card shows Stage Job again). "Remove from list only" stays for
        material that went to the customer (the v204 sheet). Crew never see either.
@@ -265,4 +265,269 @@
   }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && C.k) shutPB(); });
   window.stormFixPrint = { v: 1, askCode: askCode, putBack: openPB };
+})();
+
+/* fix-print v2 (Hark, 2026-11-13, Dave's fix list 31-35): one Staging Checklist printout, used everywhere a job prints.
+   31. Print preview rebuilt in the app's staging checklist layout: STORM logo, customer / address / Jobber # / staged date, then every item
+       as a row with its photo, name, SKU + bin, quantity and check boxes (same rounded green boxes as the app).
+   32. Print preview + Print on the Pull list, on the "Staged Job Complete" screen right after staging, and on a job's Ready to load on truck
+       screen (the staged job page).
+   33. Two check columns: Staged (pulled off the shelf) and Loaded on truck.
+   34. The boxes are exactly what is checked: the Pull list's own boxes, the load screen's own boxes, else the server's marks
+       (getStaging(jobKey) for Pulled, getStaging("ld:" + jobKey) for Loaded; read-only). Partly checked lists print partly checked.
+   35. Count circles (18/18 style) for Staged and Loaded: blue while incomplete, green when complete, on screen and on paper.
+   Print goes through the wrapper's existing printPull hand-off (the app frame can't print); opened on its own, the app prints itself. Letter paper. */
+(function () {
+  if (window.__fixPrint2) return; window.__fixPrint2 = 1;
+  var EZ = 'cubic-bezier(.32,.72,0,1)', NAVY = '#1B2735', BLUE = '#29ABE2', GREEN = '#16A34A';
+  var BASE = 'https://storm-basement-waterproofing.github.io/storm-inventory-scanner/';
+  var LOGO = BASE + 'assets/logos/STORM-logo-black-text-transparent.svg';
+  var HD = BASE + 'assets/items-hd/';
+  function E(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function T(m, bad) { try { showToast(m, !!bad); } catch (e) {} }
+  function run() { try { return (window.google && google.script && google.script.run) ? google.script.run : null; } catch (e) { return null; } }
+  function item(bin) { try { return findItem(bin); } catch (e) { return null; } }
+  function cust() { try { return JSON.parse(localStorage.getItem('stormJobCustomerV1') || '{}') || {}; } catch (e) { return {}; } }
+  function fin() { try { return (window.stormSJFin203 && stormSJFin203()) || {}; } catch (e) { return {}; } }
+  var PRINTER = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>';
+  var EYE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var CHK = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+  /* ---------- the printed sheet (same CSS on screen and on paper) ---------- */
+  var DC = '.fpd { font-family: Montserrat, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0F1720; font-size: 12px; line-height: 1.3; -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
+    + ' .fpd * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
+    + ' .fpd .fphd { text-align: center; padding: 0 0 10px; border-bottom: 2px solid ' + NAVY + '; margin: 0 0 12px; }'
+    + ' .fpd .fphd img { display: block; height: 46px; width: auto; max-width: 70%; margin: 0 auto 6px; }'
+    + ' .fpd .fphd .fptt { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #4B5563; }'
+    + ' .fpd .fpcu { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 12px 14px; border: 1.5px solid ' + NAVY + '; border-radius: 14px; }'
+    + ' .fpd .fpci { flex: 1; min-width: 0; } .fpd .fpnm { font-size: 19px; font-weight: 800; line-height: 1.15; } .fpd .fpad { margin-top: 2px; font-size: 12.5px; font-weight: 600; color: #374151; }'
+    + ' .fpd .fpmt { margin-top: 5px; font-size: 11px; font-weight: 600; color: #6B7280; } .fpd .fpmt b { color: #0F1720; }'
+    + ' .fpd .fprg { flex: none; display: flex; gap: 10px; } .fpd .fpring { width: 66px; text-align: center; } .fpd .fpring svg { display: block; width: 62px; height: 62px; margin: 0 auto; }'
+    + ' .fpd .fpring span { display: block; margin-top: 3px; font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #4B5563; white-space: nowrap; }'
+    + ' .fpd table { width: 100%; border-collapse: separate; border-spacing: 0 6px; table-layout: fixed; }'
+    + ' .fpd th { padding: 0 6px 2px; font-size: 9.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #4B5563; text-align: left; }'
+    + ' .fpd th.fpc, .fpd td.fpc { text-align: center; } .fpd col.fpwp { width: 52px; } .fpd col.fpwq { width: 46px; } .fpd col.fpwb { width: 64px; }'
+    + ' .fpd td { padding: 6px; vertical-align: middle; background: #fff; border-top: 1.5px solid ' + NAVY + '; border-bottom: 1.5px solid ' + NAVY + '; }'
+    + ' .fpd td:first-child { border-left: 1.5px solid ' + NAVY + '; border-radius: 12px 0 0 12px; } .fpd td:last-child { border-right: 1.5px solid ' + NAVY + '; border-radius: 0 12px 12px 0; }'
+    + ' .fpd tr { break-inside: avoid; page-break-inside: avoid; } .fpd thead { display: table-header-group; }'
+    + ' .fpd .fpph { display: block; width: 40px; height: 40px; border-radius: 8px; background: #EEF2F7; overflow: hidden; } .fpd .fpph img { display: block; width: 100%; height: 100%; object-fit: contain; }'
+    + ' .fpd .fpin { font-size: 12.5px; font-weight: 700; overflow-wrap: anywhere; } .fpd .fpsk { margin-top: 2px; font-size: 10.5px; font-weight: 600; color: #6B7280; overflow-wrap: anywhere; }'
+    + ' .fpd .fpq { font-size: 15px; font-weight: 800; }'
+    + ' .fpd .fpcb { display: inline-block; width: 26px; height: 26px; border-radius: 8px; border: 2.5px solid #9AA7B4; background: #fff; vertical-align: middle; }'
+    + ' .fpd .fpcb svg { display: none; width: 100%; height: 100%; } .fpd .fpcb.on { border-color: ' + GREEN + '; background: ' + GREEN + '; } .fpd .fpcb.on svg { display: block; }'
+    + ' .fpd .fpft { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 8px; border-top: 1px solid #C9D3DF; font-size: 10px; font-weight: 600; color: #6B7280; }'
+    + ' .fpd .fpsg { display: flex; gap: 18px; margin-top: 18px; font-size: 11px; font-weight: 700; color: #374151; } .fpd .fpsg span { flex: 1; border-top: 1px solid #6B7280; padding-top: 4px; }'
+    + ' .fpd .fpem { padding: 20px; text-align: center; color: #6B7280; font-weight: 700; }';
+  var PAGE = '@page { size: letter portrait; margin: 0.45in 0.45in 0.5in; } html, body { margin: 0 !important; padding: 0 !important; }';
+
+  function ring(d, n, label) {
+    var p = n ? Math.min(1, d / n) : 0, done = n > 0 && d >= n, c = done ? GREEN : BLUE, r = 26, L = 2 * Math.PI * r;
+    return '<div class="fpring"><svg viewBox="0 0 62 62" aria-hidden="true"><circle cx="31" cy="31" r="' + r + '" fill="#fff" stroke="#E3E8EF" stroke-width="6"/>'
+      + (p > 0 ? '<circle cx="31" cy="31" r="' + r + '" fill="none" stroke="' + c + '" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + (L * p).toFixed(2) + ' ' + L.toFixed(2) + '" transform="rotate(-90 31 31)"/>' : '')
+      + '<text x="31" y="35.5" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-size="' + (String(d + '/' + n).length > 5 ? 11.5 : 14) + '" font-weight="800" fill="' + (done ? GREEN : '#0F1720') + '">' + d + '/' + n + '</text></svg><span>' + E(label) + '</span></div>';
+  }
+  function photo(bin) {
+    var u = ''; try { u = window.stormPhoto215 ? stormPhoto215.url(bin) : ''; } catch (e) {}
+    if (!u) { var it = item(bin), p = it && it.photoUrl; if (p && !/^sheetimg:/.test(String(p))) u = String(p); }
+    if (!u) u = HD + encodeURIComponent(bin) + '.jpg?v=1';
+    return u;
+  }
+  function when(ms) { if (!ms) return ''; try { return new Date(ms).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
+  function html(D) {
+    var n = D.lines.length, dp = D.lines.filter(function (l) { return l.pulled; }).length, dl = D.lines.filter(function (l) { return l.loaded; }).length;
+    var meta = [D.jobNo ? 'Job <b>#' + E(D.jobNo) + '</b>' : '', D.title ? E(D.title) : '', D.staged && D.staged.at ? 'Staged <b>' + E(when(D.staged.at)) + '</b>' + (D.staged.by ? ' by ' + E(D.staged.by) : '') : 'Not staged yet', D.done ? '<b>Completed</b>' : ''].filter(Boolean).join(' \u00b7 ');
+    var h = '<div class="fpd"><div class="fphd"><img src="' + LOGO + '" alt="STORM Basement Waterproofing"><div class="fptt">Staging checklist</div></div>'
+      + '<div class="fpcu"><div class="fpci"><div class="fpnm">' + E(D.name || 'Job') + '</div>' + (D.addr ? '<div class="fpad">' + E(D.addr) + '</div>' : '') + '<div class="fpmt">' + meta + '</div></div>'
+      + '<div class="fprg">' + ring(dp, n, 'Staged') + ring(dl, n, 'Loaded') + '</div></div>';
+    if (!n) h += '<div class="fpem">No items on this list.</div>';
+    else {
+      h += '<table><colgroup><col class="fpwp"><col><col class="fpwq"><col class="fpwb"><col class="fpwb"></colgroup><thead><tr><th></th><th>Item</th><th class="fpc">Qty</th><th class="fpc">Staged</th><th class="fpc">Loaded on truck</th></tr></thead><tbody>';
+      D.lines.forEach(function (l) {
+        var it = item(l.bin) || {}, sku = it.sku ? 'SKU ' + it.sku : '';
+        h += '<tr><td><span class="fpph"><img src="' + E(photo(l.bin)) + '" alt=""></span></td><td><div class="fpin">' + E(l.name || it.name || l.bin) + '</div><div class="fpsk">' + E([sku, 'Bin ' + String(l.bin).toUpperCase()].filter(Boolean).join(' \u00b7 ')) + '</div></td>'
+          + '<td class="fpc"><span class="fpq">' + E(l.qty == null || l.qty === '' ? '\u2013' : l.qty) + '</span></td>'
+          + '<td class="fpc"><span class="fpcb' + (l.pulled ? ' on' : '') + '">' + CHK + '</span></td><td class="fpc"><span class="fpcb' + (l.loaded ? ' on' : '') + '">' + CHK + '</span></td></tr>';
+      });
+      h += '</tbody></table>';
+    }
+    h += '<div class="fpsg"><span>Staged by</span><span>Loaded by</span></div>'
+      + '<div class="fpft"><span>STORM Basement Waterproofing</span><span>' + dp + ' of ' + n + ' staged \u00b7 ' + dl + ' of ' + n + ' loaded</span><span>Printed ' + E(when(Date.now())) + '</span></div></div>';
+    return h;
+  }
+
+  /* ---------- what is on screen ---------- */
+  function splitCust(c) { var p = String(c || '').split(' \u00b7 '); return { name: p[0] || '', addr: p.slice(1).join(' \u00b7 ') }; }
+  function jobInfo(k) {
+    var c = cust(), a = window.stormStagingApi, key = ''; try { key = a ? a.key() : ''; } catch (e) {}
+    if (key && key === k) return { jobNo: c.jobberJobNumber || c.quoteJobberNumber || '', title: c.jobberTitle || c.quoteJobberTitle || '' };
+    return { jobNo: '', title: '' };
+  }
+  var lastPull = null;
+  function fromPull() {
+    var s = document.getElementById('pl196'); if (!s) return null;
+    var rows = s.querySelectorAll('.l:not(.sk203)'); if (!rows.length) return null;
+    var a = window.stormStagingApi, k = '', cu = ''; try { k = a.key(); cu = a.cust(); } catch (e) {}
+    var L = [].map.call(rows, function (r) {
+      var b = r.querySelector('[data-pl-bin]'), n = r.querySelector('.n'), sm = n && n.querySelector('small'), nm = '';
+      if (n) [].forEach.call(n.childNodes, function (x) { if (x.nodeType === 3) nm += x.nodeValue; });
+      return { bin: b ? b.getAttribute('data-pl-bin') : '', name: nm.trim(), qty: sm ? sm.textContent.replace(/^\s*Qty\s*/i, '').trim() : '', pulled: !!(b && b.classList.contains('on')), loaded: false };
+    }).filter(function (l) { return l.bin; });
+    var sc = splitCust(cu || ((s.querySelector('.h b') || {}).textContent || '')), ji = jobInfo(k);
+    var D = { src: 'pull', k: k, name: sc.name, addr: sc.addr, jobNo: ji.jobNo, title: ji.title, staged: null, lines: L, screenPulled: true };
+    lastPull = JSON.parse(JSON.stringify(D)); return D;
+  }
+  function fromDone() {
+    var s = document.getElementById('pl196'); if (!s || !s.querySelector('.dn') || !lastPull) return null;
+    var D = JSON.parse(JSON.stringify(lastPull)); D.src = 'done'; D.screenPulled = false; D.staged = { at: Date.now(), by: '' };
+    try { var a = window.stormStagingApi, st = a && a.staged(D.k); if (st && st.at) D.staged = { at: st.at, by: st.by || '' }; } catch (e) {}
+    return D;
+  }
+  function fromSJ() {
+    var a = window.stormSJ215, k = a && a.cur(), j = k && a.job(k); if (!j) return null;
+    var sc = splitCust(j.customer), ji = jobInfo(k);
+    return { src: 'sj', k: k, name: sc.name, addr: sc.addr, jobNo: ji.jobNo, title: ji.title, staged: { at: j.at, by: j.by }, done: !!fin()[k], screenLoaded: true,
+      lines: j.lines.map(function (l) { return { bin: l.bin, name: l.name, qty: l.qty, pulled: true, loaded: !!l.loaded }; }) };
+  }
+  function current() {
+    var pv = document.getElementById('fp31');
+    var s = document.getElementById('pl196');
+    if (s && s.classList.contains('open') && !s.classList.contains('closing')) { if (s.querySelector('.dn')) return fromDone(); var p = fromPull(); if (p) return p; }
+    var sj = document.getElementById('sj214'); if (sj && sj.classList.contains('open')) return fromSJ();
+    return null;
+  }
+  /* exact marks from the server for whatever the screen itself doesn't show (read-only calls), then cb(D); cb runs once, at most 3 s later */
+  function refine(D, cb) {
+    var R = run(), left = 2, done = false; function fin2() { if (done) return; done = true; cb(D); }
+    if (!R || !D.k) { fin2(); return; }
+    setTimeout(fin2, 3000);
+    function one() { if (--left === 0) fin2(); }
+    if (D.screenPulled) one(); else R.withSuccessHandler(function (res) {
+      if (done || !res || res.jobKey !== D.k) { one(); return; }
+      var by = {}; (res.rows || []).forEach(function (r) { if (r && r.itemBin) by[r.itemBin] = r; });
+      D.lines.forEach(function (l) { if (by[l.bin]) { l.pulled = !!by[l.bin].checked; delete by[l.bin]; } });
+      Object.keys(by).forEach(function (b) { if (b === '__done__') return; var r = by[b]; D.lines.push({ bin: b, name: r.itemName || b, qty: r.qty == null ? '' : r.qty, pulled: !!r.checked, loaded: false }); });
+      if (res.staged && res.staged.at) D.staged = { at: res.staged.at, by: res.staged.by || '' };
+      one();
+    }).withFailureHandler(one).getStaging(D.k);
+    if (D.screenLoaded) one(); else R.withSuccessHandler(function (res) {
+      if (done || !res || res.jobKey !== 'ld:' + D.k) { one(); return; }
+      var on = {}; (res.rows || []).forEach(function (r) { if (r && r.itemBin && r.itemBin !== '__done__') on[r.itemBin] = !!r.checked; else if (r && r.itemBin === '__done__' && r.checked) D.done = true; });
+      D.lines.forEach(function (l) { if (l.bin in on) l.loaded = on[l.bin]; });
+      one();
+    }).withFailureHandler(one).getStaging('ld:' + D.k);
+  }
+
+  /* ---------- buttons ---------- */
+  var css = ''
+    + '.fp-pb { display: flex; gap: 10px; max-width: 588px; margin: 0 auto 10px; }'
+    + 'html body .fp-pb button { flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border-radius: 24px; font-family: inherit; font-size: 14.5px; font-weight: 800;'
+    + ' cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .12s ease; }'
+    + 'html:not(#scx):not(#scy):not(#fpz) body .fp-pb button[data-fp-pv] { background: #fff !important; color: ' + NAVY + ' !important; -webkit-text-fill-color: ' + NAVY + ' !important; border: 1.5px solid ' + NAVY + ' !important; box-shadow: none !important; }'
+    + 'html:not(#scx):not(#scy):not(#fpz) body .fp-pb button[data-fp-pr] { background: ' + BLUE + ' !important; color: #fff !important; -webkit-text-fill-color: #fff !important; border: 0 !important; box-shadow: 0 4px 14px rgba(41,171,226,.25) !important; }'
+    + 'html body .fp-pb button:active { transform: scale(.96); }'
+    + 'html:not(#scx):not(#scy):not(#fpz) body .fp-pb button[data-fp-pv] svg, html:not(#scx):not(#scy):not(#fpz) body .fp-pb button[data-fp-pv] svg * { stroke: ' + NAVY + ' !important; fill: none !important; color: ' + NAVY + ' !important; }'
+    + 'html:not(#scx):not(#scy):not(#fpz) body .fp-pb button[data-fp-pr] svg, html:not(#scx):not(#scy):not(#fpz) body .fp-pb button[data-fp-pr] svg * { stroke: #fff !important; fill: none !important; }'
+    + 'html body #pl196 .ft .pr228 { display: none !important; }'
+    + '#sj214 .fp-sj { max-width: 588px; margin: 18px auto 4px; } #pl196 .dn .fp-pb { max-width: 420px; margin: 0 auto 18px; }'
+    /* preview */
+    + '#fp31 { position: fixed; inset: 0; z-index: 2147483647; display: flex; flex-direction: column; background: #EAF0F7; font-family: Montserrat, -apple-system, "Segoe UI", Roboto, sans-serif; color: #0F1720;'
+    + ' opacity: 0; transform: translate3d(0,24px,0); transition: opacity .26s ' + EZ + ', transform .26s ' + EZ + '; }'
+    + '#fp31.in { opacity: 1; transform: none; }'
+    + '#fp31 .tb { flex: none; display: flex; align-items: center; gap: 10px; padding: calc(12px + env(safe-area-inset-top)) 16px 10px; }'
+    + '#fp31 .tb h2 { flex: 1; margin: 0; font-size: 20px; font-weight: 800; } #fp31 .tb h2 small { display: block; font-size: 12px; font-weight: 700; color: #6B7280; }'
+    + 'html:not(#scx):not(#scy):not(#fpz) body #fp31 .tb button { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid ' + NAVY + ' !important; background: #fff !important; color: #0F1720 !important; -webkit-text-fill-color: #0F1720 !important; font: inherit; font-size: 24px; line-height: 38px; padding: 0; box-shadow: none !important; }'
+    + '#fp31 .pg { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 12px 16px; }'
+    + '#fp31 .sheet { max-width: 8.5in; margin: 0 auto; background: #fff; border-radius: 6px; padding: 22px 16px; box-shadow: 0 10px 30px rgba(15,23,32,.18); }'
+    + '#fp31 .ld { text-align: center; margin: 0 0 8px; font-size: 12px; font-weight: 700; color: #6B7280; min-height: 16px; }'
+    + '#fp31 .bt { flex: none; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); background: #EAF0F7; } #fp31 .bt .fp-pb { margin: 0 auto; }'
+    + '#fp31 ' + DC.replace(/\} \./g, '} #fp31 .')
+    + '@media (max-width: 560px) { #fp31 .pg { padding: 4px 8px 14px; } #fp31 .sheet { padding: 16px 10px; }'
+    + ' #fp31 .fpd col.fpwp { width: 44px; } #fp31 .fpd col.fpwq { width: 34px; } #fp31 .fpd col.fpwb { width: 50px; } #fp31 .fpd td { padding: 5px 4px; } #fp31 .fpd th { padding: 0 3px 2px; font-size: 8.5px; letter-spacing: .04em; }'
+    + ' #fp31 .fpd .fpph { width: 36px; height: 36px; } #fp31 .fpd .fpin { font-size: 12px; } #fp31 .fpd .fpsk { font-size: 10px; } #fp31 .fpd .fpcb { width: 24px; height: 24px; }'
+    + ' #fp31 .fpd .fpcu { padding: 10px; gap: 8px; } #fp31 .fpd .fpnm { font-size: 17px; } #fp31 .fpd .fprg { gap: 4px; } #fp31 .fpd .fpring { width: 54px; } #fp31 .fpd .fpring svg { width: 52px; height: 52px; }'
+    + ' #fp31 .fpd .fpft { flex-wrap: wrap; } }'
+    + '#fp-print-root { display: none; }'
+    + '@media print { html:not(#fpa):not(#fpb):not(#fpc) body > *:not(#fp-print-root) { display: none !important; } html:not(#fpa):not(#fpb):not(#fpc) body > #fp-print-root { display: block !important; }'
+    + ' html:not(#fpa):not(#fpb):not(#fpc), html:not(#fpa):not(#fpb):not(#fpc) body { background: #fff !important; height: auto !important; overflow: visible !important; } }'
+    + '@media print { #fp31 { display: none !important; } }'
+    + '@media (prefers-reduced-motion: reduce) { #fp31 { transition: none !important; } }';
+  var st = document.createElement('style'); st.id = 'fix-print2-css'; st.textContent = css;
+  (document.head || document.documentElement).appendChild(st);
+  function btns(cls) { return '<div class="fp-pb dk-skip' + (cls ? ' ' + cls : '') + '" data-keep><button type="button" data-fp-pv>' + EYE + 'Print preview</button><button type="button" data-fp-pr>' + PRINTER + 'Print</button></div>'; }
+  function place() {
+    var s = document.getElementById('pl196');
+    if (s) {
+      var ft = s.querySelector('.ft'); if (ft && ft.querySelector('[data-pl-go]') && !ft.querySelector('.fp-pb')) ft.insertAdjacentHTML('afterbegin', btns());
+      var dn = s.querySelector('.dn'); if (dn && lastPull && !dn.querySelector('.fp-pb')) { var p = dn.querySelector('p'); if (p) p.insertAdjacentHTML('afterend', btns()); else dn.insertAdjacentHTML('beforeend', btns()); }
+      if (s.querySelector('.l:not(.sk203)')) fromPull();
+    }
+    var sj = document.getElementById('sj214'), w = sj && sj.classList.contains('open') ? sj.querySelector('.s-wrap[data-v215="job"]') : null;
+    if (w) {
+      var ex = w.querySelector(':scope > .fp-sj');
+      var rm = w.querySelector(':scope > .rm204');
+      if (!ex) { w.insertAdjacentHTML('beforeend', btns('fp-sj')); ex = w.querySelector(':scope > .fp-sj'); }
+      if (rm && ex.nextElementSibling !== rm && rm.parentNode === w) w.insertBefore(ex, rm);
+    }
+  }
+  var q = 0; function soon() { if (q) return; q = requestAnimationFrame(function () { q = 0; try { place(); } catch (e) {} }); }
+  (function watch(n) {
+    var hooked = 0;
+    ['pl196', 'sj214'].forEach(function (id) { var el = document.getElementById(id); if (el && !el.__fp31 && window.MutationObserver) { el.__fp31 = 1; new MutationObserver(soon).observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }); } if (el && el.__fp31) hooked++; });
+    soon(); if (hooked < 2 && n < 400) setTimeout(function () { watch(n + 1); }, 500);
+  })(0);
+  if (window.MutationObserver) new MutationObserver(function (ms) { for (var i = 0; i < ms.length; i++) for (var j = 0; j < ms[i].addedNodes.length; j++) { var x = ms[i].addedNodes[j]; if (x.id === 'pl196' || x.id === 'sj214') { x.__fp31 = 0; soon(); } } }).observe(document.body || document.documentElement, { childList: true });
+
+  /* ---------- preview + print ---------- */
+  var PV = { D: null, gen: 0 };
+  function host() { var s = document.getElementById('pl196'); if (s && s.classList.contains('open')) return s; return document.body; } /* inside the Pull list: an older block hides anything that covers it */
+  function preview() {
+    var D = current(); if (!D) { T('The list is still loading.'); return; }
+    var o = document.getElementById('fp31'); if (o) o.remove();
+    o = document.createElement('div'); o.id = 'fp31'; o.className = 'dk-skip'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true'); o.setAttribute('aria-label', 'Print preview');
+    var g = ++PV.gen; PV.D = D;
+    o.innerHTML = '<div class="tb"><h2>Print preview<small>Staging checklist \u00b7 Letter</small></h2><button type="button" data-fp-x aria-label="Close">\u00d7</button></div>'
+      + '<div class="pg"><div class="ld">Checking the latest marks\u2026</div><div class="sheet">' + html(D) + '</div></div>'
+      + '<div class="bt"><div class="fp-pb"><button type="button" data-fp-x>Close</button><button type="button" data-fp-go>' + PRINTER + 'Print</button></div></div>';
+    o.querySelector('.bt [data-fp-x]').setAttribute('data-fp-pv', ''); /* same look as Print preview (white, navy line) */
+    host().appendChild(o); void o.offsetWidth; requestAnimationFrame(function () { o.classList.add('in'); });
+    refine(D, function (D2) {
+      if (g !== PV.gen || !o.isConnected) return; PV.D = D2;
+      var sh = o.querySelector('.sheet'), nh = html(D2); if (sh.innerHTML !== nh) sh.innerHTML = nh;
+      var l = o.querySelector('.ld'); if (l) l.textContent = '';
+    });
+  }
+  function unpreview() { var o = document.getElementById('fp31'); if (!o) return; PV.gen++; o.classList.remove('in'); setTimeout(function () { o.remove(); }, 270); }
+  function send(D) {
+    var body = html(D), css = PAGE + ' ' + DC;
+    if (window.top !== window) { try { window.top.postMessage({ storm: 'printPull', css: css, body: body }, '*'); return; } catch (e) {} }
+    var root = document.getElementById('fp-print-root'); if (!root) { root = document.createElement('div'); root.id = 'fp-print-root'; document.body.appendChild(root); }
+    root.innerHTML = '<style>@media print{' + css + '}</style>' + body;
+    var ims = root.querySelectorAll('img'), left = ims.length, fired = false;
+    function go() { if (fired) return; fired = true; setTimeout(function () { try { window.print(); } catch (e) { T('Printing is not available here', true); } }, 80); }
+    if (!left) go(); [].forEach.call(ims, function (im) { if (im.complete) { if (--left === 0) go(); } else im.onload = im.onerror = function () { if (--left === 0) go(); }; });
+    setTimeout(go, 4000);
+  }
+  var printing = 0;
+  function print(fromPv) {
+    if (fromPv && PV.D) { send(PV.D); return; }
+    var D = current(); if (!D) { T('The list is still loading.'); return; }
+    if (printing) return; printing = 1; setTimeout(function () { printing = 0; }, 3500);
+    refine(D, function (D2) { printing = 0; send(D2); });
+  }
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest('#fp31')) {
+      if (t.closest('[data-fp-go]')) { e.preventDefault(); e.stopImmediatePropagation(); print(true); return; }
+      if (t.closest('[data-fp-x]')) { e.preventDefault(); e.stopImmediatePropagation(); unpreview(); return; }
+      e.stopImmediatePropagation(); return;
+    }
+    if (t.closest('.fp-pb [data-fp-pv]')) { e.preventDefault(); e.stopImmediatePropagation(); preview(); return; }
+    if (t.closest('.fp-pb [data-fp-pr]')) { e.preventDefault(); e.stopImmediatePropagation(); print(false); return; }
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.getElementById('fp31')) { e.stopImmediatePropagation(); unpreview(); } }, true);
+  /* when the screen under the preview goes away, so does the preview */
+  setInterval(function () { var o = document.getElementById('fp31'); if (!o || !o.classList.contains('in')) return; var D = PV.D; if (!D) return;
+    if (D.src === 'sj') { var sj = document.getElementById('sj214'); if (!sj || !sj.classList.contains('open')) unpreview(); }
+    else { var s = document.getElementById('pl196'); if (!s || !s.classList.contains('open')) unpreview(); } }, 700);
+  try { window.stormFixPrint = window.stormFixPrint || {}; window.stormFixPrint.v = 2; window.stormFixPrint.doc = function () { var D = current(); return D ? { css: PAGE + ' ' + DC, body: html(D), data: D } : null; }; window.stormFixPrint.preview = preview; window.stormFixPrint.print = print; } catch (e) {}
 })();
