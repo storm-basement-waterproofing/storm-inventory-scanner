@@ -6,6 +6,7 @@
    15. The preview lets you pick what prints: Staging list, Loading materials list (Ready to load on truck) or Jobber quote. Same layout as
        the Pull list printout (fix-print v2), in black and white: logo, customer / address / Job #, photo, item + SKU + bin, qty, boxes.
        Print goes through the wrapper's existing printPull hand-off (Letter paper).
+   v2: Scan column with each item's QR (fix-qr.js stormQR17, same as fix-print v3) on the Staging and Loading printouts.
    16. Every customer in the Customer Search (Find a Job) results gets the same three print buttons under it; each opens the preview on
        that printout. */
 (function () {
@@ -141,6 +142,7 @@
     + ' .jpd .jpct { flex: none; text-align: center; min-width: 62px; } .jpd .jpct b { display: block; font-size: 20px; font-weight: 800; line-height: 1; } .jpd .jpct span { display: block; margin-top: 3px; font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #333; white-space: nowrap; }'
     + ' .jpd table { width: 100%; border-collapse: separate; border-spacing: 0 6px; table-layout: fixed; }'
     + ' .jpd th { padding: 0 6px 2px; font-size: 9.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #333; text-align: left; }'
+    + ' .jpd col.jpwr { width: 84px; } .jpd .jpqr { display: block; width: 74px; height: 74px; margin: 0 auto; } .jpd .jpqr svg { display: block; width: 100%; height: 100%; }'
     + ' .jpd th.jpc, .jpd td.jpc { text-align: center; } .jpd col.jpwp { width: 52px; } .jpd col.jpwq { width: 62px; } .jpd col.jpwb { width: 76px; }'
     + ' .jpd td { padding: 6px; vertical-align: middle; background: #fff; border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; }'
     + ' .jpd td:first-child { border-left: 1.5px solid #000; border-radius: 12px 0 0 12px; } .jpd td:last-child { border-right: 1.5px solid #000; border-radius: 0 12px 12px 0; }'
@@ -170,6 +172,9 @@
       + (meta ? '<div class="jpmt">' + meta + '</div>' : '') + '</div>' + (counts || '') + '</div>';
   }
   function foot(left) { return '<div class="jpft"><span>STORM Basement Waterproofing</span><span>' + left + '</span><span>Printed ' + E(when(Date.now())) + '</span></div>'; }
+  function QR() { return window.stormQR17 && window.stormQR17.qr ? window.stormQR17 : null; } /* same QR as the bin label (fix-qr.js), like fix-print v3's Scan column */
+  function qrCol() { return QR() ? '<col class="jpwr">' : ''; } function qrTh() { return QR() ? '<th class="jpc">Scan</th>' : ''; }
+  function qrTd(l) { var q = QR(); if (!q) return ''; var v = ''; try { v = q.qr(l.bin); } catch (e) {} return '<td class="jpc"><span class="jpqr">' + v + '</span></td>'; }
   function qtyCell(l) {
     var q = l.qty == null || l.qty === '' ? '\u2013' : l.qty;
     return '<td class="jpc"><span class="jpq">' + E(q) + (l.feet ? '<small>' + E(l.feet) + ' ft</small>' : '') + '</span></td>';
@@ -187,8 +192,8 @@
     var h = '<div class="jpd">' + head(K, J, jobMeta(J, B), n ? count(n, d, 'Staged') : '');
     if (!n) h += '<div class="jpnote">' + (c.qs === 'loading' ? 'Loading\u2026' : J.jobberId && c.qs !== 'ready' && !(J.items && J.items.length) ? 'No staging list yet. ' + quoteWhy(c) : 'No items on this job\u2019s list yet.') + '</div>';
     else {
-      h += '<table><colgroup><col class="jpwp"><col><col class="jpwq"><col class="jpwb"></colgroup><thead><tr><th></th><th>Item</th><th class="jpc">Qty</th><th class="jpc">Staged</th></tr></thead><tbody>';
-      L.forEach(function (l) { h += '<tr>' + itemCells(l) + qtyCell(l) + '<td class="jpc"><span class="jpcb' + (l.pulled ? ' on' : '') + '">' + CHK + '</span></td></tr>'; });
+      h += '<table><colgroup><col class="jpwp"><col>' + qrCol() + '<col class="jpwq"><col class="jpwb"></colgroup><thead><tr><th></th><th>Item</th>' + qrTh() + '<th class="jpc">Qty</th><th class="jpc">Staged</th></tr></thead><tbody>';
+      L.forEach(function (l) { h += '<tr>' + itemCells(l) + qrTd(l) + qtyCell(l) + '<td class="jpc"><span class="jpcb' + (l.pulled ? ' on' : '') + '">' + CHK + '</span></td></tr>'; });
       h += '</tbody></table>';
     }
     if (B.missing.length) { h += '<div class="jpmiss"><b class="t">On the quote, not in our app</b>'; B.missing.forEach(function (m) { h += '<div><span>\u00d7 ' + E(m.qty) + '</span><b>' + E(m.name) + '</b></div>'; }); h += '</div>'; }
@@ -200,8 +205,8 @@
     if (!B.staged && n) h += '<div class="jpnote">Not staged yet \u2014 this is the planned list. It goes on Ready to load on truck once it\u2019s staged.</div>';
     if (!n) h += '<div class="jpnote">' + (c.qs === 'loading' ? 'Loading\u2026' : 'Nothing to load yet for this job.') + '</div>';
     else {
-      h += '<table><colgroup><col class="jpwp"><col><col class="jpwq"><col class="jpwb"></colgroup><thead><tr><th></th><th>Item</th><th class="jpc">Qty</th><th class="jpc">Loaded on truck</th></tr></thead><tbody>';
-      L.forEach(function (l) { h += '<tr>' + itemCells(l) + qtyCell(l) + '<td class="jpc"><span class="jpcb' + (l.loaded ? ' on' : '') + '">' + CHK + '</span></td></tr>'; });
+      h += '<table><colgroup><col class="jpwp"><col>' + qrCol() + '<col class="jpwq"><col class="jpwb"></colgroup><thead><tr><th></th><th>Item</th>' + qrTh() + '<th class="jpc">Qty</th><th class="jpc">Loaded on truck</th></tr></thead><tbody>';
+      L.forEach(function (l) { h += '<tr>' + itemCells(l) + qrTd(l) + qtyCell(l) + '<td class="jpc"><span class="jpcb' + (l.loaded ? ' on' : '') + '">' + CHK + '</span></td></tr>'; });
       h += '</tbody></table>';
     }
     return h + '<div class="jpsg"><span>Loaded by</span><span>Truck #</span><span>Date</span></div>' + foot(n ? d + ' of ' + n + ' loaded' : '') + '</div>';
@@ -261,7 +266,7 @@
     + '#jp14 ' + DC.replace(/\} \./g, '} #jp14 .')
     + '@media (max-width: 560px) { #jp14 .pg { padding: 4px 8px 14px; } #jp14 .sheet { padding: 16px 10px; }'
     + ' #jp14 .jpd col.jpwp { width: 44px; } #jp14 .jpd col.jpwq { width: 46px; } #jp14 .jpd col.jpwb { width: 62px; } #jp14 .jpd td { padding: 5px 4px; } #jp14 .jpd th { padding: 0 3px 2px; font-size: 8.5px; letter-spacing: .04em; }'
-    + ' #jp14 .jpd .jpph { width: 36px; height: 36px; } #jp14 .jpd .jpin { font-size: 12px; } #jp14 .jpd .jpsk { font-size: 10px; } #jp14 .jpd .jpcb { width: 24px; height: 24px; }'
+    + ' #jp14 .jpd .jpph { width: 36px; height: 36px; } #jp14 .jpd .jpin { font-size: 12px; } #jp14 .jpd .jpsk { font-size: 10px; } #jp14 .jpd .jpcb { width: 24px; height: 24px; } #jp14 .jpd col.jpwr { width: 52px; } #jp14 .jpd .jpqr { width: 46px; height: 46px; }'
     + ' #jp14 .jpd .jpcu { padding: 10px; gap: 8px; } #jp14 .jpd .jpnm { font-size: 17px; } #jp14 .jpd .jptot { width: 100%; } #jp14 .jpd .jpsign > div + div { width: 120px; } #jp14 .jpd .jpft { flex-wrap: wrap; } }'
     + '#jp-print-root { display: none; }'
     + '@media print { html:not(#jpa):not(#jpb):not(#jpc) body > *:not(#jp-print-root) { display: none !important; } html:not(#jpa):not(#jpb):not(#jpc) body > #jp-print-root { display: block !important; } }'
@@ -385,5 +390,5 @@
   if (window.MutationObserver) new MutationObserver(function (ms) { for (var i = 0; i < ms.length; i++) for (var j = 0; j < ms[i].addedNodes.length; j++) { var x = ms[i].addedNodes[j]; if (x.nodeType === 1 && (x.id === 'job-find' || x.id === 'jf-list' || (x.querySelector && x.querySelector('#jf-list')))) { if (x.__jp14 === 1) x.__jp14 = 0; setTimeout(function () { var jf = document.getElementById('jf-list'); if (jf && !jf.__jp14) { jf.__jp14 = 1; new MutationObserver(soon).observe(jf, { childList: true, subtree: true }); } soon(); }, 0); } } }).observe(document.body || document.documentElement, { childList: true });
   document.addEventListener('storm-custcard-open', soon);
 
-  window.stormJobPrint = { v: 1, open: function (x, k) { open(x && x.job !== undefined ? fromCtx(x) : x, k); }, fromRow: fromRow, fromCtx: fromCtx, doc: function (k, J, c) { return doc(k, J, c); } };
+  window.stormJobPrint = { v: 2, open: function (x, k) { open(x && x.job !== undefined ? fromCtx(x) : x, k); }, fromRow: fromRow, fromCtx: fromCtx, doc: function (k, J, c) { return doc(k, J, c); } };
 })();
