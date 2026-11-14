@@ -1,4 +1,5 @@
-/* fix-easy.js v1 (Hark, 2026-11-13, Dave's fix list items 1-11, 13-16: quick fixes). Loaded by the app (Index.html) right after
+/* fix-easy.js v2 (Hark, 2026-11-13). v2 (Dave 20:15): ordering is manager-only - see 'crew: no adding to orders' below.
+   v1 = Dave's fix list items 1-11, 13-16: quick fixes. Loaded by the app (Index.html) right after
    storm-clean-theme.js. Everything here is an override layered on top: CSS with higher specificity, capture-phase listeners and a
    MutationObserver. Nothing in app-ext.js or the theme is edited.
    1  Cart +/-: the cart line is patched in place instead of the whole cart being rebuilt (no shake/jump); the number keeps one width.
@@ -71,6 +72,36 @@
       if (m) st.textContent = st.textContent.split('https://storm-basement-waterproofing.github.io/storm-inventory-scanner/assets/jobber-logo-white-open.png?v=1').join(m[1]);
     } catch (e) {}
   }
+
+  /* ---------- v2 (Dave, 2026-11-13 20:15): crew can't add to orders ----------
+     "When it's just the user not the manager I don't want them to be able to add orders in with the plus and minus."
+     Crew = no manager login (the app's own window.stormAccess check, which also puts html.storm-crew / html.storm-mgr on the page).
+     For crew: the item cards' -/+ and "+ Add to order", the Item details -/+ box and the cart's -/+ are hidden, and a
+     capture-phase guard (registered before every other click handler in this file) swallows any tap on them, including the
+     hold-to-repeat clicks. Managers see and use everything exactly as before. Staging, the Pull list, Ready to load / Load on
+     truck, the scanner and the On hand / Keep on hand controls are untouched; programmatic fills (Jobber quote, scanner cart)
+     still work because only taps are blocked. */
+  function isMgrNow() { try { return !!(window.stormAccess && window.stormAccess.isMgr()); } catch (e) { return false; } }
+  var CR = 'html.storm-crew:not(#fe1):not(#fe2):not(#fe3) body';
+  var ORDER_CTL = '.card [data-act], .card [data-pick-add], #detail [data-detail-step], #pick-sheet [data-pick-inc], #pick-sheet [data-pick-dec]';
+  var ORDER_IN = '.card .stepper .count, #detail-count';
+  var crewCss = ''
+    + CR + ' .card .controls .stepper:has([data-act]), ' + CR + ' .card [data-pick-add], ' + CR + ' .card .pick-add { display: none !important; }'
+    + CR + ' #detail .controls .stepper:has([data-detail-step]) { display: none !important; }'
+    + CR + ' #detail .detail-body > .controls.ctl-top:not(:has(> :not(.stepper):not(.order):not([data-order-single]))) { display: none !important; }'
+    + CR + ' #pick-sheet [data-pick-inc], ' + CR + ' #pick-sheet [data-pick-dec] { display: none !important; }'
+    + CR + ' #fab-dock #cart-fab, ' + CR + ' #cart-fab { display: none !important; }';
+  var st2 = document.createElement('style'); st2.id = 'fix-easy-crew-order'; st2.textContent = crewCss;
+  (document.head || document.documentElement).appendChild(st2);
+  function crewBlock(e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var c = t.closest(ORDER_CTL) || ((e.type === 'change' || e.type === 'input' || e.type === 'focusin') && t.closest(ORDER_IN));
+    if (!c || isMgrNow()) return;
+    e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation();
+    if (e.type === 'focusin') { try { t.blur(); } catch (x) {} }
+  }
+  ['click', 'change', 'input', 'focusin'].forEach(function (ty) { window.addEventListener(ty, crewBlock, true); });
+  window.__fixEasyCrewOrder = 2;
 
   /* ---------- 9 / 10 / 11: vibration ---------- */
   var KEY = '#sj214 [data-sj-bin], #pl196 [data-pl-bin]';
