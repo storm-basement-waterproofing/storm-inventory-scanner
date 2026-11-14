@@ -201,9 +201,12 @@
   function addr(c) { var a = (c && c.address) || {}; return [a.street1, a.street2, a.city, a.province, a.postalCode].filter(function (x) { return String(x || '').trim(); }).join(', '); }
   function ctxFromRow(row) {
     var meta = (row.querySelector('.jf-meta') || {}).textContent || '';
+    var R14 = null; try { R14 = window.stormJF14 ? stormJF14() : null; } catch (e) {} /* app v229: the Find a Job rows' own data */
     if (row.hasAttribute('data-jf-jb')) {
       var m = /Job #\s*([A-Za-z0-9-]+)/.exec(meta), num = m ? m[1] : '', js = jobberJobs(), j = null;
-      for (var i = 0; i < js.length; i++) if (num && String(js[i].jobNumber) === num) { j = js[i]; break; }
+      var rj = R14 && R14.jobber && R14.jobber[+row.getAttribute('data-jf-jb')];
+      if (rj && (!num || String(rj.jobNumber) === num)) j = rj;
+      for (var i = 0; !j && i < js.length; i++) if (num && String(js[i].jobNumber) === num) { j = js[i]; break; }
       if (!j) { /* not in the copy yet: what the row shows, filled in when the jobs arrive */
         var nmE = row.querySelector('.jf-name'), parts = meta.split(' \u00b7 ');
         var nmT = nmE && nmE.childNodes[0] ? String(nmE.childNodes[0].textContent || '').trim() : '';
@@ -216,7 +219,8 @@
       return { kind: 'jobber', job: j, jobNumber: String(j.jobNumber || ''), name: nm, address: addr(c), key: j.id ? 'jb:' + j.id : '', jid: j.id || '', items: null };
     }
     var nmEl = row.querySelector('.jf-name'), ad = lc((row.querySelector('.jf-addr') || {}).textContent), nm2 = lc(nmEl && nmEl.childNodes[0] ? nmEl.childNodes[0].textContent : nmEl ? nmEl.textContent : '');
-    var sv = savedJobs().filter(function (s) { return lc([s.first, s.last].filter(Boolean).join(' ')) === nm2 && lc(s.address) === ad; })[0];
+    var rs = R14 && R14.saved && R14.saved[+row.getAttribute('data-jf-i')];
+    var sv = (rs && lc([rs.first, rs.last].filter(Boolean).join(' ')) === nm2) ? rs : savedJobs().filter(function (s) { return lc([s.first, s.last].filter(Boolean).join(' ')) === nm2 && lc(s.address) === ad; })[0];
     if (!sv) { /* not in the phone's copy: what the row shows */
       var mt = String(meta || '').split(' \u00b7 '), lm = /(\d+) lines?/.exec(meta), um = /(\d+) to pull/.exec(meta);
       return { kind: 'saved', job: { first: nm2, saved: mt[0] || '', lines: lm ? +lm[1] : null, units: um ? +um[1] : null }, jobNumber: '',
