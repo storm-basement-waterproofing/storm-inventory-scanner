@@ -1,4 +1,4 @@
-/* fix-qr.js v1 (Hark, 2026-11-14, Dave fix list batch 2 item 17): SKU + QR code on every Pull list line (screen and printout).
+/* fix-qr.js v2 (v1 + item 18 below) (Hark, 2026-11-14, Dave fix list batch 2 item 17): SKU + QR code on every Pull list line (screen and printout).
    The QR holds exactly what the item's bin label holds (the item's Order link from the sheet), so the app's scanner opens that item's
    details with its on-hand count. An item with no Order link gets its bin ID (the scanner matches bin IDs too). SKU comes from the
    live item data only; blank when the sheet has none. QR drawn on the phone as SVG (crisp on paper).
@@ -2341,5 +2341,83 @@ var qrcode = function() {
   })(0);
   setInterval(function () { var s = document.getElementById('pl196'); if (s && s.classList.contains('open')) soon(); }, 1500); /* items that arrived after the list was drawn */
 
-  window.stormQR17 = { svg: svg, qr: qr, target: target, sku: sku, missing: function () { return Object.keys(missing); }, v: 1 };
+  window.stormQR17 = { svg: svg, qr: qr, target: target, sku: sku, missing: function () { return Object.keys(missing); }, v: 2 };
+})();
+
+/* fix-qr v2 (Hark, 2026-11-14, Dave batch 2 item 18): tapping an item on the Pull list, a Ready to load on truck job, or a job's line in
+   Customer Search. Manager: the normal Item details (everything a manager may do), shown over the job screen; closing it returns there.
+   Crew: a read-only card (photo, name, SKU, bin, On hand, Keep on hand, QR) with only Close: no ordering, no stock changes.
+   Check boxes (Pulled / Loaded / staging check) keep working exactly as before for everyone. */
+(function () {
+  if (window.__qr18) return; window.__qr18 = 1;
+  function E(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function mgr() { try { return !!(window.stormAccess && stormAccess.isMgr()); } catch (e) { return false; } }
+  function item(bin) { try { return findItem(bin); } catch (e) { return null; } }
+  var css = '#qi18 { position: fixed; inset: 0; z-index: 2147483647; display: flex; align-items: flex-end; justify-content: center; background: rgba(15,23,32,0); transition: background-color .26s cubic-bezier(.32,.72,0,1); font-family: Montserrat, -apple-system, "Segoe UI", Roboto, sans-serif; color: #0F1720; }'
+    + ' #qi18.in { background: rgba(15,23,32,.38); }'
+    + ' #qi18 .qb { width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; background: #fff; border-radius: 22px 22px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); transform: translate3d(0,100%,0); transition: transform .3s cubic-bezier(.32,.72,0,1); box-shadow: 0 -10px 30px rgba(15,23,32,.18); }'
+    + ' #qi18.in .qb { transform: none; }'
+    + ' #qi18 .qh { display: flex; gap: 14px; align-items: center; } #qi18 .qh .ph215 { flex: none; width: 84px; height: 84px; border-radius: 14px; }'
+    + ' #qi18 .qn { flex: 1; min-width: 0; font-size: 18px; font-weight: 800; line-height: 1.2; } #qi18 .qn small { display: block; margin-top: 4px; font-size: 12.5px; font-weight: 600; color: #6B7280; overflow-wrap: anywhere; }'
+    + ' #qi18 .qs { display: flex; gap: 10px; margin: 16px 0 12px; } #qi18 .qs div { flex: 1; padding: 12px; border-radius: 14px; background: #F3F6FA; text-align: center; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #6B7280; }'
+    + ' #qi18 .qs b { display: block; margin-bottom: 2px; font-size: 24px; letter-spacing: 0; color: #0F1720; }'
+    + ' #qi18 .qq { width: 132px; height: 132px; margin: 4px auto 6px; } #qi18 .qq svg { display: block; width: 100%; height: 100%; }'
+    + ' #qi18 .qt { text-align: center; font-size: 12px; font-weight: 600; color: #6B7280; margin-bottom: 14px; }'
+    + ' #qi18 .qc { display: block; width: 100%; min-height: 50px; border-radius: 25px; border: 1.5px solid #1B2735; background: #fff; color: #0F1720; font: inherit; font-size: 15px; font-weight: 800; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .12s ease; }'
+    + ' #qi18 .qc:active { transform: scale(.96); }'
+    + ' #pl196 .l, #sj214 .s-line { cursor: pointer; }'
+    + ' html.d18 #pl196, html.d18 #sj214, html.d18 #pull-sheet { opacity: 0 !important; pointer-events: none !important; transition: opacity .2s ease; }'
+    + ' @media (prefers-reduced-motion: reduce) { #qi18, #qi18 .qb { transition: none; } }';
+  var st = document.createElement('style'); st.id = 'fix-qr18-css'; st.textContent = css; (document.head || document.documentElement).appendChild(st);
+  function num(v) { return v == null || v === '' ? '\u2013' : String(v); }
+  function crew(bin, host) {
+    var it = item(bin); if (!it) return;
+    shut(true);
+    var k = window.stormQR17 ? stormQR17.sku(bin) : '', q = window.stormQR17 ? stormQR17.qr(bin) : '';
+    var o = document.createElement('div'); o.id = 'qi18'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true'); o.setAttribute('aria-label', it.name || bin);
+    o.innerHTML = '<div class="qb"><div class="qh">' + (window.stormPhoto215 ? stormPhoto215.html(bin) : '') + '<div class="qn">' + E(it.name || bin) + '<small>' + E((k ? 'SKU ' + k + ' \u00b7 ' : '') + 'Bin ' + String(bin).toUpperCase()) + '</small></div></div>'
+      + '<div class="qs"><div><b>' + E(num(it.onHand)) + '</b>On hand</div><div><b>' + E(num(it.par)) + '</b>Keep on hand</div></div>'
+      + (q ? '<div class="qq">' + q + '</div><div class="qt">Scan with the STORM camera to open this item</div>' : '')
+      + '<button type="button" class="qc" data-qi18-x>Close</button></div>';
+    (host || document.body).appendChild(o);
+    try { if (window.stormPhoto215) stormPhoto215.wire(o); } catch (e) {}
+    void o.offsetWidth; requestAnimationFrame(function () { o.classList.add('in'); });
+  }
+  function shut(now) { var o = document.getElementById('qi18'); if (!o) return; if (now) { o.remove(); return; } o.classList.remove('in'); setTimeout(function () { o.remove(); }, 300); }
+  var watching = 0;
+  function mgrOpen(bin) {
+    if (typeof window.openDetail !== 'function' || !item(bin)) return;
+    var pl = document.getElementById('pl196');
+    if (pl && pl.classList.contains('open')) pl.classList.add('out203'); /* the Pull list's own cover check stands down while details are up */
+    document.documentElement.classList.add('d18');
+    try { window.openDetail(bin); } catch (e) { back(); return; }
+    clearInterval(watching); var seen = 0, t0 = Date.now();
+    watching = setInterval(function () {
+      var d = document.getElementById('detail'), op = d && d.classList.contains('open') && !d.classList.contains('fx-out');
+      if (op) seen = 1;
+      if ((seen && !op) || (!seen && Date.now() - t0 > 2500)) back();
+    }, 120);
+  }
+  function back() {
+    clearInterval(watching); watching = 0;
+    document.documentElement.classList.remove('d18');
+    var pl = document.getElementById('pl196'); if (pl && pl.classList.contains('open') && !pl.querySelector('.dn')) pl.classList.remove('out203');
+  }
+  function binFor(t) {
+    var r;
+    if ((r = t.closest('#pl196 .l:not(.sk203)'))) { if (t.closest('button')) return null; var b = r.querySelector('[data-pl-bin]'); return b ? [b.getAttribute('data-pl-bin'), document.getElementById('pl196')] : null; }
+    if ((r = t.closest('#sj214 .s-line[data-k215]'))) { if (t.closest('button')) return null; return [r.getAttribute('data-k215'), null]; }
+    if ((r = t.closest('#pull-sheet .pick-line[data-pull-bin]'))) { if (t.closest('button, .tc-ck, input')) return null; return [r.getAttribute('data-pull-bin'), null]; }
+    return null;
+  }
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest('#qi18')) { if (t.closest('[data-qi18-x]') || t === document.getElementById('qi18')) { e.preventDefault(); shut(); } e.stopImmediatePropagation(); return; }
+    var hit = binFor(t); if (!hit || !hit[0] || !item(hit[0])) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (mgr()) mgrOpen(hit[0]); else crew(hit[0], hit[1]);
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.getElementById('qi18')) { e.stopImmediatePropagation(); shut(); } }, true);
+  setInterval(function () { var o = document.getElementById('qi18'); if (o && o.parentNode && o.parentNode !== document.body && !(o.parentNode.classList.contains('open'))) shut(true); if (o && o.parentNode === document.body && !document.querySelector('#sj214.open, #pull-sheet.open')) shut(true); }, 700); /* screen under it closed */
+  window.stormQR18 = { v: 2, crew: crew, mgrOpen: mgrOpen };
 })();
