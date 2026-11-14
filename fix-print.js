@@ -267,6 +267,7 @@
   window.stormFixPrint = { v: 1, askCode: askCode, putBack: openPB };
 })();
 
+/* fix-print v3 (2026-11-14, batch 2 item 17): printed Staging checklist gets a Scan column with each item's QR (fix-qr.js). */
 /* fix-print v2 (Hark, 2026-11-13, Dave's fix list 31-35): one Staging Checklist printout, used everywhere a job prints.
    31. Print preview rebuilt in the app's staging checklist layout: STORM logo, customer / address / Jobber # / staged date, then every item
        as a row with its photo, name, SKU + bin, quantity and check boxes (same rounded green boxes as the app).
@@ -313,6 +314,7 @@
     + ' .fpd .fpph { display: block; width: 40px; height: 40px; border-radius: 8px; background: #EEF2F7; overflow: hidden; } .fpd .fpph img { display: block; width: 100%; height: 100%; object-fit: contain; }'
     + ' .fpd .fpin { font-size: 12.5px; font-weight: 700; overflow-wrap: anywhere; } .fpd .fpsk { margin-top: 2px; font-size: 10.5px; font-weight: 600; color: #6B7280; overflow-wrap: anywhere; }'
     + ' .fpd .fpq { font-size: 15px; font-weight: 800; }'
+    + ' .fpd col.fpwr { width: 84px; } .fpd .fpqr { display: block; width: 74px; height: 74px; margin: 0 auto; } .fpd .fpqr svg { display: block; width: 100%; height: 100%; }'
     + ' .fpd .fpcb { display: inline-block; width: 26px; height: 26px; border-radius: 8px; border: 2.5px solid #9AA7B4; background: #fff; vertical-align: middle; }'
     + ' .fpd .fpcb svg { display: none; width: 100%; height: 100%; } .fpd .fpcb.on { border-color: ' + GREEN + '; background: ' + GREEN + '; } .fpd .fpcb.on svg { display: block; }'
     + ' .fpd .fpft { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 8px; border-top: 1px solid #C9D3DF; font-size: 10px; font-weight: 600; color: #6B7280; }'
@@ -333,6 +335,7 @@
     return u;
   }
   function when(ms) { if (!ms) return ''; try { return new Date(ms).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
+  function QR17() { return window.stormQR17 && window.stormQR17.qr ? window.stormQR17 : null; }
   function html(D) {
     var n = D.lines.length, dp = D.lines.filter(function (l) { return l.pulled; }).length, dl = D.lines.filter(function (l) { return l.loaded; }).length;
     var meta = [D.jobNo ? 'Job <b>#' + E(D.jobNo) + '</b>' : '', D.title ? E(D.title) : '', D.staged && D.staged.at ? 'Staged <b>' + E(when(D.staged.at)) + '</b>' + (D.staged.by ? ' by ' + E(D.staged.by) : '') : 'Not staged yet', D.done ? '<b>Completed</b>' : ''].filter(Boolean).join(' \u00b7 ');
@@ -341,10 +344,11 @@
       + '<div class="fprg">' + ring(dp, n, 'Staged') + ring(dl, n, 'Loaded') + '</div></div>';
     if (!n) h += '<div class="fpem">No items on this list.</div>';
     else {
-      h += '<table><colgroup><col class="fpwp"><col><col class="fpwq"><col class="fpwb"><col class="fpwb"></colgroup><thead><tr><th></th><th>Item</th><th class="fpc">Qty</th><th class="fpc">Staged</th><th class="fpc">Loaded on truck</th></tr></thead><tbody>';
+      h += '<table><colgroup><col class="fpwp"><col>' + (QR17() ? '<col class="fpwr">' : '') + '<col class="fpwq"><col class="fpwb"><col class="fpwb"></colgroup><thead><tr><th></th><th>Item</th>' + (QR17() ? '<th class="fpc">Scan</th>' : '') + '<th class="fpc">Qty</th><th class="fpc">Staged</th><th class="fpc">Loaded on truck</th></tr></thead><tbody>';
       D.lines.forEach(function (l) {
         var it = item(l.bin) || {}, sku = it.sku ? 'SKU ' + it.sku : '';
         h += '<tr><td><span class="fpph"><img src="' + E(photo(l.bin)) + '" alt=""></span></td><td><div class="fpin">' + E(l.name || it.name || l.bin) + '</div><div class="fpsk">' + E([sku, 'Bin ' + String(l.bin).toUpperCase()].filter(Boolean).join(' \u00b7 ')) + '</div></td>'
+          + (QR17() ? '<td class="fpc"><span class="fpqr">' + QR17().qr(l.bin) + '</span></td>' : '') /* item 17 (2026-11-14): QR = same code as the bin label */
           + '<td class="fpc"><span class="fpq">' + E(l.qty == null || l.qty === '' ? '\u2013' : l.qty) + '</span></td>'
           + '<td class="fpc"><span class="fpcb' + (l.pulled ? ' on' : '') + '">' + CHK + '</span></td><td class="fpc"><span class="fpcb' + (l.loaded ? ' on' : '') + '">' + CHK + '</span></td></tr>';
       });
@@ -443,7 +447,7 @@
     + '#fp31 ' + DC.replace(/\} \./g, '} #fp31 .')
     + '@media (max-width: 560px) { #fp31 .pg { padding: 4px 8px 14px; } #fp31 .sheet { padding: 16px 10px; }'
     + ' #fp31 .fpd col.fpwp { width: 44px; } #fp31 .fpd col.fpwq { width: 34px; } #fp31 .fpd col.fpwb { width: 50px; } #fp31 .fpd td { padding: 5px 4px; } #fp31 .fpd th { padding: 0 3px 2px; font-size: 8.5px; letter-spacing: .04em; }'
-    + ' #fp31 .fpd .fpph { width: 36px; height: 36px; } #fp31 .fpd .fpin { font-size: 12px; } #fp31 .fpd .fpsk { font-size: 10px; } #fp31 .fpd .fpcb { width: 24px; height: 24px; }'
+    + ' #fp31 .fpd .fpph { width: 36px; height: 36px; } #fp31 .fpd .fpin { font-size: 12px; } #fp31 .fpd .fpsk { font-size: 10px; } #fp31 .fpd .fpcb { width: 24px; height: 24px; } #fp31 .fpd col.fpwr { width: 52px; } #fp31 .fpd .fpqr { width: 46px; height: 46px; }'
     + ' #fp31 .fpd .fpcu { padding: 10px; gap: 8px; } #fp31 .fpd .fpnm { font-size: 17px; } #fp31 .fpd .fprg { gap: 4px; } #fp31 .fpd .fpring { width: 54px; } #fp31 .fpd .fpring svg { width: 52px; height: 52px; }'
     + ' #fp31 .fpd .fpft { flex-wrap: wrap; } }'
     + '#fp-print-root { display: none; }'
