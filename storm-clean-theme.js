@@ -1,4 +1,5 @@
-/* storm-clean-theme v4 (Hark, 2026-11-13, Dave 17:10): v3 (white boxes with a thin dark navy line, blue buttons with white writing) + new parts tagged before they are drawn (no border/colour flip while scrolling or opening a screen), green check marks always solid, picked buttons look picked, no press-shrink on cards while scrolling, STORM logo on Ready to load on truck and the Pull list, smooth job open in Find a Job. Look only: no data, no server calls. Load AFTER app-ext.js. */
+/* storm-clean-theme v5 (Hark, 2026-11-14, Dave: faster manager login): same look as v4; the tagging pass reads every element first and then adds its classes in one go (v4 read and wrote in turn, which made the browser re-layout the page once per element - a ~0.5-1.3 s freeze after the manager login and other big updates).
+   v4 (Hark, 2026-11-13, Dave 17:10): v3 (white boxes with a thin dark navy line, blue buttons with white writing) + new parts tagged before they are drawn (no border/colour flip while scrolling or opening a screen), green check marks always solid, picked buttons look picked, no press-shrink on cards while scrolling, STORM logo on Ready to load on truck and the Pull list, smooth job open in Find a Job. Look only: no data, no server calls. Load AFTER app-ext.js. */
 (function () {
   if (document.getElementById('storm-clean-css')) return;
   var st = document.createElement('style'); st.id = 'storm-clean-css';
@@ -19,31 +20,37 @@
   function bg(e){return getComputedStyle(e).backgroundColor;}
   function dark(el){for(var e=el;e&&e!==document.body;e=e.parentElement){var c=bg(e);var m=c.match(/\d+/g);if(m&&(m.length<4||+m[3]>0.5)&&+m[0]+ +m[1]+ +m[2]<200&&!W[c])return true;if(m&&W[c])return false;}return false;}
   function red(c){var m=c.match(/\d+/g);return m&&+m[0]>170&&+m[1]<90&&+m[2]<90;}
-  function tagBox(e,vw,vh){if(e.classList.contains('scx-box')||SKIPTAG.test(e.tagName)||e.closest(EXC))return;var w=e.offsetWidth,h=e.offsetHeight;if(w<=100||h<=36||(w>vw*.92&&h>vh*.6))return;if(W[bg(e)])e.classList.add('scx-box');}
-  function tagIn(e){if(e.classList.contains('scx-in')||e.classList.contains('scx-box')||SKIPTAG.test(e.tagName))return;var p=e.parentElement;if(!p||!p.closest('.scx-box')||e.closest('button,[role="button"],label'))return;if(e.offsetWidth<60||e.offsetHeight<28)return;if(W[bg(e)])e.classList.add('scx-in');}
+  function tagBox(e,vw,vh){if(e.classList.contains('scx-box')||SKIPTAG.test(e.tagName)||e.closest(EXC))return;var w=e.offsetWidth,h=e.offsetHeight;if(w<=100||h<=36||(w>vw*.92&&h>vh*.6))return;if(W[bg(e)])return 'scx-box';}
+  function tagIn(e){if(e.classList.contains('scx-in')||e.classList.contains('scx-box')||SKIPTAG.test(e.tagName))return;var p=e.parentElement;if(!p||!p.closest('.scx-box')||e.closest('button,[role="button"],label'))return;if(e.offsetWidth<60||e.offsetHeight<28)return;if(W[bg(e)])return 'scx-in';}
   function tagBtn(b){if(b.classList.contains('scx-pm')||b.classList.contains('scx-act')||b.classList.contains('scx-no')||b.classList.contains('scx-cardbtn'))return;var t=(b.textContent||'').trim(),a=b.getAttribute('aria-label')||'',k=(typeof b.className==='string'?b.className:'')+' '+b.id;
-      if(/^[-−–+＋]$/.test(t)||/^(minus|plus|less|more|decrease|increase)/i.test(a)||/(minus|plus|dec|inc)\b/i.test(k)){if(b.closest('.scx-box'))b.classList.add('scx-pm');return;}
-      if(b.hasAttribute('aria-pressed')||b.hasAttribute('aria-checked')||(STATE.test(k)&&!/pick-add/.test(k))){b.classList.add('scx-no');return;}
+      if(/^[-−–+＋]$/.test(t)||/^(minus|plus|less|more|decrease|increase)/i.test(a)||/(minus|plus|dec|inc)\b/i.test(k)){if(b.closest('.scx-box'))return 'scx-pm';return;}
+      if(b.hasAttribute('aria-pressed')||b.hasAttribute('aria-checked')||(STATE.test(k)&&!/pick-add/.test(k)))return 'scx-no';
       var par=b.parentElement,grp=par&&par.querySelector(':scope>button.on,:scope>button.active,:scope>button.sel,:scope>button.selected,:scope>button[aria-selected],:scope>button[aria-pressed],:scope>[role=tab]');
-      if(grp||b.getAttribute('role')==='tab'){b.classList.add('scx-no');return;}
+      if(grp||b.getAttribute('role')==='tab')return 'scx-no';
       if(!b.offsetWidth&&!b.offsetHeight)return; /* not drawn yet: decide when it is */
-      if(b.offsetHeight>64&&!b.closest('header,#drawer,.drawer,nav')){b.classList.add('scx-cardbtn');return;}
-      if(t.length<3||b.offsetWidth<60||NOT.test(k)||b.closest('header,#drawer,.drawer,nav')||red(getComputedStyle(b).color)||dark(b.parentElement)){b.classList.add('scx-no');return;}
-      b.classList.add('scx-act');}
+      if(b.offsetHeight>64&&!b.closest('header,#drawer,.drawer,nav'))return 'scx-cardbtn';
+      if(t.length<3||b.offsetWidth<60||NOT.test(k)||b.closest('header,#drawer,.drawer,nav')||red(getComputedStyle(b).color)||dark(b.parentElement))return 'scx-no';
+      return 'scx-act';}
   function after(list){
-    list.forEach(function(e){if(e.tagName==='BUTTON'&&e.classList.contains('scx-cardbtn'))[].forEach.call(e.querySelectorAll('*'),function(x){var m=bg(x).match(/\d+/g);if(m&&(m.length<4||+m[3]>0.5)&&+m[2]>180&&+m[0]<120)x.classList.add('scx-onblue');});});
+    var ob=[];list.forEach(function(e){if(e.tagName==='BUTTON'&&e.classList.contains('scx-cardbtn'))[].forEach.call(e.querySelectorAll('*'),function(x){var m=bg(x).match(/\d+/g);if(m&&(m.length<4||+m[3]>0.5)&&+m[2]>180&&+m[0]<120)ob.push(x);});});ob.forEach(function(x){x.classList.add('scx-onblue');});
     list.forEach(function(e){if(e.children.length===0&&/^\d+$/.test((e.textContent||'').trim())&&e.closest('.scx-box')&&e.parentElement&&e.parentElement.querySelector('.scx-pm'))e.classList.add('scx-num');});
   }
+  function apply(cls,list){for(var i=0;i<list.length;i++)if(cls[i])list[i].classList.add(cls[i]);}
   function pass(list){
     var vw=innerWidth,vh=innerHeight;
-    list.forEach(function(e){tagBox(e,vw,vh);});
-    list.forEach(function(e){tagIn(e);});
-    list.forEach(function(e){if(e.tagName==='BUTTON')tagBtn(e);});
+    /* v5: each phase reads first, then adds its classes in one go (was: read, write, read... = a forced layout per element) */
+    apply(list.map(function(e){return tagBox(e,vw,vh);}),list);
+    apply(list.map(function(e){return tagIn(e);}),list);
+    var bs=list.filter(function(e){return e.tagName==='BUTTON';});apply(bs.map(tagBtn),bs);
     after(list);
   }
-  function run(){try{pass([].slice.call(document.querySelectorAll('body *')));}catch(err){}}
+  /* v5: the catch-up pass over the whole page runs in small slices when the phone is idle (was one 0.2-1 s block right after every change) */
+  var job=0,ric=window.requestIdleCallback?function(f){return requestIdleCallback(f,{timeout:800});}:function(f){return setTimeout(function(){f({timeRemaining:function(){return 8;}});},16);};
+  function run(){var my=++job,L,i=0;try{L=[].slice.call(document.querySelectorAll('body *'));}catch(err){return;}
+    (function step(dl){if(my!==job)return;var t=performance.now();try{while(i<L.length){var n=Math.min(L.length,i+120);var c=L.slice(i,n).filter(function(e){return e.isConnected;});i=n;if(c.length)pass(c);if(performance.now()-t>8||(dl&&dl.timeRemaining&&dl.timeRemaining()<2))break;}}catch(err){i=L.length;}
+      if(i<L.length)ric(step);})();}
   /* new nodes: tag them (and their insides) right away, before the browser draws them */
-  function runOn(roots){try{var list=[],seen=new Set();roots.forEach(function(r){if(!r.isConnected||seen.has(r))return;[r].concat([].slice.call(r.querySelectorAll('*'))).forEach(function(x){if(!seen.has(x)){seen.add(x);list.push(x);}});});if(list.length)pass(list);}catch(err){}}
+  function runOn(roots){try{var list=[],seen=new Set();roots.forEach(function(r){if(!r.isConnected||seen.has(r))return;if(r.checkVisibility&&!r.checkVisibility({contentVisibilityAuto:true}))return; /* v5: inside an off-screen card (not drawn): the idle pass tags it, no forced layout now */[r].concat([].slice.call(r.querySelectorAll('*'))).forEach(function(x){if(!seen.has(x)){seen.add(x);list.push(x);}});});if(list.length)pass(list);}catch(err){}}
   var tm;function soon(){clearTimeout(tm);tm=setTimeout(run,260);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
   try{new MutationObserver(function(ms){var roots=[];for(var i=0;i<ms.length;i++){var a=ms[i].addedNodes;for(var j=0;j<a.length;j++){var n=a[j];if(n.nodeType===1)roots.push(n);}}if(!roots.length)return;runOn(roots);soon();}).observe(document.documentElement,{childList:true,subtree:true});}catch(e){}
