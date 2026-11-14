@@ -1,10 +1,15 @@
 /* fix-motion.js (Hark, 2026-11-13, Dave's 35-item fix list: items 12, 17-28 = transitions, camera, customer search, back button, circles).
    Loaded by Index.html right after storm-clean-theme.js. Everything here is additive: CSS + capture-phase taps + observers.
    v1: 27 (Load on Truck job screen gets the N/M circle), 28 (Find a Job progress shows a N/M circle, blue -> green when complete).
-   v2: 17 (top bar slides away from the very first scroll, also on the launch snapshot), 18 (All Items | Needs Ordering pill slides, list fades over). */
+   v2: 17 (top bar slides away from the very first scroll, also on the launch snapshot), 18 (All Items | Needs Ordering pill slides, list fades over).
+   v3: 20 (Find a Job slides in like the other sheets, once its list is drawn), 21 + 22 (the camera's soft blur covers the main screen
+   while Find a Job hands over to Customer Search and while Customer Search and the Jobber quote swap), 23 (saved jobs filter on the
+   phone as you type, a late server answer never overwrites a newer search or an open job, clear "No customers match" wording),
+   24 (closing Find a Job and reopening it comes back to the same search, scroll spot or open job), 25 (Back on Customer Search when it
+   came from a job in Find a Job / Staging Job), 26 (the floating + stays on Item details). */
 (function () {
   if (window.__fixMotion) return; window.__fixMotion = 1;
-  var V = 2; var MC = 0;
+  var V = 3; var MC = 0;
   window.STORM_FIX_MOTION = V;
   var EASE = 'cubic-bezier(.32,.72,0,1)';
   function $(id) { return document.getElementById(id); }
@@ -24,6 +29,34 @@
     + '#list.fm-tabfade { transition: opacity .13s ease !important; opacity: 0 !important; }'
     + '#list.fm-tabin { transition: opacity .2s ease !important; }'
     + '@media (prefers-reduced-motion: reduce) { #topbar .tabs > .fm-pill.fm-go { transition: none; } }'
+    /* 26: Item details: the floating + (camera, cart, Customer Search...) stays with you instead of sliding away. Only Item details;
+       other pages, open sheets, the side menu and the label sheet still tuck it away as before. */
+    + 'html:not(#fma) body:has(#detail.detail-overlay.open):not(:has(.detail-overlay.open:not(#detail))):not(:has(.pick-sheet.open)):not(:has(.confirm-box.open)):not(:has(.drawer.open)):not(:has(#lbl-sheet.open)):not(.st-pre) #fab-dock.fab-dock { transform: none !important; opacity: 1 !important; pointer-events: auto !important; transition: transform .26s ' + EASE + ', opacity .22s ease !important; }'
+    + 'html:not(#fma) body:has(#detail.detail-overlay.open):not(:has(.detail-overlay.open:not(#detail))):not(:has(.pick-sheet.open)):not(:has(.confirm-box.open)):not(:has(.drawer.open)):not(:has(#lbl-sheet.open)):not(.st-pre) #fab-dock.fab-dock > #st-plus { pointer-events: auto !important; }'
+    + 'html:not(#fma) body:has(#detail.detail-overlay.open):not(:has(.detail-overlay.open:not(#detail))):not(:has(.pick-sheet.open)):not(:has(.confirm-box.open)):not(:has(.drawer.open)):not(:has(#lbl-sheet.open)):not(.st-pre) #fab-dock.fab-dock .cart-fab-total { opacity: 1 !important; }'
+    /* 20: Find a Job opens with the app's sheet slide (transform + opacity); the card waits (max ~0.45 s) until its list is drawn so it
+       never pops in half-built; the page behind gets the camera's soft blur (22) */
+    + 'html:not(#fma) body #job-find { opacity: 1 !important; isolation: isolate; background: transparent !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; transition: none !important; }'
+    + 'html:not(#fma) body #job-find::before { content: ""; position: fixed; inset: 0; z-index: -1; background: rgba(11,17,24,.30); -webkit-backdrop-filter: blur(18px) saturate(1.15); backdrop-filter: blur(18px) saturate(1.15); opacity: 0; transition: opacity .3s ' + EASE + '; pointer-events: none; }'
+    + 'html:not(#fma) body #job-find.on::before { opacity: 1; }'
+    + 'html:not(#fma) body #job-find .jf-card { opacity: 0; transform: translate3d(0,32px,0) !important; transition: transform .26s ' + EASE + ', opacity .2s ease !important; will-change: transform, opacity; }'
+    + 'html:not(#fma) body #job-find.on:not(.fm-wait) .jf-card { opacity: 1; transform: none !important; }'
+    + '#job-find .fm-sk { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 12px; border: 1.5px solid #E3E8EF; }'
+    + '#job-find .fm-sk span { flex: 1; min-width: 0; }'
+    + '#job-find .fm-sk i { display: block; height: 10px; margin: 6px 0; border-radius: 6px; background: linear-gradient(90deg,#EEF2F7 0,#F6F8FB 50%,#EEF2F7 100%); background-size: 200% 100%; animation: fmsk 1.2s ease-in-out infinite; }'
+    + '@keyframes fmsk { from { background-position: 100% 0; } to { background-position: -100% 0; } }'
+    + '#job-find .fm-none { padding: 18px 6px 6px; text-align: center; color: #374151; font-size: 15px; font-weight: 700; }'
+    + '#job-find .fm-none small { display: block; margin-top: 4px; color: #6B7280; font-size: 13px; font-weight: 500; }'
+    + '#job-find .fm-sec { font-size: 12px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: #6B7280; margin-top: 2px; }'
+    /* 22: one soft blur (the camera's) sits behind Customer Search and the Jobber quote, so switching never shows the main screen */
+    + '#fm-qfblur { position: fixed; inset: 0; z-index: 101; background: rgba(11,17,24,.30); -webkit-backdrop-filter: blur(18px) saturate(1.15); backdrop-filter: blur(18px) saturate(1.15); opacity: 0; pointer-events: none; transition: opacity .3s ' + EASE + '; }'
+    + 'body.mgr-qf #fm-qfblur, body.fm-bridge #fm-qfblur { opacity: 1; }'
+    /* 25: Back on Customer Search when it was opened from a job in Find a Job / Staging Job */
+    + '#pull-sheet .fm-back { position: absolute; left: 14px; top: 14px; z-index: 5; display: inline-flex; align-items: center; gap: 3px; height: 36px; padding: 0 14px 0 8px; border-radius: 18px; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.12); color: #fff; font: 700 14.5px/1 Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; letter-spacing: .1px; -webkit-tap-highlight-color: transparent; cursor: pointer; opacity: 0; transform: translateX(-6px); transition: opacity .22s ease, transform .26s ' + EASE + '; }'
+    + '#pull-sheet .fm-back.in { opacity: 1; transform: none; }'
+    + '#pull-sheet .fm-back svg { width: 18px; height: 18px; display: block; }'
+    + '#pull-sheet .fm-back.in:active { transform: scale(.94); background: rgba(255,255,255,.2); }'
+    + '@media (prefers-reduced-motion: reduce) { html:not(#fma) body #job-find .jf-card { transition: opacity .15s ease !important; transform: none !important; } }'
     /* 28: Find a Job: circle instead of "N of M" (bar stays) */
     + 'html body #job-find .tk-jp .tk-row { align-items: center !important; }'
     + 'html body #job-find .tk-jp .tk-row > span.fm-n { display: none !important; }'
@@ -123,8 +156,182 @@
   }, true);
   window.addEventListener('resize', function () { pill(false); });
 
+  /* ================= 20 / 23 / 24 / 25 / 21 / 22: Find a Job + Customer Search ================= */
+  function lc(t) { return String(t == null ? '' : t).replace(/\s+/g, ' ').trim().toLowerCase(); }
+  function qNow() { var q = $('jf-q'); return q ? q.value : ''; }
+  function escH(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  /* ---- 23: saved jobs answer from the phone at once (same matching as the server: every word in first + last + address),
+     the server's answer follows and only redraws if it differs; an answer for an older query never lands ---- */
+  var SJ = { all: null, full: false, pend: 0 };
+  try { var c227 = JSON.parse(localStorage.getItem('storm227:sj') || 'null'); var a227 = c227 && JSON.parse(c227.j); if (Array.isArray(a227)) { SJ.all = a227; SJ.full = a227.length < 40; } } catch (e) {}
+  function local(q) {
+    var w = lc(q).split(' ').filter(String);
+    return (SJ.all || []).filter(function (r) { var h = lc(r.first + ' ' + r.last + ' ' + r.address); return w.every(function (x) { return h.indexOf(x) !== -1; }); });
+  }
+  function sig(a) { return (Array.isArray(a) ? a : []).map(function (r) { return [r.id, r.first, r.last, r.address, r.lines, r.units, r.saved].join('|'); }).join('\n'); }
+  function openDetail() { var L = $('jf-list'); return !!(L && L.querySelector('.jf-detail')); }
+  function wrapRun(r, h) {
+    return new Proxy(r, { get: function (t, p) {
+      var v = t[p];
+      if (p === 'withSuccessHandler') return function (fn) { return wrapRun(v.call(t, fn), { s: fn, f: h.f, u: h.u }); };
+      if (p === 'withFailureHandler') return function (fn) { return wrapRun(v.call(t, fn), { s: h.s, f: fn, u: h.u }); };
+      if (p === 'withUserObject') return function (o) { return wrapRun(v.call(t, o), { s: h.s, f: h.f, u: o }); };
+      if (p === 'searchJobs') return function (q0) {
+        var q = String(q0 == null ? '' : q0), typed = !!lc(q), gave = null;
+        function cur() { return lc(qNow()) === lc(q); }
+        if (typed && SJ.all) { gave = local(q); setTimeout(function () { if (cur() && h.s) h.s(gave, h.u); }, 0); }
+        SJ.pend++; paintSoon23();
+        var rr = t.withSuccessHandler(function (res) {
+          SJ.pend = Math.max(0, SJ.pend - 1);
+          if (!typed && Array.isArray(res)) { SJ.all = res; SJ.full = res.length < 40; }
+          if (!cur()) { paintSoon23(); return; } /* the box has moved on: an older answer never redraws the list */
+          if (gave && (sig(gave) === sig(res) || openDetail())) { paintSoon23(); return; } /* same list, or a job is open: the late answer never pulls it shut */
+          if (h.s) h.s(res, h.u); paintSoon23();
+        }).withFailureHandler(function (e) { SJ.pend = Math.max(0, SJ.pend - 1); if (gave) { paintSoon23(); return; } if (h.f) h.f(e, h.u); });
+        return rr.searchJobs(q0);
+      };
+      return typeof v === 'function' ? v.bind(t) : v;
+    } });
+  }
+  (function install(n) {
+    var g = window.google && google.script;
+    if (!g || !g.run || typeof Proxy !== 'function' || (!window.__v233run && n < 60)) { if (n < 80) setTimeout(function () { install(n + 1); }, 250); return; }
+    if (window.__fmRun) return; window.__fmRun = 1;
+    var w = wrapRun(g.run, {});
+    try { g.run = w; } catch (e) {}
+    if (g.run !== w) { try { Object.defineProperty(g, 'run', { configurable: true, get: function () { return w; } }); } catch (e) {} }
+  })(0);
+  /* typing: the app waits 300 ms after each key; with the answer coming from the phone, 120 ms is enough */
+  var oST = null;
+  window.addEventListener('input', function (e) { if (e.target && e.target.id === 'jf-q' && !oST) { oST = window.setTimeout; window.setTimeout = function (f, ms) { return oST.call(window, f, ms === 300 ? 120 : ms); }; } }, true);
+  window.addEventListener('input', function () { if (oST) { window.setTimeout = oST; oST = null; } }, false);
+  document.addEventListener('input', function () { if (oST) { window.setTimeout = oST; oST = null; } }, false);
+
+  /* ---- 23: clear messages. Saved jobs = "In the app", Jobber jobs = "From Jobber"; one plain line when nothing matches ---- */
+  function paint23() {
+    var L = $('jf-list'); if (!L || L.querySelector(':scope > .jf-detail')) return;
+    var q = String(qNow()).trim(), em = [].slice.call(L.querySelectorAll(':scope > .jf-empty'));
+    var sv = null, jb = null, jbSec = null;
+    em.forEach(function (e) { var t = e.textContent || ''; if (/^No saved jobs/.test(t) || e.hasAttribute('data-fm-sv')) sv = e; else if (/^No (upcoming )?Jobber jobs/.test(t) || e.hasAttribute('data-fm-jb')) jb = e; });
+    [].forEach.call(L.querySelectorAll(':scope > .jf-sec'), function (x) { if (/jobber/i.test(x.textContent)) jbSec = x; });
+    if (jbSec && jbSec.style.display) jbSec.style.display = '';
+    var hasSv = !!L.querySelector(':scope > .jf-item[data-jf-i]'), hasJb = !!L.querySelector(':scope > .jf-item[data-jf-jb]');
+    var jbLoading = !!(jbSec && !hasJb && !jb && /Loading/.test(L.textContent || ''));
+    /* section label over the saved jobs */
+    var top = L.querySelector(':scope > .fm-sec');
+    var first = L.firstElementChild && L.firstElementChild.classList.contains('fm-sec') ? L.firstElementChild.nextElementSibling : L.firstElementChild;
+    if (hasSv) { if (!top) { top = document.createElement('div'); top.className = 'jf-sec fm-sec'; top.textContent = 'Started in the app'; L.insertBefore(top, L.firstChild); } }
+    else if (top) top.remove();
+    if (sv) {
+      sv.setAttribute('data-fm-sv', '');
+      if (SJ.pend && !SJ.all) { /* still loading: grey rows instead of "No saved jobs yet." */
+        if (!sv.querySelector('.fm-sk')) { sv.className = 'fm-skw'; sv.innerHTML = [0, 1].map(function () { return '<div class="fm-sk"><span><i style="width:55%"></i><i style="width:80%"></i></span></div>'; }).join(''); }
+      } else if (hasJb || jbLoading) { sv.style.display = 'none'; }
+      else if (q && jb) { sv.style.display = ''; sv.className = 'fm-none'; sv.innerHTML = 'No customers match \u201c' + escH(q) + '\u201d<small>Check the spelling, or try part of the name or the street.</small>'; jb.style.display = 'none'; if (jbSec) jbSec.style.display = 'none'; }
+      else if (q) { sv.style.display = ''; sv.className = 'jf-empty'; sv.textContent = 'Nothing started in the app for \u201c' + q + '\u201d.'; }
+      else { sv.style.display = ''; sv.className = 'jf-empty'; sv.textContent = 'No jobs started in the app yet.'; }
+    }
+    if (jb) { jb.setAttribute('data-fm-jb', ''); if (q && !(sv && sv.style.display !== 'none' && sv.classList.contains('fm-none'))) { var tx = 'No Jobber jobs match \u201c' + q + '\u201d.'; if (jb.textContent !== tx) jb.textContent = tx; } }
+  }
+  var p23 = 0; function paintSoon23() { if (!p23) p23 = requestAnimationFrame(function () { p23 = 0; try { paint23(); } catch (e) {} }); }
+
+  /* ---- 24: where Find a Job was left (search, scroll, the job that was open) ---- */
+  var ST = null, KS = 'fmFind24';
+  try { ST = JSON.parse(sessionStorage.getItem(KS) || 'null'); } catch (e) {}
+  function keep() { try { sessionStorage.setItem(KS, JSON.stringify(ST)); } catch (e) {} }
+  function rowKey(b) { if (!b) return null; var n = b.querySelector('.jf-name'), a = b.querySelector('.jf-addr'); return { jb: b.hasAttribute('data-jf-jb'), n: lc(n && n.childNodes[0] ? n.childNodes[0].textContent : n ? n.textContent : ''), a: lc(a ? a.textContent : '') }; }
+  function note(over) { var L = $('jf-list'); ST = Object.assign({ q: qNow(), y: L && !L.querySelector('.jf-detail') ? L.scrollTop : (ST && ST.y) || 0, d: (ST && ST.d) || null, t: Date.now(), x: 0 }, over || {}); keep(); }
+  document.addEventListener('scroll', function (e) { if (e.target && e.target.id === 'jf-list' && !e.target.querySelector('.jf-detail') && !restoring) note(); }, true);
+  window.addEventListener('input', function (e) { if (e.target && e.target.id === 'jf-q' && !restoring) note({ y: 0, d: null }); }, true);
+
+  /* ---- 20: open: card waits for its list, then slides in; 24: restore ---- */
+  var restoring = 0, openAt = 0;
+  function ready(L) { if (!L) return false; if (L.querySelector('.jf-detail')) return true; var t = L.textContent || ''; return !!L.querySelector('.jf-item') || (!/Loading saved jobs/.test(t) && !SJ.pend); }
+  function findRow(L, d) { var rows = L.querySelectorAll('.jf-item'); for (var i = 0; i < rows.length; i++) { var k = rowKey(rows[i]); if (k && k.jb === d.jb && k.n === d.n && (!d.a || k.a === d.a)) return rows[i]; } return null; }
+  function onOpen(w) {
+    if (w.__fm) return; w.__fm = 1; openAt = Date.now();
+    w.classList.add('fm-wait');
+    var st = ST && Date.now() - ST.t < 30 * 60e3 ? ST : null;
+    var want = st && (lc(st.q) || st.y > 0 || (st.d && st.x)) ? st : null;
+    restoring = want ? 1 : 0;
+    var t0 = Date.now(), done = false, q = $('jf-q');
+    if (want && q && lc(want.q)) { q.value = want.q; try { q.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {} }
+    if (want && q) q.addEventListener('focus', function bl() { q.removeEventListener('focus', bl); if (Date.now() - openAt < 900) try { q.blur(); } catch (e) {} });
+    function show() { if (done) return; done = true; requestAnimationFrame(function () { w.classList.remove('fm-wait'); }); setTimeout(function () { restoring = 0; }, 700); }
+    (function tick() {
+      if (!w.isConnected) return;
+      var L = $('jf-list');
+      var okQ = !want || (lc(qNow()) === lc(want.q) && (!lc(want.q) || Date.now() - t0 > 180));
+      if (ready(L) && okQ) {
+        if (want && want.d && want.x) { var r = findRow(L, want.d); if (r && !L.querySelector('.jf-detail')) { r.click(); } ST.x = 0; keep(); show(); return; }
+        if (want && want.y && L) { L.scrollTop = want.y; if (Date.now() - t0 < 600 && L.scrollTop < want.y - 2) { setTimeout(tick, 60); return; } }
+        show(); return;
+      }
+      if (Date.now() - t0 > 450) { show(); if (want && want.y && L) setTimeout(function () { var L2 = $('jf-list'); if (L2 && !L2.querySelector('.jf-detail')) L2.scrollTop = want.y; }, 300); return; }
+      setTimeout(tick, 30);
+    })();
+  }
+
+  /* ---- 25: Back on Customer Search ---- */
+  var BACK = null;
+  var BACKSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+  function pullOpen() { var s = $('pull-sheet'); return !!(s && s.classList.contains('open')); }
+  function paint25() {
+    var s = $('pull-sheet'); if (!s) return;
+    var b = s.querySelector(':scope > .fm-back');
+    if (!BACK || !pullOpen()) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('button'); b.type = 'button'; b.className = 'fm-back'; b.setAttribute('aria-label', 'Back to Find a Job'); b.innerHTML = BACKSVG + '<span>Back</span>'; s.insertBefore(b, s.firstChild); requestAnimationFrame(function () { requestAnimationFrame(function () { b.classList.add('in'); }); }); }
+    var x = s.querySelector('[data-pull-close]');
+    if (x) { var rx = x.getBoundingClientRect(), rs = s.getBoundingClientRect(), tp = Math.round(rx.top - rs.top + (rx.height - 36) / 2) + 'px'; if (rx.height && b.style.top !== tp) b.style.top = tp; }
+  }
+  function openFindNow() {
+    var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-jc-find', '1');
+    b.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none';
+    document.body.appendChild(b); try { b.click(); } finally { b.remove(); }
+  }
+
+  /* ---- taps ---- */
+  window.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var f = t.closest('#job-find');
+    if (f) {
+      var row = t.closest('.jf-item');
+      if (row) { note({ d: rowKey(row), x: 0 }); return; }
+      if (t.closest('[data-jf-back]')) { note({ d: null, x: 0 }); return; }
+      if (t.closest('[data-jf-close]') || t === f) { if (ST) { ST.x = ST.d && f.querySelector('.jf-detail') ? 1 : 0; ST.t = Date.now(); keep(); } return; } /* 24: X by accident: come back to the same job */
+      if (t.closest('[data-jf-jb-load], [data-jf-edit], [data-jf-load]')) {
+        BACK = { d: ST && ST.d, t: Date.now() };
+        /* 21 / 22: the soft blur stays up while Find a Job slides away and Customer Search slides in, so the main screen never flashes */
+        document.body.classList.add('fm-bridge'); clearTimeout(window.__fmBr); window.__fmBr = setTimeout(function () { document.body.classList.remove('fm-bridge'); }, 1100);
+        setTimeout(paint25, 60); setTimeout(paint25, 400);
+        return;
+      }
+      return;
+    }
+    if (t.closest('#pull-sheet .fm-back')) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (ST && BACK) { ST.d = BACK.d; ST.x = BACK.d ? 1 : 0; ST.t = Date.now(); keep(); }
+      openFindNow(); return;
+    }
+    if (t.closest('[data-jc-clear], [data-x199-c]')) { BACK = null; setTimeout(paint25, 0); }
+  }, true);
+
+  /* blur layer for 22 */
+  function blurEl() { if ($('fm-qfblur') || !document.body) return; var d = document.createElement('div'); d.id = 'fm-qfblur'; d.setAttribute('aria-hidden', 'true'); document.body.appendChild(d); }
+
+  if (window.MutationObserver) new MutationObserver(function (ms) {
+    for (var i = 0; i < ms.length; i++) {
+      var m = ms[i];
+      for (var j = 0; j < m.addedNodes.length; j++) { var n = m.addedNodes[j]; if (n.nodeType === 1 && n.id === 'job-find') onOpen(n); }
+      if (m.target && m.target.id === 'jf-list' && m.type === 'childList') { try { paint23(); } catch (e) {} }
+      if (m.target && m.target.id === 'pull-sheet' && m.type === 'attributes') { if (!pullOpen()) BACK = null; paint25(); }
+    }
+  }).observe(document.body || document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  (function boot(n) { if (document.body) { blurEl(); return; } if (n < 40) setTimeout(function () { boot(n + 1); }, 100); })(0);
+
   var q = 0;
-  function paintAll() { q = 0; try { paint28(); } catch (e) {} try { paint27(); } catch (e) {} try { pill(); } catch (e) {} }
+  function paintAll() { q = 0; try { paint28(); } catch (e) {} try { paint27(); } catch (e) {} try { pill(); } catch (e) {} try { paint25(); } catch (e) {} }
   function soon() { if (!q) q = requestAnimationFrame(paintAll); }
   if (window.MutationObserver) new MutationObserver(function (ms) {
     MC += ms.length; window.__fmMC = MC;
