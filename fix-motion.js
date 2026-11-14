@@ -6,10 +6,11 @@
    while Find a Job hands over to Customer Search and while Customer Search and the Jobber quote swap), 23 (saved jobs filter on the
    phone as you type, a late server answer never overwrites a newer search or an open job, clear "No customers match" wording),
    24 (closing Find a Job and reopening it comes back to the same search, scroll spot or open job), 25 (Back on Customer Search when it
-   came from a job in Find a Job / Staging Job), 26 (the floating + stays on Item details). */
+   came from a job in Find a Job / Staging Job), 26 (the floating + stays on Item details).
+   v4: 23 follow-up: when nothing matches, one line "No customers match ..." (the empty From Jobber heading under it is hidden). */
 (function () {
   if (window.__fixMotion) return; window.__fixMotion = 1;
-  var V = 3; var MC = 0;
+  var V = 4; var MC = 0;
   window.STORM_FIX_MOTION = V;
   var EASE = 'cubic-bezier(.32,.72,0,1)';
   function $(id) { return document.getElementById(id); }
@@ -209,13 +210,14 @@
   document.addEventListener('input', function () { if (oST) { window.setTimeout = oST; oST = null; } }, false);
 
   /* ---- 23: clear messages. Saved jobs = "In the app", Jobber jobs = "From Jobber"; one plain line when nothing matches ---- */
+  function hide(e, on) { if (!e) return; if (on) { if (!e.hasAttribute('data-fm-h')) { e.setAttribute('data-fm-h', ''); e.style.setProperty('display', 'none', 'important'); } } else if (e.hasAttribute('data-fm-h')) { e.removeAttribute('data-fm-h'); e.style.removeProperty('display'); } }
   function paint23() {
     var L = $('jf-list'); if (!L || L.querySelector(':scope > .jf-detail')) return;
-    var q = String(qNow()).trim(), em = [].slice.call(L.querySelectorAll(':scope > .jf-empty'));
+    var q = String(qNow()).trim(), em = [].slice.call(L.querySelectorAll(':scope > .jf-empty, :scope > [data-fm-sv], :scope > [data-fm-jb]'));
     var sv = null, jb = null, jbSec = null;
     em.forEach(function (e) { var t = e.textContent || ''; if (/^No saved jobs/.test(t) || e.hasAttribute('data-fm-sv')) sv = e; else if (/^No (upcoming )?Jobber jobs/.test(t) || e.hasAttribute('data-fm-jb')) jb = e; });
     [].forEach.call(L.querySelectorAll(':scope > .jf-sec'), function (x) { if (/jobber/i.test(x.textContent)) jbSec = x; });
-    if (jbSec && jbSec.style.display) jbSec.style.display = '';
+    var hideSec = false;
     var hasSv = !!L.querySelector(':scope > .jf-item[data-jf-i]'), hasJb = !!L.querySelector(':scope > .jf-item[data-jf-jb]');
     var jbLoading = !!(jbSec && !hasJb && !jb && /Loading/.test(L.textContent || ''));
     /* section label over the saved jobs */
@@ -227,12 +229,13 @@
       sv.setAttribute('data-fm-sv', '');
       if (SJ.pend && !SJ.all) { /* still loading: grey rows instead of "No saved jobs yet." */
         if (!sv.querySelector('.fm-sk')) { sv.className = 'fm-skw'; sv.innerHTML = [0, 1].map(function () { return '<div class="fm-sk"><span><i style="width:55%"></i><i style="width:80%"></i></span></div>'; }).join(''); }
-      } else if (hasJb || jbLoading) { sv.style.display = 'none'; }
-      else if (q && jb) { sv.style.display = ''; sv.className = 'fm-none'; sv.innerHTML = 'No customers match \u201c' + escH(q) + '\u201d<small>Check the spelling, or try part of the name or the street.</small>'; jb.style.display = 'none'; if (jbSec) jbSec.style.display = 'none'; }
-      else if (q) { sv.style.display = ''; sv.className = 'jf-empty'; sv.textContent = 'Nothing started in the app for \u201c' + q + '\u201d.'; }
-      else { sv.style.display = ''; sv.className = 'jf-empty'; sv.textContent = 'No jobs started in the app yet.'; }
+      } else if (hasJb || jbLoading) { hide(sv, 1); }
+      else if (q && jb) { hide(sv, 0); sv.className = 'fm-none'; var nh = 'No customers match \u201c' + escH(q) + '\u201d<small>Check the spelling, or try part of the name or the street.</small>'; if (sv.__h !== nh) { sv.__h = nh; sv.innerHTML = nh; } hide(jb, 1); if (jbSec) hideSec = true; }
+      else if (q) { hide(sv, 0); sv.className = 'jf-empty'; sv.textContent = 'Nothing started in the app for \u201c' + q + '\u201d.'; }
+      else { hide(sv, 0); sv.className = 'jf-empty'; sv.textContent = 'No jobs started in the app yet.'; }
     }
-    if (jb) { jb.setAttribute('data-fm-jb', ''); if (q && !(sv && sv.style.display !== 'none' && sv.classList.contains('fm-none'))) { var tx = 'No Jobber jobs match \u201c' + q + '\u201d.'; if (jb.textContent !== tx) jb.textContent = tx; } }
+    hide(jbSec, hideSec);
+    if (jb) { jb.setAttribute('data-fm-jb', ''); if (q && !(sv && !sv.hasAttribute('data-fm-h') && sv.classList.contains('fm-none'))) { var tx = 'No Jobber jobs match \u201c' + q + '\u201d.'; if (jb.textContent !== tx) jb.textContent = tx; } }
   }
   var p23 = 0; function paintSoon23() { if (!p23) p23 = requestAnimationFrame(function () { p23 = 0; try { paint23(); } catch (e) {} }); }
 
